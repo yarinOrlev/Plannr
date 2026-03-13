@@ -1,6 +1,6 @@
 import React from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { BarChart3, Activity, AlertCircle, CheckCircle2, TrendingUp } from 'lucide-react';
+import { BarChart3, Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
 import './Dashboard.css';
 
 const StatCard = ({ title, value, label, icon, trend, type }) => (
@@ -35,7 +35,6 @@ const Dashboard = () => {
           <h1 className="text-h1 mb-2">ברוכים הבאים 👋</h1>
           <p className="text-secondary text-lg">סקירה עבור <strong className="text-primary">{activeProduct.name}</strong></p>
         </div>
-        <button className="btn btn-primary"><TrendingUp size={18} /> הורדת דוח</button>
       </header>
 
       <section className="dashboard-grid">
