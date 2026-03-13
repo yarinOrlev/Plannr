@@ -184,6 +184,20 @@ export const ProductProvider = ({ children }) => {
     }));
   };
 
+  const updateFeature = (id, updates) => {
+    setData(prev => ({
+      ...prev,
+      features: prev.features.map(f => f.id === id ? { ...f, ...updates } : f)
+    }));
+  };
+
+  const deleteFeature = (id) => {
+    setData(prev => ({
+      ...prev,
+      features: prev.features.filter(f => f.id !== id)
+    }));
+  };
+
   const addObjective = (objective) => {
     setData(prev => ({
       ...prev,
@@ -356,6 +370,8 @@ export const ProductProvider = ({ children }) => {
     setActiveProduct,
     addProduct,
     addFeature,
+    updateFeature,
+    deleteFeature,
     addObjective,
     updateStrategy,
     addDoc,

@@ -109,3 +109,124 @@
   }
 }
 
+/* ── Tab Navigation ── */
+.tab-navigation {
+  display: flex;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1px;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  color: var(--accent-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.tab-btn.active {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+/* ── Unified Timeline ── */
+.unified-timeline-container {
+  overflow: hidden;
+}
+
+.timeline-grid-header {
+  display: grid;
+  grid-template-columns: 200px repeat(3, 1fr);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.product-col-header, .month-col-header {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+.product-col-header {
+  text-align: right;
+  border-left: 1px solid var(--border-color);
+}
+
+.timeline-product-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color var(--transition-fast);
+}
+
+.timeline-product-row:hover {
+  background-color: var(--bg-secondary);
+}
+
+.product-name-cell {
+  padding: 1.25rem 1rem;
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+}
+
+.timeline-slots-container {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: 100%;
+}
+
+.month-slot {
+  height: 100%;
+  border-left: 1px dashed var(--border-color);
+}
+
+.month-slot:last-child {
+  border-left: none;
+}
+
+.unified-roadmap-block {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 32px;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+  overflow: hidden;
+}
+
+.block-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+

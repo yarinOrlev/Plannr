@@ -57,3 +57,51 @@
 .table-responsive::-webkit-scrollbar {
   height: 6px;
 }
+
+/* ── Enhanced UI Elements ── */
+.info-tooltip-trigger {
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity var(--transition-fast);
+}
+
+.info-tooltip-trigger:hover {
+  opacity: 0.7;
+}
+
+.score-badge {
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.badge-pink {
+  background-color: #FDF2F8;
+  color: #BE185D;
+  border: 1px solid #FCE7F3;
+}
+
+.badge-indigo {
+  background-color: #EEF2FF;
+  color: #4338CA;
+  border: 1px solid #E0E7FF;
+}
+
+.editing-row {
+  background-color: var(--accent-primary-light) !important;
+}
+
+.edit-form-container {
+  border: 2px solid var(--accent-primary);
+  box-shadow: var(--shadow-lg);
+}
+
+.prioritization-table th {
+  user-select: none;
+}
+
+.prioritization-table th .flex-center {
+  height: 100%;
+}

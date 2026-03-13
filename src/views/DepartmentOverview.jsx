@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, MessageSquare, CheckCircle, Clock, Plus, ChevronRight, LayoutDashboard, Map, List, ChevronDown, ChevronUp } from 'lucide-react';
+import { Briefcase, MessageSquare, CheckCircle, Clock, Plus, ChevronRight, LayoutDashboard, Map, List, ChevronDown, ChevronUp, Calendar, Filter } from 'lucide-react';
 import './DepartmentOverview.css';
+
+const QUARTERS = {
+  'Q1': ['ינואר', 'פברואר', 'מרץ'],
+  'Q2': ['אפריל', 'מאי', 'יוני'],
+  'Q3': ['יולי', 'אוגוסט', 'ספטמבר'],
+  'Q4': ['אוקטובר', 'נובמבר', 'דצמבר']
+};
 
 const DepartmentOverview = () => {
   const { data, addReview, updateReviewStatus, setActiveProduct } = useProductContext();
@@ -11,6 +18,9 @@ const DepartmentOverview = () => {
   const [expandingProductItems, setExpandingProductItems] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [newNote, setNewNote] = useState('');
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'timeline'
+  const [timelineQuarter, setTimelineQuarter] = useState('Q3');
+  const [timelineYear, setTimelineYear] = useState('2026');
 
   const products = data.products || [];
   const allReviews = data.reviews || [];
@@ -49,6 +59,24 @@ const DepartmentOverview = () => {
           <p className="text-secondary text-lg">סקירת כלל המוצרים, מפות הדרכים ומשוב מנהלים</p>
         </div>
       </header>
+
+      <div className="tab-navigation mb-6">
+        <button 
+          className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('overview')}
+        >
+          <LayoutDashboard size={18} /> סקירה כללית
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'timeline' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('timeline')}
+        >
+          <Calendar size={18} /> מפת דרכים מאוחדת
+        </button>
+      </div>
+
+      {activeTab === 'overview' ? (
+        <>
 
       <div className="stats-grid mb-6">
         <div className="stat-card glass-panel">
@@ -246,6 +274,102 @@ const DepartmentOverview = () => {
           </tbody>
         </table>
       </div>
+        </>
+      ) : (
+        <div className="unified-timeline-container glass-panel p-6 animate-fade-in">
+          <div className="timeline-controls flex-between mb-8">
+            <h3 className="text-h3 flex-center gap-2">
+              <Calendar size={20} className="text-indigo" /> ציר זמן מחלקתי — {timelineQuarter} {timelineYear}
+            </h3>
+            <div className="flex-center gap-3">
+              <div className="flex-center gap-2">
+                <Filter size={14} className="text-tertiary" />
+                <select 
+                  className="modal-input" 
+                  style={{ width: '100px', height: '36px', padding: '0 0.5rem' }}
+                  value={timelineQuarter}
+                  onChange={(e) => setTimelineQuarter(e.target.value)}
+                >
+                  {Object.keys(QUARTERS).map(q => <option key={q} value={q}>{q}</option>)}
+                </select>
+                <select 
+                  className="modal-input" 
+                  style={{ width: '100px', height: '36px', padding: '0 0.5rem' }}
+                  value={timelineYear}
+                  onChange={(e) => setTimelineYear(e.target.value)}
+                >
+                  <option value="2026">2026</option>
+                  <option value="2027">2027</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="unified-timeline-grid">
+            {/* Header row with months */}
+            <div className="timeline-grid-header">
+              <div className="product-col-header">מוצר</div>
+              {QUARTERS[timelineQuarter].map(month => (
+                <div key={month} className="month-col-header">{month}</div>
+              ))}
+            </div>
+
+            {/* Product rows */}
+            <div className="timeline-grid-rows">
+              {products.map(product => {
+                const productRoadmaps = data.roadmaps.filter(r => 
+                  r.productId === product.id && 
+                  r.bucket === 'Timeline' && 
+                  r.quarter === timelineQuarter && 
+                  r.year === timelineYear
+                );
+
+                return (
+                  <div key={product.id} className="timeline-product-row">
+                    <div className="product-name-cell">
+                      <span className="font-semibold text-sm">{product.name}</span>
+                    </div>
+                    <div className="timeline-slots-container">
+                      <div className="month-slot"></div>
+                      <div className="month-slot"></div>
+                      <div className="month-slot"></div>
+                      
+                      {productRoadmaps.map(item => (
+                        <div 
+                          key={item.id} 
+                          className="unified-roadmap-block i-bg-indigo"
+                          style={{ 
+                            left: `calc(${(item.startMonth / 3) * 100}% + 4px)`, 
+                            width: `calc(${(item.duration / 3) * 100}% - 8px)`
+                          }}
+                          title={`${item.title} (${item.duration} חודשים)`}
+                        >
+                          <div className="block-content">
+                            <span className="block-title">{item.title}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {products.length === 0 && (
+                <div className="empty-state py-10">
+                  <p className="text-secondary">אין מוצרים להצגה</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="timeline-legend mt-8 pt-4 border-t border-color flex-center gap-6">
+            <div className="flex-center gap-2">
+              <div className="legend-dot i-bg-indigo"></div>
+              <span className="text-xs text-secondary">פעילות מתוכננת</span>
+            </div>
+            <p className="text-xs text-tertiary">* מפת הדרכים המאוחדת מציגה פריטים מסוג Timeline בלבד</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
