@@ -1,0 +1,114 @@
+.floating-note-wrapper {
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.floating-bubble-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), var(--shadow-lg);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: none;
+}
+
+.floating-bubble-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15), var(--shadow-lg);
+}
+
+.floating-bubble-btn.active {
+  background: var(--text-primary);
+  transform: rotate(-15deg);
+}
+
+.note-popup {
+  width: 280px;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xl);
+  transform-origin: bottom left;
+}
+
+.note-popup-header {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.note-popup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.note-input-title {
+  width: 100%;
+  background: transparent;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0.25rem 0;
+  outline: none;
+  direction: rtl;
+}
+
+.note-input-content {
+  width: 100%;
+  min-height: 100px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  direction: rtl;
+}
+
+.note-input-content:focus {
+  border-color: var(--accent-primary);
+}
+
+.btn-send-note {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-send-note:hover {
+  transform: scale(1.1);
+  background: var(--accent-primary-hover);
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out forwards;
+}

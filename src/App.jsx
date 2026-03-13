@@ -10,12 +10,14 @@ import Documentation from './views/Documentation';
 import Notes from './views/Notes';
 import Customers from './views/Customers';
 import DepartmentOverview from './views/DepartmentOverview';
+import FloatingNoteBubble from './components/FloatingNoteBubble';
 
 function App() {
   return (
     <Router>
       <div className="app-container">
         <Sidebar />
+        <FloatingNoteBubble />
         
         <main className="main-content">
           <Header />
