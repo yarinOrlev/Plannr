@@ -21,7 +21,7 @@ const StrategyCard = ({ item, colorClass, icon, onEdit }) => (
   </div>
 );
 
-const TYPE_LABELS = { Problem: 'בעיה', People: 'קהל יעד', Product: 'הפתרון' };
+const TYPE_LABELS = { Problem: 'בעיה', People: 'קהל יעד', Product: 'הפתרון', Vision: 'חזון' };
 
 const Strategy = () => {
   const { 
@@ -54,11 +54,20 @@ const Strategy = () => {
   const problem = getStrategyItem('Problem');
   const people  = getStrategyItem('People');
   const product = getStrategyItem('Product');
+  const vision  = activeStrategy.find(s => s.type === 'Vision');
 
   const handleSave = () => {
-    if (!editItem?.title?.trim()) return;
-    updateStrategy(editItem.type, editItem.title, editItem.description);
+    if (!editItem?.title?.trim() && editItem?.type !== 'Vision') return;
+    updateStrategy(editItem.type, editItem.title || '', editItem.description);
     setEditItem(null);
+  };
+
+  const handleEditVision = () => {
+    setEditItem({
+      type: 'Vision',
+      title: 'חזון המוצר',
+      description: vision?.description || ''
+    });
   };
 
   return (
@@ -78,15 +87,17 @@ const Strategy = () => {
               <button className="btn-icon" onClick={() => setEditItem(null)}><X size={18} /></button>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
+              {editItem.type !== 'Vision' && (
+                <div>
+                  <label className="text-sm text-secondary block mb-1">כותרת</label>
+                  <input autoFocus type="text" className="modal-input" value={editItem.title}
+                    onChange={e => setEditItem({...editItem, title: e.target.value})} placeholder="כותרת קצרה..." />
+                </div>
+              )}
               <div>
-                <label className="text-sm text-secondary block mb-1">כותרת</label>
-                <input autoFocus type="text" className="modal-input" value={editItem.title}
-                  onChange={e => setEditItem({...editItem, title: e.target.value})} placeholder="כותרת קצרה..." />
-              </div>
-              <div>
-                <label className="text-sm text-secondary block mb-1">תיאור</label>
-                <textarea className="modal-input" rows={4} value={editItem.description}
-                  onChange={e => setEditItem({...editItem, description: e.target.value})} placeholder="פרטים נוספים..." />
+                <label className="text-sm text-secondary block mb-1">{editItem.type === 'Vision' ? 'טקסט החזון' : 'תיאור'}</label>
+                <textarea autoFocus={editItem.type === 'Vision'} className="modal-input" rows={6} value={editItem.description}
+                  onChange={e => setEditItem({...editItem, description: e.target.value})} placeholder={editItem.type === 'Vision' ? "כתוב כאן את חזון המוצר המלא..." : "פרטים נוספים..."} />
               </div>
             </div>
             <div className="flex-between mt-6">
@@ -103,15 +114,26 @@ const Strategy = () => {
         <StrategyCard item={product} icon={<Lightbulb size={24}/>}     colorClass="bg-green" onEdit={setEditItem}/>
       </div>
       <div className="vision-section glass-panel">
-        <div className="vision-header">
-          <Compass size={26} />
-          <h2 className="text-h2">חזון המוצר</h2>
+        <div className="vision-header-container">
+          <div className="vision-header">
+            <Compass size={26} />
+            <h2 className="text-h2">חזון המוצר</h2>
+          </div>
+          <button className="btn-icon" onClick={handleEditVision} title="עריכת חזון">
+            <Pencil size={18} />
+          </button>
         </div>
         <p className="vision-text text-lg text-secondary leading-relaxed">
-          עבור <strong className="text-primary">{people.title}</strong> הנאבקים עם{' '}
-          <strong className="text-primary">{problem.title}</strong>,{' '}
-          <strong className="text-primary">{activeProduct.name}</strong> מספק{' '}
-          <em>{product.description}</em>.
+          {vision?.description ? (
+            vision.description
+          ) : (
+            <>
+              עבור <strong className="text-primary">{people.title}</strong> הנאבקים עם{' '}
+              <strong className="text-primary">{problem.title}</strong>,{' '}
+              <strong className="text-primary">{activeProduct.name}</strong> מספק{' '}
+              <em>{product.description}</em>.
+            </>
+          )}
         </p>
       </div>
 

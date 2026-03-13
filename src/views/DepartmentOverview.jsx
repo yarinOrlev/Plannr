@@ -205,7 +205,7 @@ const DepartmentOverview = () => {
         })}
       </div>
 
-      <div className="recent-reviews-section glass-panel mt-8 p-6">
+      <div className="recent-reviews-section glass-panel mt-12 p-6">
         <h3 className="text-h3 mb-4">כלל הביקורות האחרונות</h3>
         <table className="prioritization-table w-full">
           <thead>

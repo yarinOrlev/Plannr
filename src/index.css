@@ -313,9 +313,15 @@ body.dark .badge-gray   { background: rgba(148, 163, 184, 0.1); color: #94A3B8; 
 .mt-2 { margin-top:0.5rem; }
 .mt-4 { margin-top:1rem; }
 .mt-6 { margin-top:1.5rem; }
+.mt-8 { margin-top:2rem; }
+.mt-10 { margin-top:2.5rem; }
+.mt-12 { margin-top:3rem; }
 .mb-2 { margin-bottom:0.5rem; }
 .mb-4 { margin-bottom:1rem; }
 .mb-6 { margin-bottom:1.5rem; }
+.mb-8 { margin-bottom:2rem; }
+.mb-10 { margin-bottom:2.5rem; }
+.mb-12 { margin-bottom:3rem; }
 .p-6  { padding:1.5rem; }
 .w-full { width:100%; }
 
