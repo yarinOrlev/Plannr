@@ -1,0 +1,59 @@
+.prioritization-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.prioritization-container {
+  overflow: hidden;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.prioritization-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: right; /* RTL alignment */
+}
+
+.prioritization-table th {
+  background-color: var(--bg-secondary);
+  padding: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.prioritization-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.prioritization-table tr:last-child td {
+  border-bottom: none;
+}
+
+.prioritization-table tr:hover {
+  background-color: #F9FAFB;
+}
+
+/* ── Align numeric columns ── */
+.prioritization-table th:not(:first-child),
+.prioritization-table td:not(:first-child) {
+  text-align: center;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
