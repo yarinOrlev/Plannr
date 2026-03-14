@@ -32,7 +32,7 @@ const Prioritization = () => {
   const [sortDir, setSortDir] = useState('desc');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [newFeature, setNewFeature] = useState({ title:'', reach:1, impact:1, confidence:1, effort:1, objectiveId: '', teams: [] });
+  const [newFeature, setNewFeature] = useState({ title:'', reach:1, impact:1, confidence:1, effort:1, objective_id: '', teams: [] });
   const [selectedTeams, setSelectedTeams] = useState([]);
 
   if (!activeProduct) return null;
@@ -53,7 +53,7 @@ const Prioritization = () => {
       impact: f.impact,
       confidence: f.confidence,
       effort: f.effort,
-      objectiveId: f.objectiveId || '',
+      objective_id: f.objective_id || '',
       teams: f.teams || []
     });
     setSelectedTeams(f.teams || []);
@@ -80,14 +80,14 @@ const Prioritization = () => {
     if (editingId) {
       updateFeature(editingId, { ...newFeature, teams: selectedTeams });
     } else {
-      addFeature({ ...newFeature, productId: activeProduct.id, status:'Planned', teams: selectedTeams });
+      addFeature({ ...newFeature, product_id: activeProduct.id, status:'Planned', teams: selectedTeams });
     }
     
     resetForm();
   };
 
   const resetForm = () => {
-    setNewFeature({ title:'', reach:1, impact:1, confidence:1, effort:1, objectiveId: '', teams: [] });
+    setNewFeature({ title:'', reach:1, impact:1, confidence:1, effort:1, objective_id: '', teams: [] });
     setSelectedTeams([]);
     setEditingId(null);
     setShowAddForm(false);
@@ -146,8 +146,8 @@ const Prioritization = () => {
               <label className="text-sm text-secondary block mb-1">יעד קשור (OKR)</label>
               <select 
                 style={inputStyle} 
-                value={newFeature.objectiveId} 
-                onChange={e => setNewFeature({...newFeature, objectiveId: e.target.value})}
+                value={newFeature.objective_id} 
+                onChange={e => setNewFeature({...newFeature, objective_id: e.target.value})}
               >
                 <option value="">ללא יעד</option>
                 {objectives.map(obj => (
@@ -220,9 +220,9 @@ const Prioritization = () => {
                     </div>
                   </td>
                   <td>
-                    {f.objectiveId ? (
+                    {f.objective_id ? (
                       <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>
-                        {objectives.find(o => o.id === f.objectiveId)?.title || 'יעד לא ידוע'}
+                        {objectives.find(o => o.id === f.objective_id)?.title || 'יעד לא ידוע'}
                       </span>
                     ) : <span className="text-xs text-tertiary">-</span>}
                   </td>

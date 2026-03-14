@@ -95,7 +95,7 @@ const Objectives = () => {
     e.preventDefault();
     if (!form.title.trim()) return;
     addObjective({ 
-      productId:activeProduct.id, 
+      product_id:activeProduct.id, 
       title:form.title, 
       progress:Number(form.progress), 
       quarter:form.quarter, 
@@ -183,7 +183,7 @@ const Objectives = () => {
             <ObjectiveCard 
               key={obj.id} 
               objective={obj} 
-              linkedFeatures={activeFeatures.filter(f => f.objectiveId === obj.id)}
+              linkedFeatures={activeFeatures.filter(f => f.objective_id === obj.id)}
             />
           ))}
           {filtered.length === 0 && (

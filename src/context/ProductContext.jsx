@@ -1,107 +1,31 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
+import { useAuth } from './AuthContext';
 
 const ProductContext = createContext();
 
-// Initial dummy data for the application
+// Initial dummy data for the application (will be used as fallback/seed)
 const defaultData = {
-  products: [
-    { id: 'prod_1', name: 'מערכת ניהול לקוחות (CRM)', description: 'פלטפורמה מרכזית לניהול קשרי לקוחות ותהליכי מכירה.' },
-    { id: 'prod_2', name: 'אפליקציית משלוחים', description: 'פתרון לוגיסטי לניהול משלוחים בזמן אמת.' }
-  ],
-  activeProductId: 'prod_1',
-  strategy: [
-    { id: 'strat_1', productId: 'prod_1', type: 'Problem', title: 'פיזור נתונים וחוסר סדר', description: 'צוותי המכירות מתקשים לעקוב אחרי לידים בשל שימוש במספר מערכות נפרדות.' },
-    { id: 'strat_2', productId: 'prod_1', type: 'People', title: 'צוותי מכירות ותמיכה', description: 'אנשי מקצוע הזקוקים לתמונת 360 מעלות על הלקוח.' },
-    { id: 'strat_3', productId: 'prod_1', type: 'Product', title: 'פלטפורמת Unified CRM', description: 'ריכוז כלל האינטראקציות עם הלקוח במקום אחד עם אוטומציות חכמות.' }
-  ],
-  features: [
-    { id: 'feat_1', productId: 'prod_1', title: 'אינטגרציה עם WhatsApp', reach: 9, impact: 10, confidence: 8, effort: 7, status: 'Planned', objectiveId: 'obj_1', teams: ['Core', 'Mobile'] },
-    { id: 'feat_2', productId: 'prod_1', title: 'לוח בקרה למנהלים', reach: 7, impact: 8, confidence: 9, effort: 5, status: 'In Progress', objectiveId: 'obj_2', teams: ['Frontend'] },
-    { id: 'feat_3', productId: 'prod_1', title: 'ייצוא דוחות לאקסל', reach: 10, impact: 5, confidence: 10, effort: 2, status: 'Done', teams: ['Backend'] }
-  ],
-  kpis: [
-    { id: 'kpi_1', productId: 'prod_1', title: 'זמן תגובה ממוצע', value: '4.2 דק\'', target: '< 5 דק\'', trend: 15 },
-    { id: 'kpi_2', productId: 'prod_1', title: 'שיעור המרת לידים', value: '12.5%', target: '> 10%', trend: 4.5 }
-  ],
-  roadmaps: [
-    { id: 'rm_1', productId: 'prod_1', boardId: 'board_default', title: 'ממשק שיחות צ\'אט', bucket: 'Now', description: 'פיתוח ממשק מאוחד לניהול שיחות וואטסאפ וסמס.' },
-    { id: 'rm_2', productId: 'prod_1', boardId: 'board_default', title: 'מערכת תזכורות אוטו\'', bucket: 'Next', description: 'שליחת תזכורות אוטומטיות ללקוחות לפני פגישות.' },
-    { id: 'rm_3', productId: 'prod_1', boardId: 'board_default', title: 'חיבור ל-QuickBooks', bucket: 'Later', description: 'סנכרון חשבוניות ותשלומים ישירות ל-CRM.' }
-  ],
-  objectives: [
-    { id: 'obj_1', productId: 'prod_1', title: 'שיפור חווית תקשורת', progress: 45, quarter: 'Q3 2026', teams: ['Core', 'Mobile'], keyResults: [{ title: 'הטמעת 3 ערוצי צ\'אט', progress: 60 }, { title: 'צמצום זמן מענה ב-20%', progress: 30 }] },
-    { id: 'obj_2', productId: 'prod_1', title: 'הגדלת מעורבות מנהלים', progress: 70, quarter: 'Q3 2026', teams: ['Design', 'Frontend'], keyResults: [{ title: 'השקת לוח בקרה חדש', progress: 100 }, { title: '100% שימוש שבועי במערכת', progress: 40 }] }
-  ],
-  documentation: [
-    { 
-      id: 'doc_1', 
-      title: 'תעדוף מוצרים במודל RICE', 
-      type: 'Reference', 
-      updatedAt: '2026-03-13', 
-      content: 'מודל RICE הוא כלי לקביעת סדר עדיפויות המורכב מארבעה גורמים: Reach (תפוצה), Impact (אימפקט), Confidence (ביטחון) ו-Effort (מאמץ). הנוסחה מאפשרת לחשב ציון אובייקטיבי לכל פיצ\'ר ולבחור את אלו שנותנים את הערך המקסימלי במינימום מאמץ.' 
-    },
-    { 
-      id: 'doc_2', 
-      title: 'בנייה וניהול של מפת דרכים (Roadmap)', 
-      type: 'Guide', 
-      updatedAt: '2026-03-13', 
-      content: 'מפת דרכים אינה רק רשימת משימות, אלא הצהרת כוונות אסטרטגית. היא יכולה להיות במבנה Kanban (Now, Next, Later) לניהול זרימה, או במבנה Timeline (ציר זמן) לתיאום ציפיות מול לוחות זמנים רבעוניים. מפה טובה מקשרת בין חזון המוצר לבין הפיצ\'רים שנבנים בפועל.' 
-    },
-    { 
-      id: 'doc_3', 
-      title: 'הבנת OKRs ו-KPIs', 
-      type: 'Strategic', 
-      updatedAt: '2026-03-13', 
-      content: 'OKRs (Objectives and Key Results) הם כלי להגדרת יעדים שאפתניים ומדידת תוצאות מרכזיות שמראות על התקדמות. KPIs (Key Performance Indicators) הם מדדי ביצוע שוטפים שעוזרים להבין את בריאות המוצר (למשל: זמן תגובה, אחוז נטישה). יחד, הם יוצרים מצפן להצלחה.' 
-    },
-    { 
-      id: 'doc_4', 
-      title: 'מודל ה-3Ps: Problem, People, Product', 
-      type: 'Framework', 
-      updatedAt: '2026-03-13', 
-      content: 'ה-3Ps הם הבסיס לכל תוכנית אסטרטגית: 1. Problem - איזו בעיה אנחנו פותרים? 2. People - עבור מי אנחנו פותרים אותה (קהל היעד)? 3. Product - מהו הפתרון שאנחנו מציעים? הבנה עמוקה של שלושתם מבטיחה התאמה של המוצר לשוק (Product-Market Fit).' 
-    },
-    { 
-      id: 'doc_5', 
-      title: 'תעדוף לפי ערך עסקי (Value vs Effort)', 
-      type: 'Reference', 
-      updatedAt: '2026-03-13', 
-      content: 'מטריצת "ערך מול מאמץ" עוזרת לזהות "Big Bets" (ערך גבוה, מאמץ גבוה) ו-"Quick Wins" (ערך גבוה, מאמץ נמוך). המטרה היא תמיד לתעדף קודם כל את הניצחונות המהירים כדי לייצר מומנטום חיובי במוצר.' 
-    }
-  ],
-  notes: [
-    { id: 'note_1', productId: 'prod_1', title: 'פידבק ממשתמשי בטא', content: 'המשתמשים מאוד אוהבים את מהירות החיפוש החדשה.', tag: 'מעקב', createdAt: new Date().toISOString() }
-  ],
-  customers: [
-    { id: 'cust_1', productId: 'prod_1', name: 'חברת הייטק בע"מ', email: 'office@hitech.co.il', status: 'Active', tier: 'Enterprise', createdAt: new Date().toISOString(), notes: [{ id: 'cn_1', text: 'לקוח אסטרטגי חשוב', createdAt: new Date().toISOString() }] }
-  ],
-  availableTeams: ['Core', 'Frontend', 'Backend', 'Mobile', 'Design', 'Growth'],
-  roadmapBoards: [
-    { 
-      id: 'board_default', 
-      productId: 'prod_1', 
-      name: 'מפת דרכים (Kanban)', 
-      viewType: 'kanban',
-      columns: [
-        { key: 'Now', label: 'עכשיו', color: 'blue', icon: 'Zap' },
-        { key: 'Next', label: 'הבא', color: 'purple', icon: 'ArrowRight' },
-        { key: 'Later', label: 'בעתיד', color: 'yellow', icon: 'Clock' }
-      ]
-    },
-    { 
-      id: 'board_quarterly', 
-      productId: 'prod_1', 
-      name: 'לוח רבעוני (Timeline)', 
-      viewType: 'timeline',
-      quarter: 'Q3',
-      year: '2026'
-    }
-  ],
-  activeRoadmapBoardId: 'board_default',
+  products: [],
+  activeProductId: '',
+  strategy: [],
+  features: [],
+  kpis: [],
+  roadmaps: [],
+  objectives: [],
+  documentation: [], // Documentation is mostly static/reference in this app
+  notes: [],
+  customers: [],
+  roadmapBoards: [],
+  activeRoadmapBoardId: '',
+  availableTeams: ['Bifrost', 'Picasso', 'Olympus', 'DWH', 'Cloud', 'Everest', 'Maavarim', '43', 'Genesis', 'Opal', 'Infra', 'Cyber'],
   reviews: []
 };
 
 export const ProductProvider = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
+  const [data, setData] = useState(defaultData);
+  const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('plannr_dark_mode') === 'true');
 
   useEffect(() => {
@@ -113,143 +37,246 @@ export const ProductProvider = ({ children }) => {
     localStorage.setItem('plannr_dark_mode', darkMode);
   }, [darkMode]);
 
-  const [data, setData] = useState(() => {
-    try {
-      const saved = localStorage.getItem('dpm_app_data');
-      if (saved) {
-        // Merge with defaultData so new fields are added on first run after update
-        const parsed = JSON.parse(saved);
-        return {
-          ...defaultData,
-          ...parsed,
-          products: parsed.products || defaultData.products,
-          strategy: parsed.strategy || defaultData.strategy,
-          features: parsed.features || defaultData.features,
-          objectives: parsed.objectives || defaultData.objectives,
-          roadmaps: parsed.roadmaps || defaultData.roadmaps,
-          documentation: [
-            ...defaultData.documentation.filter(d => !(parsed.documentation || []).find(pd => pd.id === d.id)),
-            ...(parsed.documentation || [])
-          ],
-          kpis: parsed.kpis || defaultData.kpis,
-          notes: parsed.notes || defaultData.notes,
-          customers: parsed.customers || defaultData.customers,
-          roadmapBoards: parsed.roadmapBoards || defaultData.roadmapBoards,
-          activeRoadmapBoardId: parsed.activeRoadmapBoardId || defaultData.activeRoadmapBoardId,
-          availableTeams: parsed.availableTeams || defaultData.availableTeams,
-          reviews: parsed.reviews || defaultData.reviews,
-        };
-      }
-    } catch (e) {
-      console.error("Failed to parse local storage data", e);
-    }
-    return defaultData;
-  });
-
+  // Fetch all data from Supabase on login
   useEffect(() => {
-    localStorage.setItem('dpm_app_data', JSON.stringify(data));
-  }, [data]);
+    if (isAuthenticated) {
+      fetchAllData();
+    } else {
+      setData(defaultData);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      const [
+        { data: products },
+        { data: features },
+        { data: strategy },
+        { data: roadmaps },
+        { data: objectives },
+        { data: notes },
+        { data: reviews }
+      ] = await Promise.all([
+        supabase.from('products').select('*').order('created_at', { ascending: true }),
+        supabase.from('features').select('*'),
+        supabase.from('strategy').select('*'),
+        supabase.from('roadmaps').select('*'),
+        supabase.from('objectives').select('*'),
+        supabase.from('notes').select('*').order('created_at', { ascending: false }),
+        supabase.from('reviews').select('*')
+      ]);
+
+      setData(prev => ({
+        ...prev,
+        products: products || [],
+        features: features || [],
+        strategy: strategy || [],
+        roadmaps: roadmaps || [],
+        objectives: objectives || [],
+        notes: notes || [],
+        reviews: reviews || [],
+        activeProductId: products?.[0]?.id || prev.activeProductId
+      }));
+
+      // Auto-seed if NO products exist for this user
+      if ((!products || products.length === 0) && isAuthenticated) {
+        await seedInitialData(true); // true means "silent" auto-seed
+      }
+    } catch (error) {
+      console.error('Error fetching data from Supabase:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const seedInitialData = async (silent = false) => {
+    setLoading(true);
+    try {
+      const demoProductId = `prod_demo_${Date.now()}`;
+      const demoProduct = { id: demoProductId, name: 'מוצר דמו אסטרטגי', description: 'מוצר לצרכי בדיקה והדגמה.' };
+
+      const { error: pErr } = await supabase.from('products').insert([demoProduct]);
+      if (pErr) throw pErr;
+
+      const demoFeatures = [
+        { id: `feat_demo_1_${Date.now()}`, product_id: demoProductId, title: 'חיפוש מהיר', reach: 10, impact: 8, confidence: 9, effort: 3, status: 'Done' },
+        { id: `feat_demo_2_${Date.now()}`, product_id: demoProductId, title: 'לוח בקרה אישי', reach: 7, impact: 10, confidence: 10, effort: 8, status: 'Planned' }
+      ];
+      const { error: fErr } = await supabase.from('features').insert(demoFeatures);
+      if (fErr) throw fErr;
+
+      const demoStrategy = [
+        { id: `strat_demo_1_${Date.now()}`, product_id: demoProductId, type: 'Problem', title: 'חוסר יעילות', description: 'משתמשים מבזבזים זמן על פעולות ידניות.' },
+        { id: `strat_demo_2_${Date.now()}`, product_id: demoProductId, type: 'Product', title: 'אוטומציה חכמה', description: 'מנוע אוטומיזציה שמקצר תהליכים ב-50%.' }
+      ];
+      const { error: sErr } = await supabase.from('strategy').insert(demoStrategy);
+      if (sErr) throw sErr;
+
+      await fetchAllData();
+      if (!silent) alert('נתוני דמו נטענו בהצלחה!');
+    } catch (err) {
+      console.error('Error seeding data:', err);
+      if (!silent) alert('שגיאה בטעינת נתונים: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const setActiveProduct = (id) => {
     setData(prev => {
-      const activeBoards = (prev.roadmapBoards || []).filter(b => b.productId === id);
+      const activeBoards = (prev.roadmapBoards || []).filter(b => b.product_id === id);
       const newBoardId = activeBoards[0]?.id || 'board_default';
       return { ...prev, activeProductId: id, activeRoadmapBoardId: newBoardId };
     });
   };
 
-  const addProduct = (product) => {
-    const defaultBoard = {
-      id: `board_${Date.now()}_default`,
-      productId: product.id,
-      name: 'מפת דרכים ראשית',
-      viewType: 'kanban',
-      columns: [
-        { key: 'Now', label: 'עכשיו', color: 'blue', icon: 'Zap' },
-        { key: 'Next', label: 'הבא', color: 'purple', icon: 'ArrowRight' },
-        { key: 'Later', label: 'בעתיד', color: 'yellow', icon: 'Clock' }
-      ]
-    };
-    setData(prev => ({ 
-      ...prev, 
-      products: [...prev.products, product],
-      roadmapBoards: [...(prev.roadmapBoards || []), defaultBoard]
-    }));
+  const addProduct = async (product) => {
+    try {
+      const { data: newProd, error } = await supabase.from('products').insert([product]).select();
+      if (error) throw error;
+
+      const defaultBoard = {
+        id: `board_${Date.now()}_default`,
+        product_id: product.id,
+        name: 'מפת דרכים ראשית',
+        view_type: 'kanban',
+        columns: [
+          { key: 'Now', label: 'עכשיו', color: 'blue', icon: 'Zap' },
+          { key: 'Next', label: 'הבא', color: 'purple', icon: 'ArrowRight' },
+          { key: 'Later', label: 'בעתיד', color: 'yellow', icon: 'Clock' }
+        ]
+      };
+
+      setData(prev => ({
+        ...prev,
+        products: [...prev.products, newProd[0]],
+        roadmapBoards: [...(prev.roadmapBoards || []), defaultBoard]
+      }));
+    } catch (err) {
+      console.error('Error adding product:', err);
+    }
   };
 
-  const addFeature = (productFeature) => {
-    setData(prev => ({ 
-      ...prev, 
-      features: [...prev.features, { ...productFeature, id: `feat_${Date.now()}`, teams: productFeature.teams || [] }] 
-    }));
+  const deleteProduct = async (id) => {
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+
+      setData(prev => {
+        const nextProducts = prev.products.filter(p => p.id !== id);
+        return {
+          ...prev,
+          products: nextProducts,
+          activeProductId: prev.activeProductId === id ? (nextProducts[0]?.id || '') : prev.activeProductId
+        };
+      });
+    } catch (err) {
+      console.error('Error deleting product:', err);
+    }
   };
 
-  const updateFeature = (id, updates) => {
-    setData(prev => ({
-      ...prev,
-      features: prev.features.map(f => f.id === id ? { ...f, ...updates } : f)
-    }));
+  const addFeature = async (productFeature) => {
+    try {
+      const newFeature = { ...productFeature, id: `feat_${Date.now()}` };
+      const { data: inserted, error } = await supabase.from('features').insert([newFeature]).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, features: [...prev.features, inserted[0]] }));
+    } catch (err) {
+      console.error('Error adding feature:', err);
+    }
   };
 
-  const deleteFeature = (id) => {
-    setData(prev => ({
-      ...prev,
-      features: prev.features.filter(f => f.id !== id)
-    }));
+  const updateFeature = async (id, updates) => {
+    try {
+      const { error } = await supabase.from('features').update(updates).eq('id', id);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        features: prev.features.map(f => f.id === id ? { ...f, ...updates } : f)
+      }));
+    } catch (err) {
+      console.error('Error updating feature:', err);
+    }
   };
 
-  const addObjective = (objective) => {
-    setData(prev => ({
-      ...prev,
-      objectives: [...prev.objectives, { ...objective, id: `obj_${Date.now()}`, teams: objective.teams || [] }]
-    }));
+  const deleteFeature = async (id) => {
+    try {
+      const { error } = await supabase.from('features').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        features: prev.features.filter(f => f.id !== id)
+      }));
+    } catch (err) {
+      console.error('Error deleting feature:', err);
+    }
   };
 
-  const updateStrategy = (type, title, description) => {
-    setData(prev => {
-      const existing = prev.strategy.find(s => s.productId === prev.activeProductId && s.type === type);
+  const addObjective = async (objective) => {
+    try {
+      const newObj = { ...objective, id: `obj_${Date.now()}` };
+      const { data: inserted, error } = await supabase.from('objectives').insert([newObj]).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, objectives: [...prev.objectives, inserted[0]] }));
+    } catch (err) {
+      console.error('Error adding objective:', err);
+    }
+  };
+
+  const updateStrategy = async (type, title, description) => {
+    try {
+      const existing = data.strategy.find(s => s.product_id === data.activeProductId && s.type === type);
       if (existing) {
-        return {
+        const { error } = await supabase.from('strategy').update({ title, description }).eq('id', existing.id);
+        if (error) throw error;
+        setData(prev => ({
           ...prev,
-          strategy: prev.strategy.map(s =>
-            s.id === existing.id ? { ...s, title, description } : s
-          )
-        };
+          strategy: prev.strategy.map(s => s.id === existing.id ? { ...s, title, description } : s)
+        }));
       } else {
-        return {
-          ...prev,
-          strategy: [...prev.strategy, { id: `strat_${Date.now()}`, productId: prev.activeProductId, type, title, description }]
-        };
+        const newStrat = { id: `strat_${Date.now()}`, product_id: data.activeProductId, type, title, description };
+        const { data: inserted, error } = await supabase.from('strategy').insert([newStrat]).select();
+        if (error) throw error;
+        setData(prev => ({ ...prev, strategy: [...prev.strategy, inserted[0]] }));
       }
-    });
+    } catch (err) {
+      console.error('Error updating strategy:', err);
+    }
   };
 
   const addDoc = (doc) => {
     setData(prev => ({
       ...prev,
-      documentation: [...prev.documentation, { ...doc, id: `doc_${Date.now()}`, productId: prev.activeProductId, updatedAt: new Date().toISOString().split('T')[0] }]
+      documentation: [...prev.documentation, { ...doc, id: `doc_${Date.now()}`, product_id: prev.activeProductId, updatedAt: new Date().toISOString().split('T')[0] }]
     }));
   };
 
-  const addRoadmapItem = (item) => {
-    setData(prev => {
-      // Find the actual active board to get its ID
-      const activeBoards = (prev.roadmapBoards || []).filter(b => b.productId === prev.activeProductId);
-      const activeBoard = activeBoards.find(b => b.id === prev.activeRoadmapBoardId) || activeBoards[0];
+  const addRoadmapItem = async (item) => {
+    try {
+      const activeBoards = (data.roadmapBoards || []).filter(b => b.product_id === data.activeProductId);
+      const activeBoard = activeBoards.find(b => b.id === data.activeRoadmapBoardId) || activeBoards[0];
       const boardId = activeBoard?.id || '';
-      
-      return {
+
+      const newItem = { ...item, id: `rm_${Date.now()}`, product_id: data.activeProductId, board_id: boardId };
+      const { data: inserted, error } = await supabase.from('roadmaps').insert([newItem]).select();
+      if (error) throw error;
+
+      setData(prev => ({
         ...prev,
-        roadmaps: [...prev.roadmaps, { ...item, id: `rm_${Date.now()}`, productId: prev.activeProductId, boardId }]
-      };
-    });
+        roadmaps: [...prev.roadmaps, inserted[0]]
+      }));
+    } catch (err) {
+      console.error('Error adding roadmap item:', err);
+    }
   };
 
   const addRoadmapBoard = (board) => {
     const newId = `board_${Date.now()}`;
     setData(prev => ({
       ...prev,
-      roadmapBoards: [...(prev.roadmapBoards || []), { ...board, id: newId, productId: prev.activeProductId, viewType: board.viewType || 'kanban' }],
+      roadmapBoards: [...(prev.roadmapBoards || []), { ...board, id: newId, product_id: prev.activeProductId, view_type: board.view_type || 'kanban' }],
       activeRoadmapBoardId: newId // Auto-switch to newly created board
     }));
   };
@@ -273,11 +300,18 @@ export const ProductProvider = ({ children }) => {
     setData(prev => ({ ...prev, activeRoadmapBoardId: id }));
   };
 
-  const addNote = (note) => {
-    setData(prev => ({
-      ...prev,
-      notes: [...(prev.notes || []), { ...note, id: `note_${Date.now()}`, createdAt: new Date().toISOString(), productId: prev.activeProductId }]
-    }));
+  const addNote = async (note) => {
+    try {
+      const newNote = { ...note, id: `note_${Date.now()}`, product_id: data.activeProductId };
+      const { data: inserted, error } = await supabase.from('notes').insert([newNote]).select();
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        notes: [...(prev.notes || []), inserted[0]]
+      }));
+    } catch (err) {
+      console.error('Error adding note:', err);
+    }
   };
 
   const addAvailableTeam = (teamName) => {
@@ -295,73 +329,107 @@ export const ProductProvider = ({ children }) => {
     }));
   };
 
-  const deleteNote = (id) => {
-    setData(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
+  const deleteNote = async (id) => {
+    try {
+      const { error } = await supabase.from('notes').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
+    } catch (err) {
+      console.error('Error deleting note:', err);
+    }
   };
 
-  const addCustomer = (customer) => {
-    setData(prev => ({
-      ...prev,
-      customers: [...(prev.customers || []), { ...customer, id: `cust_${Date.now()}`, productId: prev.activeProductId, createdAt: new Date().toISOString(), notes: [] }]
-    }));
+  const addCustomer = async (customer) => {
+    try {
+      const newCust = { ...customer, id: `cust_${Date.now()}`, product_id: data.activeProductId };
+      const { data: inserted, error } = await supabase.from('customers').insert([newCust]).select();
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        customers: [...(prev.customers || []), inserted[0]]
+      }));
+    } catch (err) {
+      console.error('Error adding customer:', err);
+    }
   };
 
-  const addCustomerNote = (customerId, note) => {
-    setData(prev => ({
-      ...prev,
-      customers: prev.customers.map(c =>
-        c.id === customerId
-          ? { ...c, notes: [...(c.notes || []), { id: `cn_${Date.now()}`, text: note, createdAt: new Date().toISOString() }] }
-          : c
-      )
-    }));
+  const addCustomerNote = async (customerId, noteText) => {
+    try {
+      const customer = data.customers.find(c => c.id === customerId);
+      if (!customer) return;
+
+      const newNote = { id: `cn_${Date.now()}`, text: noteText, createdAt: new Date().toISOString() };
+      const updatedNotes = [...(customer.notes || []), newNote];
+
+      const { error } = await supabase.from('customers').update({ notes: updatedNotes }).eq('id', customerId);
+      if (error) throw error;
+
+      setData(prev => ({
+        ...prev,
+        customers: prev.customers.map(c => c.id === customerId ? { ...c, notes: updatedNotes } : c)
+      }));
+    } catch (err) {
+      console.error('Error adding customer note:', err);
+    }
   };
 
-  const deleteCustomer = (id) => {
-    setData(prev => ({ ...prev, customers: prev.customers.filter(c => c.id !== id) }));
+  const deleteCustomer = async (id) => {
+    try {
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, customers: prev.customers.filter(c => c.id !== id) }));
+    } catch (err) {
+      console.error('Error deleting customer:', err);
+    }
   };
 
-  const addReview = (productId, content, itemId = null) => {
-    setData(prev => ({
-      ...prev,
-      reviews: [...(prev.reviews || []), {
-        id: `rev_${Date.now()}`,
-        productId,
-        itemId,
-        content,
-        status: 'Pending',
-        createdAt: new Date().toISOString()
-      }]
-    }));
+  const addReview = async (product_id, content, item_id = null) => {
+    try {
+      const newReview = { id: `rev_${Date.now()}`, product_id, item_id, content, status: 'Pending' };
+      const { data: inserted, error } = await supabase.from('reviews').insert([newReview]).select();
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        reviews: [...(prev.reviews || []), inserted[0]]
+      }));
+    } catch (err) {
+      console.error('Error adding review:', err);
+    }
   };
 
-  const updateReviewStatus = (reviewId, status) => {
-    setData(prev => ({
-      ...prev,
-      reviews: (prev.reviews || []).map(r => r.id === reviewId ? { ...r, status } : r)
-    }));
+  const updateReviewStatus = async (reviewId, status) => {
+    try {
+      const { error } = await supabase.from('reviews').update({ status }).eq('id', reviewId);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        reviews: (prev.reviews || []).map(r => r.id === reviewId ? { ...r, status } : r)
+      }));
+    } catch (err) {
+      console.error('Error updating review status:', err);
+    }
   };
 
   // Helper selectors
   const activeProduct = data.products.find(p => p.id === data.activeProductId);
-  const activeStrategy = data.strategy.filter(s => s.productId === data.activeProductId);
-  const activeFeatures = data.features.filter(f => f.productId === data.activeProductId);
-  const activeKpis = data.kpis.filter(k => k.productId === data.activeProductId);
-  const activeObjectives = data.objectives.filter(obj => obj.productId === data.activeProductId);
-  const activeDocs = data.documentation.filter(doc => !doc.productId || doc.productId === data.activeProductId);
-  const activeNotes = (data.notes || []).filter(n => n.productId === data.activeProductId);
-  const activeCustomers = (data.customers || []).filter(c => c.productId === data.activeProductId);
-  
-  const activeRoadmapBoards = (data.roadmapBoards || []).filter(b => b.productId === data.activeProductId);
-  
-  // Robust fallback for activeRoadmapBoard
-  const activeRoadmapBoard = activeRoadmapBoards.find(b => b.id === data.activeRoadmapBoardId) 
-    || activeRoadmapBoards[0] 
-    || { ...defaultData.roadmapBoards[0], productId: data.activeProductId, id: 'temp_board' };
+  const activeStrategy = data.strategy.filter(s => s.product_id === data.activeProductId);
+  const activeFeatures = data.features.filter(f => f.product_id === data.activeProductId);
+  const activeKpis = (data.kpis || []).filter(k => k.product_id === data.activeProductId);
+  const activeObjectives = data.objectives.filter(obj => obj.product_id === data.activeProductId);
+  const activeDocs = data.documentation.filter(doc => !doc.product_id || doc.product_id === data.activeProductId);
+  const activeNotes = (data.notes || []).filter(n => n.product_id === data.activeProductId);
+  const activeCustomers = (data.customers || []).filter(c => c.product_id === data.activeProductId);
 
-  const activeRoadmaps = data.roadmaps.filter(rm => 
-    rm.productId === data.activeProductId && 
-    (rm.boardId === activeRoadmapBoard.id || (!rm.boardId && activeRoadmapBoard.id === 'board_default'))
+  const activeRoadmapBoards = (data.roadmapBoards || []).filter(b => b.product_id === data.activeProductId);
+
+  // Robust fallback for activeRoadmapBoard
+  const activeRoadmapBoard = activeRoadmapBoards.find(b => b.id === data.activeRoadmapBoardId)
+    || activeRoadmapBoards[0]
+    || { ...defaultData.roadmapBoards[0], product_id: data.activeProductId, id: 'temp_board' };
+
+  const activeRoadmaps = data.roadmaps.filter(rm =>
+    rm.product_id === data.activeProductId &&
+    (rm.board_id === activeRoadmapBoard.id || (!rm.board_id && activeRoadmapBoard.id === 'board_default'))
   );
 
   const contextValue = {
@@ -383,6 +451,7 @@ export const ProductProvider = ({ children }) => {
     deleteCustomer,
     addReview,
     updateReviewStatus,
+    deleteProduct,
     activeProduct,
     activeStrategy,
     activeFeatures,
@@ -393,6 +462,7 @@ export const ProductProvider = ({ children }) => {
     activeNotes,
     activeCustomers,
     darkMode,
+    loading,
     toggleDarkMode: () => setDarkMode(!darkMode),
     addAvailableTeam,
     removeAvailableTeam,
@@ -403,9 +473,9 @@ export const ProductProvider = ({ children }) => {
     updateRoadmapBoard,
     deleteRoadmapBoard,
     setActiveRoadmapBoard,
+    seedInitialData,
     resetData: () => {
-      localStorage.removeItem('dpm_app_data');
-      window.location.reload();
+      setData(defaultData);
     }
   };
 

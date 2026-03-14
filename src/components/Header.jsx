@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Bell, Search, User, Plus, X, Check, Sun, Moon } from 'lucide-react';
+import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2 } from 'lucide-react';
 import './Header.css';
 
 const Header = () => {
-  const { data, setActiveProduct, addProduct, darkMode, toggleDarkMode } = useProductContext();
+  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode } = useProductContext();
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
 
@@ -29,10 +29,23 @@ const Header = () => {
     <>
       <header className="header glass-panel">
         <div className="header-left">
-          <div className="product-selector">
+          <div className="product-selector flex-center gap-2">
             <select value={data.activeProductId} onChange={e => setActiveProduct(e.target.value)} className="product-select text-h3 font-semibold">
               {data.products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
+            {data.products.length > 0 && (
+              <button 
+                className="btn-icon-xs text-danger hover:bg-danger/10" 
+                title="מחיקת מוצר"
+                onClick={() => {
+                  if (window.confirm(`האם אתה בטוח שברצונך למחוק את המוצר "${data.products.find(p => p.id === data.activeProductId)?.name}"? פעולה זו תמחק את כל הנתונים הקשורים.`)) {
+                    deleteProduct(data.activeProductId);
+                  }
+                }}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
           </div>
           <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => setShowAddProduct(true)}>
             <Plus size={15} /> מוצר חדש

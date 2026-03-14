@@ -21,7 +21,7 @@ const Dashboard = () => {
   const { activeProduct, activeRoadmaps, activeObjectives, data, updateReviewStatus } = useProductContext();
   if (!activeProduct) return null;
 
-  const productReviews = (data.reviews || []).filter(r => r.productId === activeProduct.id && r.status === 'Pending');
+  const productReviews = (data.reviews || []).filter(r => r.product_id === activeProduct.id && r.status === 'Pending');
 
   const nowItems = activeRoadmaps.filter(r => r.bucket === 'Now').length;
   const avgProgress = activeObjectives.length
@@ -94,7 +94,7 @@ const Dashboard = () => {
               <div key={rev.id} className="review-card-pm glass-panel p-4 flex-between">
                 <div>
                   <p className="text-sm mb-2">{rev.content}</p>
-                  <span className="text-xs text-tertiary">{new Date(rev.createdAt).toLocaleDateString('he-IL')}</span>
+                  <span className="text-xs text-tertiary">{new Date(rev.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
                 <button 
                   className="btn btn-primary text-xs py-1"

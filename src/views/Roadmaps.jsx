@@ -68,7 +68,7 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem })
               >
                 <div className="flex-between">
                   <div className="roadmap-block-title">{item.title}</div>
-                  {(data.reviews || []).filter(r => r.itemId === item.id && r.status === 'Pending').length > 0 && (
+                  {(data.reviews || []).filter(r => r.item_id === item.id && r.status === 'Pending').length > 0 && (
                     <div className="item-review-indicator" title="הערות מנהל פתוחות">
                       <MessageSquare size={10} />
                     </div>
@@ -145,31 +145,33 @@ const Roadmaps = () => {
     setAddingTo(null);
   };
 
-  const getReviews = (itemId) => (data.reviews || []).filter(r => r.itemId === itemId && r.status === 'Pending');
+  const getReviews = (item_id) => (data.reviews || []).filter(r => r.item_id === item_id && r.status === 'Pending');
 
   return (
     <div className="content-area animate-fade-in roadmaps-layout">
       <header className="page-header" style={{ alignItems: 'center' }}>
         <div>
-          <h1 className="text-h1 mb-2">מפות דרכים</h1>
-          <p className="text-secondary text-lg">ניהול תוכנית עבודה עבור <strong className="text-primary">{activeProduct.name}</strong></p>
+          <h1 className="text-h1 mb-2">{activeRoadmapBoard?.name || 'מפת דרכים'}</h1>
+          <p className="text-secondary text-lg">ניהול תוכנית עבודה עבור <strong className="text-primary">{activeProduct?.name}</strong></p>
         </div>
-        <div className="flex-center gap-3">
-          <label className="text-sm text-secondary">בחר לוח:</label>
-          <select 
-            className="modal-input" 
-            style={{ width: '200px', height: '38px', padding: '0 0.75rem' }}
-            value={activeRoadmapBoard?.id}
-            onChange={(e) => setActiveRoadmapBoard(e.target.value)}
-          >
-            {roadmapBoards.map(board => (
-              <option key={board.id} value={board.id}>{board.name}</option>
-            ))}
-          </select>
-        </div>
+        {!loading && (
+          <div className="board-selector flex-center gap-3">
+            <span className="text-sm text-secondary">בחר לוח:</span>
+            <select 
+              value={activeRoadmapBoard?.id} 
+              onChange={e => setActiveRoadmapBoard(e.target.value)}
+              className="modal-input"
+              style={{ width: '200px', height: '38px', padding: '0 0.75rem' }}
+            >
+              {(roadmapBoards || []).map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </header>
 
-      {activeRoadmapBoard?.viewType === 'timeline' ? (
+      {activeRoadmapBoard?.view_type === 'timeline' ? (
         <TimelineView 
           board={activeRoadmapBoard} 
           activeRoadmaps={activeRoadmaps} 

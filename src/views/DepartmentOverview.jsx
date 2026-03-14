@@ -25,29 +25,29 @@ const DepartmentOverview = () => {
   const products = data.products || [];
   const allReviews = data.reviews || [];
 
-  const getProductRoadmapSummary = (productId) => {
-    const roadmap = data.roadmaps.filter(rm => rm.productId === productId);
-    const boards = data.roadmapBoards.filter(b => b.productId === productId);
+  const getProductRoadmapSummary = (product_id) => {
+    const roadmap = data.roadmaps.filter(rm => rm.product_id === product_id);
+    const boards = data.roadmapBoards.filter(b => b.product_id === product_id);
     const activeBoard = boards[0] || { name: 'Main' };
     
     return {
       itemCount: roadmap.length,
       boardName: activeBoard.name,
-      viewType: activeBoard.viewType || 'kanban',
+      view_type: activeBoard.view_type || 'kanban',
       items: roadmap
     };
   };
 
-  const handleAddNote = (productId, itemId = null) => {
+  const handleAddNote = (product_id, item_id = null) => {
     if (!newNote.trim()) return;
-    addReview(productId, newNote, itemId);
+    addReview(product_id, newNote, item_id);
     setNewNote('');
     setSelectedProduct(null);
     setSelectedItem(null);
   };
 
-  const handleSeeProduct = (productId) => {
-    setActiveProduct(productId);
+  const handleSeeProduct = (product_id) => {
+    setActiveProduct(product_id);
     navigate('/roadmaps');
   };
 
@@ -111,7 +111,7 @@ const DepartmentOverview = () => {
       <div className="products-grid">
         {products.map(product => {
           const summary = getProductRoadmapSummary(product.id);
-          const productReviews = allReviews.filter(r => r.productId === product.id);
+          const productReviews = allReviews.filter(r => r.product_id === product.id);
           const pendingCount = productReviews.filter(r => r.status === 'Pending').length;
 
           return (
@@ -148,7 +148,7 @@ const DepartmentOverview = () => {
                       productReviews.slice(0, 2).map(rev => (
                         <div key={rev.id} className={`review-item ${rev.status === 'Resolved' ? 'resolved' : ''}`}>
                           <p className="text-xs">{rev.content}</p>
-                          <span className="text-[10px] text-tertiary">{new Date(rev.createdAt).toLocaleDateString('he-IL')}</span>
+                          <span className="text-[10px] text-tertiary">{new Date(rev.created_at).toLocaleDateString('he-IL')}</span>
                         </div>
                       ))
                     ) : (
@@ -181,7 +181,7 @@ const DepartmentOverview = () => {
                   <h4 className="text-xs font-bold mb-3 border-b border-color pb-1">פריטים במפת דרכים</h4>
                   <div className="flex-col gap-2">
                     {summary.items.map(item => {
-                      const itemReviews = allReviews.filter(r => r.itemId === item.id);
+                      const itemReviews = allReviews.filter(r => r.item_id === item.id);
                       return (
                         <div key={item.id} className="item-row flex-between p-2 hover-bg-tertiary rounded">
                           <div>
@@ -246,11 +246,11 @@ const DepartmentOverview = () => {
             </tr>
           </thead>
           <tbody>
-            {allReviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(rev => (
+            {allReviews.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(rev => (
               <tr key={rev.id}>
-                <td className="font-medium">{products.find(p => p.id === rev.productId)?.name || 'לא ידוע'}</td>
+                <td className="font-medium">{products.find(p => p.id === rev.product_id)?.name || 'לא ידוע'}</td>
                 <td><p className="text-sm max-w-md line-clamp-1">{rev.content}</p></td>
-                <td className="text-center">{new Date(rev.createdAt).toLocaleDateString('he-IL')}</td>
+                <td className="text-center">{new Date(rev.created_at).toLocaleDateString('he-IL')}</td>
                 <td className="text-center">
                   <span className={`badge ${rev.status === 'Resolved' ? 'badge-green' : 'badge-yellow'}`}>
                     {rev.status === 'Resolved' ? 'טופל' : 'ממתין'}
@@ -318,7 +318,7 @@ const DepartmentOverview = () => {
             <div className="timeline-grid-rows">
               {products.map(product => {
                 const productRoadmaps = data.roadmaps.filter(r => 
-                  r.productId === product.id && 
+                  r.product_id === product.id && 
                   r.bucket === 'Timeline' && 
                   r.quarter === timelineQuarter && 
                   r.year === timelineYear

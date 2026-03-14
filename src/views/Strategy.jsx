@@ -221,7 +221,7 @@ const Strategy = () => {
                   if(!newBoardName.trim()) return;
                   addRoadmapBoard({ 
                     name: newBoardName, 
-                    viewType: newBoardType,
+                    view_type: newBoardType,
                     quarter: newBoardQuarter,
                     year: newBoardYear,
                     columns: newBoardType === 'kanban' ? [
@@ -243,7 +243,7 @@ const Strategy = () => {
               <div className="flex-col">
                 <span className="text-sm font-medium">{board.name}</span>
                 <span className="text-xs text-tertiary">
-                  {board.viewType === 'timeline' ? `Timeline (${board.quarter} ${board.year})` : `${(board.columns || []).length} עמודות`}
+                  {board.view_type === 'timeline' ? `Timeline (${board.quarter} ${board.year})` : `${(board.columns || []).length} עמודות`}
                 </span>
               </div>
               <button className="text-danger" onClick={() => deleteRoadmapBoard(board.id)} title="מחיקה" disabled={board.id === 'board_default'}>

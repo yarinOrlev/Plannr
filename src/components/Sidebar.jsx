@@ -1,9 +1,14 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, Trash2, Briefcase } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, RefreshCcw, Briefcase, LogOut, Database } from 'lucide-react';
 import './Sidebar.css';
+import { useProductContext } from '../context/ProductContext';
 
 const Sidebar = () => {
+  const { user, logout, isHoD, userProfile } = useAuth();
+  const { seedInitialData } = useProductContext();
+  
   const navItems = [
     { path: '/', icon: <LayoutDashboard size={18} />, label: 'לוח בקרה', color: 'blue' },
     { path: '/strategy', icon: <Compass size={18} />, label: 'אסטרטגיה', color: 'indigo' },
@@ -13,8 +18,22 @@ const Sidebar = () => {
     { path: '/customers', icon: <Users size={18} />, label: 'לקוחות', color: 'pink' },
     { path: '/documentation', icon: <BookOpen size={18} />, label: 'תיעוד', color: 'yellow' },
     { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green' },
-    { path: '/department', icon: <Briefcase size={18} />, label: 'מבט מחלקתי', color: 'indigo' },
+    { path: '/department', icon: <Briefcase size={18} />, label: 'מבט מחלקתי', color: 'indigo', roles: ['HoD'] },
   ];
+
+  // Explicitly define visibility logic
+  const visibleNavItems = navItems.filter(item => {
+    // 1. If no roles defined, it's public for all authenticated users
+    if (!item.roles || item.roles.length === 0) return true;
+    
+    // 2. If it is an HoD-only item, show it ONLY if the user is an HoD
+    if (item.roles.includes('HoD')) {
+      return isHoD;
+    }
+    
+    // Default fallback
+    return true;
+  });
 
   return (
     <aside className="sidebar glass-panel">
@@ -24,7 +43,7 @@ const Sidebar = () => {
       </div>
 
       <nav className="sidebar-nav">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -39,19 +58,30 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <button className="nav-link settings-btn" onClick={() => {
-          if(window.confirm('האם אתה בטוח שברצונך לאפס את כל הנתונים לערכי ברירת המחדל?')) {
-            localStorage.removeItem('dpm_app_data');
+      <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <div className="user-profile mb-4">
+          <div className="user-avatar">{userProfile?.avatar || 'U'}</div>
+          <div className="user-info">
+            <span className="user-name">{userProfile?.name || 'משתמש'}</span>
+            <span className="user-role">{userProfile?.role === 'HoD' ? 'ראש מחלקה' : 'מנהל מוצר'}</span>
+          </div>
+          <button className="logout-btn" onClick={logout} title="התנתקות">
+            <LogOut size={16} />
+          </button>
+        </div>
+
+        <button className="nav-link settings-btn text-xs" onClick={seedInitialData}>
+          <Database size={16} />
+          <span>טעינת נתוני דמו</span>
+        </button>
+        
+        <button className="nav-link settings-btn text-xs" onClick={() => {
+          if(window.confirm('האם אתה בטוח שברצונך לרענן את הנתונים?')) {
             window.location.reload();
           }
         }}>
-          <Trash2 size={20} />
-          <span>איפוס נתונים</span>
-        </button>
-        <button className="nav-link settings-btn">
-          <Settings size={20} />
-          <span>הגדרות</span>
+          <RefreshCcw size={16} />
+          <span>רענון נתונים</span>
         </button>
       </div>
     </aside>
