@@ -14,6 +14,10 @@ const QUARTERS = {
 const DepartmentOverview = () => {
   const { data, addReview, updateReviewStatus, setActiveProduct } = useProductContext();
   const navigate = useNavigate();
+  
+  const products = data.products || [];
+  const allReviews = data.reviews || [];
+  
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [expandingProductItems, setExpandingProductItems] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -21,9 +25,18 @@ const DepartmentOverview = () => {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'timeline'
   const [timelineQuarter, setTimelineQuarter] = useState('Q3');
   const [timelineYear, setTimelineYear] = useState('2026');
+  const [visibleProducts, setVisibleProducts] = useState({});
 
-  const products = data.products || [];
-  const allReviews = data.reviews || [];
+  // Initialize visibleProducts: default to ALL true if not explicitly set to false
+  const isProductVisible = (id) => visibleProducts[id] !== false;
+
+  React.useEffect(() => {
+    if (products.length > 0 && Object.keys(visibleProducts).length === 0) {
+      const initial = {};
+      products.forEach(p => initial[p.id] = true);
+      setVisibleProducts(initial);
+    }
+  }, [products, visibleProducts]);
 
   const getProductRoadmapSummary = (product_id) => {
     const roadmap = data.roadmaps.filter(rm => rm.product_id === product_id);
@@ -278,9 +291,24 @@ const DepartmentOverview = () => {
       ) : (
         <div className="unified-timeline-container glass-panel p-6 animate-fade-in">
           <div className="timeline-controls flex-between mb-8">
-            <h3 className="text-h3 flex-center gap-2">
-              <Calendar size={20} className="text-indigo" /> ציר זמן מחלקתי — {timelineQuarter} {timelineYear}
-            </h3>
+            <div>
+              <h3 className="text-h3 flex-center gap-2 mb-4">
+                <Calendar size={20} className="text-indigo" /> ציר זמן מחלקתי — {timelineQuarter} {timelineYear}
+              </h3>
+              <div className="flex-center gap-2 flex-wrap" style={{ justifyContent: 'flex-start' }}>
+                <span className="text-xs text-secondary ml-2">סינון מוצרים:</span>
+                {products.map(p => (
+                  <button 
+                    key={p.id}
+                    className={`badge ${isProductVisible(p.id) ? 'badge-blue' : 'badge-gray opacity-50'}`}
+                    style={{ cursor: 'pointer', padding: '0.2rem 0.6rem', fontSize: '0.7rem' }}
+                    onClick={() => setVisibleProducts(prev => ({ ...prev, [p.id]: !isProductVisible(p.id) }))}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex-center gap-3">
               <div className="flex-center gap-2">
                 <Filter size={14} className="text-tertiary" />
@@ -300,6 +328,7 @@ const DepartmentOverview = () => {
                 >
                   <option value="2026">2026</option>
                   <option value="2027">2027</option>
+                  <option value="2028">2028</option>
                 </select>
               </div>
             </div>
@@ -316,16 +345,37 @@ const DepartmentOverview = () => {
 
             {/* Product rows */}
             <div className="timeline-grid-rows">
-              {products.map(product => {
+              {products.filter(p => isProductVisible(p.id)).map(product => {
                 const productRoadmaps = data.roadmaps.filter(r => 
                   r.product_id === product.id && 
                   r.bucket === 'Timeline' && 
                   r.quarter === timelineQuarter && 
-                  r.year === timelineYear
+                  String(r.year) === String(timelineYear)
                 );
 
+                // Simple lane-based stacking
+                const lanes = [];
+                productRoadmaps.sort((a,b) => a.start_month - b.start_month).forEach(item => {
+                  let assignedLane = -1;
+                  for (let i = 0; i < lanes.length; i++) {
+                    const lastInLane = lanes[i][lanes[i].length - 1];
+                    const lastEnd = (lastInLane.start_month || 0) + (lastInLane.duration || 1);
+                    if ((item.start_month || 0) >= lastEnd) {
+                      assignedLane = i;
+                      break;
+                    }
+                  }
+                  if (assignedLane === -1) {
+                    lanes.push([item]);
+                  } else {
+                    lanes[assignedLane].push(item);
+                  }
+                });
+
+                const rowHeight = Math.max(1, lanes.length) * 44 + 20;
+
                 return (
-                  <div key={product.id} className="timeline-product-row">
+                  <div key={product.id} className="timeline-product-row" style={{ height: `${rowHeight}px` }}>
                     <div className="product-name-cell">
                       <span className="font-semibold text-sm">{product.name}</span>
                     </div>
@@ -334,21 +384,33 @@ const DepartmentOverview = () => {
                       <div className="month-slot"></div>
                       <div className="month-slot"></div>
                       
-                      {productRoadmaps.map(item => (
-                        <div 
-                          key={item.id} 
-                          className="unified-roadmap-block i-bg-indigo"
-                          style={{ 
-                            left: `calc(${(item.startMonth / 3) * 100}% + 4px)`, 
-                            width: `calc(${(item.duration / 3) * 100}% - 8px)`
-                          }}
-                          title={`${item.title} (${item.duration} חודשים)`}
-                        >
-                          <div className="block-content">
-                            <span className="block-title">{item.title}</span>
+                      {lanes.map((laneItems, laneIndex) => 
+                        laneItems.map(item => (
+                          <div 
+                            key={item.id} 
+                            className="unified-roadmap-block i-bg-indigo"
+                            style={{ 
+                              left: `calc(${(item.start_month / 3) * 100}% + 4px)`, 
+                              width: `calc(${(item.duration / 3) * 100}% - 8px)`,
+                              top: `${14 + (laneIndex * 44)}px`,
+                              transform: 'none',
+                              height: '36px'
+                            }}
+                            title={`${item.title} (${item.duration} חודשים) - ${item.teams?.join(', ') || 'צוות לא הוגדר'}`}
+                          >
+                            <div className="block-content" style={{ width: '100%' }}>
+                              <div className="flex-between">
+                                <span className="block-title">{item.title}</span>
+                                <div className="flex gap-1 items-center">
+                                  {item.teams?.map(t => (
+                                    <span key={t} className="badge" style={{ fontSize: '0.6rem', padding: '0.1rem 0.3rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '3px' }}>{t}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
                 );

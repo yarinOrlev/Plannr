@@ -26,7 +26,7 @@ const QUARTERS = {
 
 const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, data, updateReviewStatus }) => {
   const [showAdd, setShowAdd] = useState(false);
-  const [newBlock, setNewBlock] = useState({ title: '', startMonth: 0, duration: 1, featureId: '', status: 'In Progress' });
+  const [newBlock, setNewBlock] = useState({ title: '', startMonth: 0, duration: 1, featureId: '', status: 'In Progress', teams: [] });
   const [editingItemId, setEditingItemId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   
@@ -47,7 +47,7 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
       quarter: board.quarter,
       year: board.year
     });
-    setNewBlock({ title: '', startMonth: 0, duration: 1, featureId: '', status: 'In Progress' });
+    setNewBlock({ title: '', startMonth: 0, duration: 1, featureId: '', status: 'In Progress', teams: [] });
     setShowAdd(false);
   };
 
@@ -58,7 +58,8 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
       startMonth: item.startMonth || item.start_month || 0, 
       duration: item.duration || 1, 
       featureId: item.featureId || '', 
-      status: item.status || 'In Progress' 
+      status: item.status || 'In Progress',
+      teams: item.teams || []
     });
   };
 
@@ -104,6 +105,9 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
                       {item.title}
                     </div>
                     <div className="flex-center gap-1">
+                      {(item.teams || []).map(t => (
+                        <span key={t} className="badge" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>{t}</span>
+                      ))}
                       {(data.reviews || []).filter(r => r.item_id === item.id && r.status === 'Pending').length > 0 && (
                         <div className="item-review-indicator" title="הערות מנהל פתוחות">
                           <MessageSquare size={10} />
@@ -195,6 +199,25 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
                   {activeFeatures.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
                 </select>
               </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="text-xs text-secondary block mb-1">צוותים מעורבים</label>
+                <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap' }}>
+                  {data.availableTeams?.map(team => (
+                    <button
+                      key={team}
+                      type="button"
+                      className={`badge ${newBlock.teams?.includes(team) ? 'badge-blue' : 'badge-gray'}`}
+                      style={{ cursor:'pointer', fontSize:'0.7rem' }}
+                      onClick={() => {
+                        const teams = newBlock.teams || [];
+                        setNewBlock({...newBlock, teams: teams.includes(team) ? teams.filter(t => t !== team) : [...teams, team]});
+                      }}
+                    >
+                      {team}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="flex-center gap-2 mt-4" style={{ justifyContent:'flex-start' }}>
               <button className="btn btn-primary" onClick={handleAdd}><Check size={16}/> שמירה</button>
@@ -255,6 +278,25 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
                 {activeFeatures.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
               </select>
             </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="text-xs text-secondary block mb-1">צוותים מעורבים</label>
+              <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap' }}>
+                {data.availableTeams?.map(team => (
+                  <button
+                    key={team}
+                    type="button"
+                    className={`badge ${editForm.teams?.includes(team) ? 'badge-blue' : 'badge-gray'}`}
+                    style={{ cursor:'pointer', fontSize:'0.7rem' }}
+                    onClick={() => {
+                      const teams = editForm.teams || [];
+                      setEditForm({...editForm, teams: teams.includes(team) ? teams.filter(t => t !== team) : [...teams, team]});
+                    }}
+                  >
+                    {team}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="flex-center gap-2 mt-4" style={{ justifyContent:'flex-start' }}>
             <button className="btn btn-primary" onClick={handleSaveEdit}><Check size={16}/> שמירה</button>
@@ -269,9 +311,9 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
 const Roadmaps = () => {
   const { activeRoadmaps, activeProduct, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, roadmapBoards, activeRoadmapBoard, setActiveRoadmapBoard, activeFeatures, data, updateReviewStatus, loading, searchTerm } = useProductContext();
   const [addingTo, setAddingTo] = useState(null);
-  const [form, setForm] = useState({ title:'', description:'' });
+  const [form, setForm] = useState({ title:'', description:'', teams: [] });
   const [editingCardId, setEditingCardId] = useState(null);
-  const [cardForm, setCardForm] = useState({ title:'', description:'' });
+  const [cardForm, setCardForm] = useState({ title:'', description:'', teams: [] });
 
   if (!activeProduct) return null;
 
@@ -283,21 +325,21 @@ const Roadmaps = () => {
 
   const handleAdd = (bucket) => {
     if (!form.title.trim()) return;
-    addRoadmapItem({ title:form.title, description:form.description, bucket });
-    setForm({ title:'', description:'' });
+    addRoadmapItem({ title:form.title, description:form.description, teams: form.teams, bucket });
+    setForm({ title:'', description:'', teams: [] });
     setAddingTo(null);
   };
 
   const handleStartCardEdit = (item) => {
     setEditingCardId(item.id);
-    setCardForm({ title: item.title, description: item.description || '' });
+    setCardForm({ title: item.title, description: item.description || '', teams: item.teams || [] });
   };
 
   const handleSaveCardEdit = () => {
     if (!cardForm.title.trim()) return;
     updateRoadmapItem(editingCardId, cardForm);
     setEditingCardId(null);
-    setCardForm({ title:'', description:'' });
+    setCardForm({ title:'', description:'', teams: [] });
   };
 
   const getReviews = (item_id) => (data.reviews || []).filter(r => r.item_id === item_id && r.status === 'Pending');
@@ -374,6 +416,25 @@ const Roadmaps = () => {
                             <textarea style={{...inputStyle, marginTop:'0.5rem', resize:'vertical', minHeight:'60px'}}
                               placeholder="תיאור (אופציונלי)..." value={cardForm.description}
                               onChange={e => setCardForm({...cardForm, description:e.target.value})}/>
+                            <div className="mt-2">
+                              <label className="text-[10px] text-tertiary block mb-1">צוותים מעורבים</label>
+                              <div style={{ display:'flex', gap:'0.25rem', flexWrap:'wrap' }}>
+                                {data.availableTeams?.map(team => (
+                                  <button
+                                    key={team}
+                                    type="button"
+                                    className={`badge ${cardForm.teams?.includes(team) ? 'badge-blue' : 'badge-gray'}`}
+                                    style={{ cursor:'pointer', fontSize:'0.6rem', padding:'0.1rem 0.35rem' }}
+                                    onClick={() => {
+                                      const teams = cardForm.teams || [];
+                                      setCardForm({...cardForm, teams: teams.includes(team) ? teams.filter(t => t !== team) : [...teams, team]});
+                                    }}
+                                  >
+                                    {team}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                             <div className="flex-center gap-2 mt-2" style={{ justifyContent:'flex-start' }}>
                               <button className="btn btn-primary" style={{ padding:'0.35rem 0.75rem', fontSize:'0.8rem' }} onClick={handleSaveCardEdit}>
                                 <Check size={14}/> שמירה
@@ -400,6 +461,11 @@ const Roadmaps = () => {
                                 {item.status === 'Failed' && <AlertCircle size={14} className="text-red-400" />}
                                 <h4 className="card-title font-medium">{item.title}</h4>
                               </div>
+                              {item.teams?.length > 0 && (
+                                <div className="flex-center gap-1 mb-3 flex-wrap" style={{ justifyContent: 'flex-start' }}>
+                                  {item.teams.map(t => <span key={t} className="badge" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px' }}>{t}</span>)}
+                                </div>
+                              )}
                               {item.description && <p className="text-xs text-tertiary mt-1">{item.description}</p>}
 
                               <div className="status-quick-toggle flex-center gap-1 mt-3" style={{ justifyContent: 'flex-start' }}>
@@ -446,6 +512,25 @@ const Roadmaps = () => {
                       <textarea style={{...inputStyle, marginTop:'0.5rem', resize:'vertical', minHeight:'60px'}}
                         placeholder="תיאור (אופציונלי)..." value={form.description}
                         onChange={e => setForm({...form, description:e.target.value})}/>
+                      <div className="mt-2">
+                        <label className="text-[10px] text-tertiary block mb-1">צוותים מעורבים</label>
+                        <div style={{ display:'flex', gap:'0.25rem', flexWrap:'wrap' }}>
+                          {data.availableTeams?.map(team => (
+                            <button
+                              key={team}
+                              type="button"
+                              className={`badge ${form.teams?.includes(team) ? 'badge-blue' : 'badge-gray'}`}
+                              style={{ cursor:'pointer', fontSize:'0.6rem', padding:'0.1rem 0.35rem' }}
+                              onClick={() => {
+                                const teams = form.teams || [];
+                                setForm({...form, teams: teams.includes(team) ? teams.filter(t => t !== team) : [...teams, team]});
+                              }}
+                            >
+                              {team}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <div className="flex-center gap-2 mt-2" style={{ justifyContent:'flex-start' }}>
                         <button className="btn btn-primary" style={{ padding:'0.35rem 0.75rem', fontSize:'0.8rem' }} onClick={() => handleAdd(key)}>
                           <Check size={14}/> הוספה

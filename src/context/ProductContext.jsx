@@ -360,7 +360,8 @@ export const ProductProvider = ({ children }) => {
         quarter: item.quarter,
         year: item.year,
         start_month: Math.round(item.startMonth || 0),
-        duration: Math.max(1, Math.round(item.duration || 1))
+        duration: Math.max(1, Math.round(item.duration || 1)),
+        teams: item.teams || []
       };
       console.log('ProductContext: payload for roadmaps', newItem);
       
@@ -382,7 +383,7 @@ export const ProductProvider = ({ children }) => {
 
   const updateRoadmapItem = async (id, updates) => {
     try {
-      const validCols = ['id', 'product_id', 'board_id', 'title', 'bucket', 'description', 'quarter', 'year', 'start_month', 'duration'];
+      const validCols = ['id', 'product_id', 'board_id', 'title', 'bucket', 'description', 'quarter', 'year', 'start_month', 'duration', 'teams'];
       const filteredUpdates = {};
       
       Object.keys(updates).forEach(key => {
