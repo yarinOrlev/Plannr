@@ -23,7 +23,7 @@ const KpiCard = ({ kpi }) => {
   );
 };
 
-const ObjectiveCard = ({ objective, linkedFeatures = [] }) => {
+const ObjectiveCard = ({ objective, linkedFeatures = [], onEdit, onDelete }) => {
   const krs = objective.key_results || objective.keyResults || [
     { title: 'תוצאת מפתח 1', progress: Math.min(100, objective.progress+15) },
     { title: 'תוצאת מפתח 2', progress: Math.max(0, objective.progress-10) },
@@ -46,6 +46,10 @@ const ObjectiveCard = ({ objective, linkedFeatures = [] }) => {
         <div className="objective-progress-overall">
           <div className="progress-value">{objective.progress}%</div>
           <div className="progress-label text-xs text-tertiary">כולל</div>
+          <div className="flex-center gap-1 mt-2">
+            <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Check size={14}/></button>
+            <button className="btn-icon-xs text-tertiary hover:text-danger" onClick={() => onDelete(objective.id)} title="מחיקה"><Trash2 size={14}/></button>
+          </div>
         </div>
       </div>
       <div className="progress-bar-container mt-4"><div className="progress-bar-fill" style={{ width:`${objective.progress}%` }}/></div>
@@ -72,15 +76,19 @@ const ObjectiveCard = ({ objective, linkedFeatures = [] }) => {
   );
 };
 
+const QUARTER_OPTIONS = ['Q1', 'Q2', 'Q3', 'Q4'];
+const YEAR_OPTIONS = ['2025', '2026', '2027', '2028'];
 const QUARTERS = ['הכל','Q1 2026','Q2 2026','Q3 2026','Q4 2026','Q1 2027'];
 
 const Objectives = () => {
-  const { activeObjectives, activeProduct, activeKpis, addObjective, data, activeFeatures, searchTerm } = useProductContext();
+  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, data, activeFeatures, searchTerm } = useProductContext();
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ 
     title: '', 
     progress: 0, 
-    quarter: 'Q3 2026', 
+    quarter: 'Q3',
+    year: '2026', 
     keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }] 
   });
   const [selectedQuarter, setSelectedQuarter] = useState('הכל');
@@ -117,6 +125,26 @@ const Objectives = () => {
   const filtered = (selectedQuarter === 'הכל' ? activeObjectives : activeObjectives.filter(o => o.quarter === selectedQuarter))
     .filter(o => o.title.toLowerCase().includes(searchTerm.toLowerCase()) || o.description?.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const handleEdit = (obj) => {
+    const [q, y] = obj.quarter ? obj.quarter.split(' ') : ['Q3', '2026'];
+    setForm({
+      title: obj.title,
+      progress: obj.progress || 0,
+      quarter: q,
+      year: y,
+      keyResults: obj.key_results || obj.keyResults || [{ title: '', progress: 0 }, { title: '', progress: 0 }]
+    });
+    setSelectedTeams(obj.teams || []);
+    setEditingId(obj.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm('האם אתה בטוח שברצונך למחוק יעד זה?')) {
+      deleteObjective(id);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
@@ -126,21 +154,36 @@ const Objectives = () => {
       ? Math.round(validKRs.reduce((acc, kr) => acc + Number(kr.progress || 0), 0) / validKRs.length)
       : 0;
 
-    addObjective({ 
-      product_id:activeProduct.id, 
-      title:form.title, 
-      progress:totalProgress, 
-      quarter:form.quarter, 
-      keyResults: validKRs,
-      teams: selectedTeams
-    });
+    const combinedQuarter = `${form.quarter} ${form.year}`;
+
+    if (editingId) {
+      updateObjective(editingId, {
+        title: form.title,
+        progress: totalProgress,
+        quarter: combinedQuarter,
+        keyResults: validKRs,
+        teams: selectedTeams
+      });
+    } else {
+      addObjective({ 
+        product_id: activeProduct.id, 
+        title: form.title, 
+        progress: totalProgress, 
+        quarter: combinedQuarter, 
+        keyResults: validKRs,
+        teams: selectedTeams
+      });
+    }
+
     setForm({ 
       title: '', 
       progress: 0, 
-      quarter: 'Q3 2026', 
+      quarter: 'Q3', 
+      year: '2026',
       keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }] 
     });
     setSelectedTeams([]);
+    setEditingId(null);
     setShowForm(false);
   };
 
@@ -167,15 +210,28 @@ const Objectives = () => {
         </div>
       </header>
 
-      {showForm && (
+        {showForm && (
         <form onSubmit={handleSubmit} className="glass-panel p-6 mb-4 animate-fade-in">
-          <div className="flex-between mb-4"><h3 className="text-h3">יעד חדש</h3><button type="button" className="btn-icon" onClick={()=>setShowForm(false)}><X size={18}/></button></div>
+          <div className="flex-between mb-4"><h3 className="text-h3">{editingId ? 'עריכת יעד' : 'יעד חדש'}</h3><button type="button" className="btn-icon" onClick={()=>{setShowForm(false); setEditingId(null);}}><X size={18}/></button></div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px,1fr))', gap:'1rem' }}>
             <div style={{ gridColumn:'1 / -1' }}>
               <label className="text-sm text-secondary block mb-1">כותרת היעד</label>
               <input type="text" required autoFocus style={inputStyle} value={form.title} onChange={e => setForm({...form,title:e.target.value})} placeholder="לדוגמה: הגדלת שיעור שימור משתמשים"/>
             </div>
-            <div><label className="text-sm text-secondary block mb-1">רבעון</label><input type="text" style={inputStyle} value={form.quarter} onChange={e => setForm({...form,quarter:e.target.value})}/></div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ flex: 1 }}>
+                <label className="text-sm text-secondary block mb-1">רבעון</label>
+                <select style={inputStyle} value={form.quarter} onChange={e => setForm({...form, quarter: e.target.value})}>
+                  {QUARTER_OPTIONS.map(q => <option key={q} value={q}>{q}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label className="text-sm text-secondary block mb-1">שנה</label>
+                <select style={inputStyle} value={form.year} onChange={e => setForm({...form, year: e.target.value})}>
+                  {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
             <div>
               <label className="text-sm text-secondary block mb-1">התקדמות משוערת (%)</label>
               <div style={{ ...inputStyle, background: 'var(--bg-tertiary)', opacity: 0.8, display: 'flex', alignItems: 'center' }}>
@@ -243,7 +299,7 @@ const Objectives = () => {
             </div>
           </div>
           <div style={{ display:'flex', justifyContent:'flex-start', marginTop:'1.25rem' }}>
-            <button type="submit" className="btn btn-primary"><Check size={16}/> יצירת יעד</button>
+            <button type="submit" className="btn btn-primary"><Check size={16}/> {editingId ? 'עדכון יעד' : 'יצירת יעד'}</button>
           </div>
         </form>
       )}
@@ -267,6 +323,8 @@ const Objectives = () => {
               key={obj.id} 
               objective={obj} 
               linkedFeatures={activeFeatures.filter(f => f.objective_id === obj.id)}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
             />
           ))}
           {filtered.length === 0 && (

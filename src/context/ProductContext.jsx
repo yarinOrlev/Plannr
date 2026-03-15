@@ -279,6 +279,36 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  const updateObjective = async (id, updates) => {
+    try {
+      console.log('ProductContext: updateObjective called', { id, updates });
+      const { keyResults, ...rest } = updates;
+      const payload = { ...rest };
+      if (keyResults) payload.key_results = keyResults;
+
+      const { error } = await supabase.from('objectives').update(payload).eq('id', id);
+      if (error) throw error;
+      
+      setData(prev => ({
+        ...prev,
+        objectives: prev.objectives.map(o => o.id === id ? { ...o, ...updates, key_results: keyResults || o.key_results } : o)
+      }));
+    } catch (err) {
+      console.error('Error updating objective:', err);
+    }
+  };
+
+  const deleteObjective = async (id) => {
+    try {
+      console.log('ProductContext: deleteObjective called', { id });
+      const { error } = await supabase.from('objectives').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, objectives: prev.objectives.filter(o => o.id !== id) }));
+    } catch (err) {
+      console.error('Error deleting objective:', err);
+    }
+  };
+
   const updateStrategy = async (type, title, description) => {
     try {
       const existing = data.strategy.find(s => s.product_id === data.activeProductId && s.type === type);
@@ -679,6 +709,8 @@ export const ProductProvider = ({ children }) => {
     updateFeature,
     deleteFeature,
     addObjective,
+    updateObjective,
+    deleteObjective,
     updateStrategy,
     addDoc,
     addRoadmapItem,
