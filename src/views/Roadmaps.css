@@ -129,6 +129,7 @@
   text-align: center;
   font-weight: 600;
   border: 1px solid var(--border-color);
+  color: var(--text-secondary);
 }
 
 .timeline-rows {
@@ -167,7 +168,7 @@
   bottom: 10px;
   border-radius: var(--border-radius-md);
   padding: 1rem;
-  color: white;
+  color: inherit; /* Use color from i-bg classes */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -175,20 +176,25 @@
   cursor: pointer;
   transition: transform var(--transition-fast);
   z-index: 10;
+  padding: 1rem 1.25rem; /* Increased horizontal padding slightly */
 }
 
 .roadmap-block:hover {
   transform: translateY(-2px);
-  filter: brightness(1.1);
+  filter: brightness(1.05);
 }
 
 .roadmap-block-title {
   font-weight: 600;
   font-size: 0.9375rem;
-  margin-bottom: 0.25rem;
-  white-space: nowrap;
+  margin-bottom: 0.1rem;
+  line-height: 1.25;
+  color: currentColor;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .roadmap-block-meta {
@@ -220,4 +226,95 @@
   .kanban-board {
     grid-template-columns: 1fr;
   }
+}
+
+/* Status Indicators & Quick Toggle */
+.status-quick-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px; /* Increased spacing further from action buttons */
+}
+
+.status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-color); /* More visible in both modes */
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.roadmap-block .status-dot {
+  border-color: rgba(255, 255, 255, 0.6); /* Thicker/more opaque white in dark mode/colored blocks */
+}
+
+/* Correct light mode override for dots within blocks */
+body:not(.dark) .roadmap-block .status-dot {
+  border-color: rgba(0, 0, 0, 0.25); /* Darker border in light mode */
+}
+
+body:not(.dark) .roadmap-block .status-dot:hover {
+  border-color: rgba(0, 0, 0, 0.4);
+}
+
+.kanban-card .status-dot {
+  border-color: var(--border-color);
+}
+
+.status-dot:hover {
+  transform: scale(1.2);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.status-dot.active {
+  transform: scale(1.1);
+  box-shadow: 0 0 8px rgba(0,0,0,0.2);
+}
+
+.status-dot.active.emerald { background-color: #10b981; border-color: #059669; color: white; }
+.status-dot.active.red { background-color: #ef4444; border-color: #dc2626; color: white; }
+.status-dot.active.blue { background-color: #3b82f6; border-color: #2563eb; color: white; }
+
+.status-dot svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 3px;
+}
+
+.status-completed-successfully { border-right: 4px solid #10b981 !important; }
+.status-failed { border-right: 4px solid #ef4444 !important; }
+
+.btn-icon-xs {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  opacity: 0.7;
+}
+
+.btn-icon-xs:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.item-review-indicator {
+  background-color: #f59e0b;
+  color: white;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

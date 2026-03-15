@@ -66,7 +66,9 @@ export const ProductProvider = ({ children }) => {
         { data: roadmaps },
         { data: objectives },
         { data: notes },
-        { data: reviews }
+        { data: reviews },
+        { data: roadmapBoards },
+        { data: customers }
       ] = await Promise.all([
         supabase.from('products').select('*').order('created_at', { ascending: true }),
         supabase.from('features').select('*'),
@@ -74,7 +76,9 @@ export const ProductProvider = ({ children }) => {
         supabase.from('roadmaps').select('*'),
         supabase.from('objectives').select('*'),
         supabase.from('notes').select('*').order('created_at', { ascending: false }),
-        supabase.from('reviews').select('*')
+        supabase.from('reviews').select('*'),
+        supabase.from('roadmap_boards').select('*'),
+        supabase.from('customers').select('*')
       ]);
 
       setData(prev => ({
@@ -86,7 +90,10 @@ export const ProductProvider = ({ children }) => {
         objectives: objectives || [],
         notes: notes || [],
         reviews: reviews || [],
-        activeProductId: products?.[0]?.id || prev.activeProductId
+        roadmapBoards: roadmapBoards || [],
+        customers: customers || [],
+        activeProductId: products?.[0]?.id || prev.activeProductId,
+        activeRoadmapBoardId: (roadmapBoards || []).find(b => b.product_id === (products?.[0]?.id || prev.activeProductId))?.id || ''
       }));
       logger.info('Data fetch successful', { productsCount: products?.length });
 
@@ -138,20 +145,29 @@ export const ProductProvider = ({ children }) => {
   const setActiveProduct = (id) => {
     setData(prev => {
       const activeBoards = (prev.roadmapBoards || []).filter(b => b.product_id === id);
-      const newBoardId = activeBoards[0]?.id || 'board_default';
+      const newBoardId = activeBoards[0]?.id || '';
       return { ...prev, activeProductId: id, activeRoadmapBoardId: newBoardId };
     });
   };
 
   const addProduct = async (product) => {
     try {
-      const productWithUser = { ...product, user_id: user?.id };
-      const { data: newProd, error } = await supabase.from('products').insert([productWithUser]).select();
-      if (error) throw error;
+      console.log('ProductContext: addProduct called', { product });
+      const newProduct = { 
+        id: product.id || `prod_${Date.now()}`, 
+        name: product.name, 
+        description: product.description 
+      };
+      const { data: newProd, error } = await supabase.from('products').insert([newProduct]).select();
+      if (error) {
+        console.error('Supabase error in addProduct:', error);
+        throw error;
+      }
+      if (!newProd || newProd.length === 0) throw new Error('No data returned from product insert');
 
       const defaultBoard = {
         id: `board_${Date.now()}_default`,
-        product_id: product.id,
+        product_id: newProd[0].id,
         name: 'מפת דרכים ראשית',
         view_type: 'kanban',
         columns: [
@@ -161,15 +177,19 @@ export const ProductProvider = ({ children }) => {
         ]
       };
 
-      setData(prev => {
-        const updatedBoards = [...(prev.roadmapBoards || []), defaultBoard];
-        localStorage.setItem('plannr_roadmap_boards', JSON.stringify(updatedBoards));
-        return {
-          ...prev,
-          products: [...prev.products, newProd[0]],
-          roadmapBoards: updatedBoards
-        };
-      });
+      const { error: bErr } = await supabase.from('roadmap_boards').insert([defaultBoard]);
+      if (bErr) {
+        console.error('Supabase error saving default board:', bErr);
+        // We continue anyway as the product was added, but the UI might be inconsistent
+      }
+
+      setData(prev => ({
+        ...prev,
+        products: [...prev.products, newProd[0]],
+        roadmapBoards: [...(prev.roadmapBoards || []), defaultBoard],
+        activeProductId: newProd[0].id,
+        activeRoadmapBoardId: defaultBoard.id
+      }));
     } catch (err) {
       console.error('Error adding product:', err);
     }
@@ -195,9 +215,12 @@ export const ProductProvider = ({ children }) => {
 
   const addFeature = async (productFeature) => {
     try {
-      const newFeature = { ...productFeature, user_id: user?.id };
-      const { data: inserted, error } = await supabase.from('features').insert([newFeature]).select();
-      if (error) throw error;
+      console.log('ProductContext: addFeature called', { productFeature });
+      const { data: inserted, error } = await supabase.from('features').insert([productFeature]).select();
+      if (error) {
+        console.error('Supabase error in addFeature:', error);
+        throw error;
+      }
       setData(prev => ({ ...prev, features: [...prev.features, inserted[0]] }));
     } catch (err) {
       console.error('Error adding feature:', err);
@@ -232,12 +255,27 @@ export const ProductProvider = ({ children }) => {
 
   const addObjective = async (objective) => {
     try {
-      const newObj = { ...objective, user_id: user?.id };
+      console.log('ProductContext: addObjective called', { objective });
+      logger.info('Adding objective to Supabase...', { title: objective.title });
+      const { keyResults, ...rest } = objective;
+      const newObj = { 
+        ...rest, 
+        id: objective.id || `obj_${Date.now()}`,
+        key_results: keyResults 
+      };
+      
+      console.log('ProductContext: payload for objectives', newObj);
       const { data: inserted, error } = await supabase.from('objectives').insert([newObj]).select();
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error in addObjective:', error);
+        throw error;
+      }
+      if (!inserted || inserted.length === 0) throw new Error('No data returned from objective insert');
+      
       setData(prev => ({ ...prev, objectives: [...prev.objectives, inserted[0]] }));
+      logger.info('Objective added successfully');
     } catch (err) {
-      console.error('Error adding objective:', err);
+      logger.error('Error adding objective:', err);
     }
   };
 
@@ -252,7 +290,13 @@ export const ProductProvider = ({ children }) => {
           strategy: prev.strategy.map(s => s.id === existing.id ? { ...s, title, description } : s)
         }));
       } else {
-        const newStrat = { product_id: data.activeProductId, type, title, description, user_id: user?.id };
+        const newStrat = { 
+          id: `strat_${Date.now()}`,
+          product_id: data.activeProductId, 
+          type, 
+          title, 
+          description 
+        };
         const { data: inserted, error } = await supabase.from('strategy').insert([newStrat]).select();
         if (error) throw error;
         setData(prev => ({ ...prev, strategy: [...prev.strategy, inserted[0]] }));
@@ -271,13 +315,31 @@ export const ProductProvider = ({ children }) => {
 
   const addRoadmapItem = async (item) => {
     try {
+      console.log('ProductContext: addRoadmapItem called', { item });
       const activeBoards = (data.roadmapBoards || []).filter(b => b.product_id === data.activeProductId);
       const activeBoard = activeBoards.find(b => b.id === data.activeRoadmapBoardId) || activeBoards[0];
       const boardId = activeBoard?.id || '';
 
-      const newItem = { ...item, product_id: data.activeProductId, board_id: boardId, user_id: user?.id };
+      const newItem = { 
+        id: item.id || `rm_${Date.now()}`,
+        product_id: data.activeProductId, 
+        board_id: boardId,
+        title: item.title,
+        bucket: item.bucket,
+        description: item.description,
+        quarter: item.quarter,
+        year: item.year,
+        start_month: Math.round(item.startMonth || 0),
+        duration: Math.max(1, Math.round(item.duration || 1))
+      };
+      console.log('ProductContext: payload for roadmaps', newItem);
+      
       const { data: inserted, error } = await supabase.from('roadmaps').insert([newItem]).select();
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error in addRoadmapItem:', error);
+        throw error;
+      }
+      if (!inserted || inserted.length === 0) throw new Error('No data returned from roadmap insert');
 
       setData(prev => ({
         ...prev,
@@ -288,40 +350,117 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  const addRoadmapBoard = (board) => {
-    const newBoard = { ...board, id: `board_${Date.now()}`, product_id: data.activeProductId, view_type: board.view_type || 'kanban' };
-    setData(prev => {
-      const updatedBoards = [...(prev.roadmapBoards || []), newBoard];
-      localStorage.setItem('plannr_roadmap_boards', JSON.stringify(updatedBoards));
-      return {
+  const updateRoadmapItem = async (id, updates) => {
+    try {
+      const validCols = ['id', 'product_id', 'board_id', 'title', 'bucket', 'description', 'quarter', 'year', 'start_month', 'duration'];
+      const filteredUpdates = {};
+      
+      Object.keys(updates).forEach(key => {
+        let dbKey = key;
+        if (dbKey === 'startMonth') dbKey = 'start_month';
+        
+        if (validCols.includes(dbKey)) {
+          let val = updates[key];
+          if (dbKey === 'start_month' || dbKey === 'duration') {
+            val = Math.round(Number(val) || 0);
+            if (dbKey === 'duration') val = Math.max(1, val);
+          }
+          filteredUpdates[dbKey] = val;
+        }
+      });
+
+      console.log('ProductContext: updateRoadmapItem filtered', filteredUpdates);
+      const { error } = await supabase.from('roadmaps').update(filteredUpdates).eq('id', id);
+      if (error) throw error;
+      
+      setData(prev => ({
         ...prev,
-        roadmapBoards: updatedBoards,
-        activeRoadmapBoardId: newBoard.id
-      };
-    });
+        roadmaps: prev.roadmaps.map(rm => rm.id === id ? { ...rm, ...updates } : rm)
+      }));
+    } catch (err) {
+      console.error('Error updating roadmap item:', err);
+    }
   };
 
-  const updateRoadmapBoard = (id, updates) => {
-    setData(prev => {
-      const updatedBoards = (prev.roadmapBoards || []).map(b => b.id === id ? { ...b, ...updates } : b);
-      localStorage.setItem('plannr_roadmap_boards', JSON.stringify(updatedBoards));
-      return {
+  const deleteRoadmapItem = async (id) => {
+    try {
+      const { error } = await supabase.from('roadmaps').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({
         ...prev,
-        roadmapBoards: updatedBoards
-      };
-    });
+        roadmaps: prev.roadmaps.filter(rm => rm.id !== id)
+      }));
+    } catch (err) {
+      console.error('Error deleting roadmap item:', err);
+    }
   };
 
-  const deleteRoadmapBoard = (id) => {
-    setData(prev => {
-      const updatedBoards = (prev.roadmapBoards || []).filter(b => b.id !== id);
-      localStorage.setItem('plannr_roadmap_boards', JSON.stringify(updatedBoards));
-      return {
-        ...prev,
-        roadmapBoards: updatedBoards,
-        activeRoadmapBoardId: prev.activeRoadmapBoardId === id ? (updatedBoards.find(b => b.product_id === prev.activeProductId)?.id || '') : prev.activeRoadmapBoardId
+  const addRoadmapBoard = async (board) => {
+    try {
+      console.log('ProductContext: addRoadmapBoard called', { board });
+      const newBoard = { 
+        id: `board_${Date.now()}`,
+        product_id: data.activeProductId, 
+        name: board.name,
+        view_type: board.view_type || 'kanban',
+        columns: board.columns || [
+          { key: 'Now', label: 'עכשיו', color: 'blue', icon: 'Zap' },
+          { key: 'Next', label: 'הבא', color: 'purple', icon: 'ArrowRight' },
+          { key: 'Later', label: 'בעתיד', color: 'yellow', icon: 'Clock' }
+        ],
+        quarter: board.quarter,
+        year: board.year
       };
-    });
+      
+      const { data: inserted, error } = await supabase.from('roadmap_boards').insert([newBoard]).select();
+      if (error) {
+        console.error('Supabase error in addRoadmapBoard:', error);
+        throw error;
+      }
+      if (!inserted || inserted.length === 0) throw new Error('No data returned from board insert');
+
+      setData(prev => ({
+        ...prev,
+        roadmapBoards: [...(prev.roadmapBoards || []), inserted[0]],
+        activeRoadmapBoardId: inserted[0].id
+      }));
+    } catch (err) {
+      console.error('Error adding roadmap board:', err);
+    }
+  };
+
+  const updateRoadmapBoard = async (id, updates) => {
+    try {
+      console.log('ProductContext: updateRoadmapBoard called', { id, updates });
+      const { error } = await supabase.from('roadmap_boards').update(updates).eq('id', id);
+      if (error) throw error;
+
+      setData(prev => ({
+        ...prev,
+        roadmapBoards: (prev.roadmapBoards || []).map(b => b.id === id ? { ...b, ...updates } : b)
+      }));
+    } catch (err) {
+      console.error('Error updating roadmap board:', err);
+    }
+  };
+
+  const deleteRoadmapBoard = async (id) => {
+    try {
+      console.log('ProductContext: deleteRoadmapBoard called', { id });
+      const { error } = await supabase.from('roadmap_boards').delete().eq('id', id);
+      if (error) throw error;
+
+      setData(prev => {
+        const updatedBoards = (prev.roadmapBoards || []).filter(b => b.id !== id);
+        return {
+          ...prev,
+          roadmapBoards: updatedBoards,
+          activeRoadmapBoardId: prev.activeRoadmapBoardId === id ? (updatedBoards.find(b => b.product_id === prev.activeProductId)?.id || '') : prev.activeRoadmapBoardId
+        };
+      });
+    } catch (err) {
+      console.error('Error deleting roadmap board:', err);
+    }
   };
 
   const setActiveRoadmapBoard = (id) => {
@@ -330,13 +469,18 @@ export const ProductProvider = ({ children }) => {
 
   const addNote = async (note) => {
     try {
-      const newNote = { ...note, product_id: data.activeProductId, user_id: user?.id };
+      console.log('ProductContext: addNote called', { note });
+      const newNote = {
+        ...note,
+        id: note.id || `note_${Date.now()}`,
+        product_id: note.product_id || data.activeProductId
+      };
       const { data: inserted, error } = await supabase.from('notes').insert([newNote]).select();
-      if (error) throw error;
-      setData(prev => ({
-        ...prev,
-        notes: [...(prev.notes || []), inserted[0]]
-      }));
+      if (error) {
+        console.error('Supabase error in addNote:', error);
+        throw error;
+      }
+      setData(prev => ({ ...prev, notes: [inserted[0], ...(prev.notes || [])] }));
     } catch (err) {
       console.error('Error adding note:', err);
     }
@@ -369,9 +513,27 @@ export const ProductProvider = ({ children }) => {
 
   const addCustomer = async (customer) => {
     try {
-      const newCust = { ...customer, product_id: data.activeProductId, user_id: user?.id };
-      const { data: inserted, error } = await supabase.from('customers').insert([newCust]).select();
-      if (error) throw error;
+      console.log('ProductContext: addCustomer called', { customer });
+      const newCustomer = {
+        id: customer.id || `cust_${Date.now()}`,
+        product_id: customer.product_id || data.activeProductId,
+        name: customer.name,
+        email: customer.email,
+        company: customer.company,
+        status: customer.status || 'Active',
+        notes: customer.notes || [],
+        description: customer.description || '',
+        segment: customer.segment || 'Enterprise',
+        wants: customer.wants || ''
+      };
+      
+      const { data: inserted, error } = await supabase.from('customers').insert([newCustomer]).select();
+      if (error) {
+        console.error('Supabase error in addCustomer:', error);
+        throw error;
+      }
+      if (!inserted || inserted.length === 0) throw new Error('No data returned from customer insert');
+
       setData(prev => ({
         ...prev,
         customers: [...(prev.customers || []), inserted[0]]
@@ -383,6 +545,7 @@ export const ProductProvider = ({ children }) => {
 
   const addCustomerNote = async (customerId, noteText) => {
     try {
+      console.log('ProductContext: addCustomerNote called', { customerId });
       const customer = data.customers.find(c => c.id === customerId);
       if (!customer) return;
 
@@ -401,11 +564,47 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  const updateCustomer = async (id, updates) => {
+    try {
+      console.log('ProductContext: updateCustomer called', { id, updates });
+      const { error } = await supabase.from('customers').update(updates).eq('id', id);
+      if (error) throw error;
+
+      setData(prev => ({
+        ...prev,
+        customers: (prev.customers || []).map(c => c.id === id ? { ...c, ...updates } : c)
+      }));
+    } catch (err) {
+      console.error('Error updating customer:', err);
+    }
+  };
+
+  const deleteCustomerNote = async (customerId, noteId) => {
+    try {
+      console.log('ProductContext: deleteCustomerNote called', { customerId, noteId });
+      const customer = data.customers.find(c => c.id === customerId);
+      if (!customer) return;
+
+      const updatedNotes = (customer.notes || []).filter(n => n.id !== noteId);
+
+      const { error } = await supabase.from('customers').update({ notes: updatedNotes }).eq('id', customerId);
+      if (error) throw error;
+
+      setData(prev => ({
+        ...prev,
+        customers: prev.customers.map(c => c.id === customerId ? { ...c, notes: updatedNotes } : c)
+      }));
+    } catch (err) {
+      console.error('Error deleting customer note:', err);
+    }
+  };
+
   const deleteCustomer = async (id) => {
     try {
+      console.log('ProductContext: deleteCustomer called', { id });
       const { error } = await supabase.from('customers').delete().eq('id', id);
       if (error) throw error;
-      setData(prev => ({ ...prev, customers: prev.customers.filter(c => c.id !== id) }));
+      setData(prev => ({ ...prev, customers: (prev.customers || []).filter(c => c.id !== id) }));
     } catch (err) {
       console.error('Error deleting customer:', err);
     }
@@ -413,9 +612,19 @@ export const ProductProvider = ({ children }) => {
 
   const addReview = async (product_id, content, item_id = null) => {
     try {
-      const newReview = { product_id, item_id, content, status: 'Pending', user_id: user?.id };
+      console.log('ProductContext: addReview called', { product_id, content, item_id });
+      const newReview = { 
+        id: `rev_${Date.now()}`,
+        product_id, 
+        item_id, 
+        content, 
+        status: 'Pending' 
+      };
       const { data: inserted, error } = await supabase.from('reviews').insert([newReview]).select();
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error in addReview:', error);
+        throw error;
+      }
       setData(prev => ({
         ...prev,
         reviews: [...(prev.reviews || []), inserted[0]]
@@ -424,6 +633,7 @@ export const ProductProvider = ({ children }) => {
       console.error('Error adding review:', err);
     }
   };
+
 
   const updateReviewStatus = async (reviewId, status) => {
     try {
@@ -472,10 +682,14 @@ export const ProductProvider = ({ children }) => {
     updateStrategy,
     addDoc,
     addRoadmapItem,
+    updateRoadmapItem,
+    deleteRoadmapItem,
     addNote,
     deleteNote,
     addCustomer,
+    updateCustomer,
     addCustomerNote,
+    deleteCustomerNote,
     deleteCustomer,
     addReview,
     updateReviewStatus,

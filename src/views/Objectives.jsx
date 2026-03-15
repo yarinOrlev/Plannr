@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Target, ChevronRight, Plus, Calendar, Activity, TrendingUp, TrendingDown, Minus, X, Check } from 'lucide-react';
+import { Target, ChevronRight, Plus, Calendar, Activity, TrendingUp, TrendingDown, Minus, X, Check, Trash2 } from 'lucide-react';
 import './Objectives.css';
 
 const KpiCard = ({ kpi }) => {
@@ -24,7 +24,7 @@ const KpiCard = ({ kpi }) => {
 };
 
 const ObjectiveCard = ({ objective, linkedFeatures = [] }) => {
-  const krs = objective.keyResults || [
+  const krs = objective.key_results || objective.keyResults || [
     { title: 'תוצאת מפתח 1', progress: Math.min(100, objective.progress+15) },
     { title: 'תוצאת מפתח 2', progress: Math.max(0, objective.progress-10) },
   ];
@@ -77,7 +77,12 @@ const QUARTERS = ['הכל','Q1 2026','Q2 2026','Q3 2026','Q4 2026','Q1 2027'];
 const Objectives = () => {
   const { activeObjectives, activeProduct, activeKpis, addObjective, data, activeFeatures, searchTerm } = useProductContext();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title:'', progress:0, quarter:'Q3 2026', kr1:'', kr2:'' });
+  const [form, setForm] = useState({ 
+    title: '', 
+    progress: 0, 
+    quarter: 'Q3 2026', 
+    keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }] 
+  });
   const [selectedQuarter, setSelectedQuarter] = useState('הכל');
   const [selectedTeams, setSelectedTeams] = useState([]);
 
@@ -89,21 +94,52 @@ const Objectives = () => {
       prev.includes(team) ? prev.filter(t => t !== team) : [...prev, team]
     );
   };
+
+  const addKR = () => {
+    setForm(prev => ({
+      ...prev,
+      keyResults: [...prev.keyResults, { title: '', progress: 0 }]
+    }));
+  };
+
+  const removeKR = (index) => {
+    setForm(prev => ({
+      ...prev,
+      keyResults: prev.keyResults.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateKR = (index, field, value) => {
+    const updatedKRs = [...form.keyResults];
+    updatedKRs[index] = { ...updatedKRs[index], [field]: value };
+    setForm(prev => ({ ...prev, keyResults: updatedKRs }));
+  };
   const filtered = (selectedQuarter === 'הכל' ? activeObjectives : activeObjectives.filter(o => o.quarter === selectedQuarter))
     .filter(o => o.title.toLowerCase().includes(searchTerm.toLowerCase()) || o.description?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
+    
+    const validKRs = form.keyResults.filter(kr => kr.title.trim() !== '');
+    const totalProgress = validKRs.length > 0 
+      ? Math.round(validKRs.reduce((acc, kr) => acc + Number(kr.progress || 0), 0) / validKRs.length)
+      : 0;
+
     addObjective({ 
       product_id:activeProduct.id, 
       title:form.title, 
-      progress:Number(form.progress), 
+      progress:totalProgress, 
       quarter:form.quarter, 
-      keyResults:[{ title:form.kr1||'תוצאת מפתח 1', progress:0 },{ title:form.kr2||'תוצאת מפתח 2', progress:0 }],
+      keyResults: validKRs,
       teams: selectedTeams
     });
-    setForm({ title:'', progress:0, quarter:'Q3 2026', kr1:'', kr2:'' });
+    setForm({ 
+      title: '', 
+      progress: 0, 
+      quarter: 'Q3 2026', 
+      keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }] 
+    });
     setSelectedTeams([]);
     setShowForm(false);
   };
@@ -140,9 +176,55 @@ const Objectives = () => {
               <input type="text" required autoFocus style={inputStyle} value={form.title} onChange={e => setForm({...form,title:e.target.value})} placeholder="לדוגמה: הגדלת שיעור שימור משתמשים"/>
             </div>
             <div><label className="text-sm text-secondary block mb-1">רבעון</label><input type="text" style={inputStyle} value={form.quarter} onChange={e => setForm({...form,quarter:e.target.value})}/></div>
-            <div><label className="text-sm text-secondary block mb-1">התקדמות (%)</label><input type="number" min="0" max="100" style={inputStyle} value={form.progress} onChange={e => setForm({...form,progress:e.target.value})}/></div>
-            <div><label className="text-sm text-secondary block mb-1">תוצאת מפתח 1</label><input style={inputStyle} value={form.kr1} onChange={e => setForm({...form,kr1:e.target.value})} placeholder="תוצאה מדידה..."/></div>
-            <div><label className="text-sm text-secondary block mb-1">תוצאת מפתח 2</label><input style={inputStyle} value={form.kr2} onChange={e => setForm({...form,kr2:e.target.value})} placeholder="תוצאה מדידה..."/></div>
+            <div>
+              <label className="text-sm text-secondary block mb-1">התקדמות משוערת (%)</label>
+              <div style={{ ...inputStyle, background: 'var(--bg-tertiary)', opacity: 0.8, display: 'flex', alignItems: 'center' }}>
+                {form.keyResults.filter(kr => kr.title.trim() !== '').length > 0 
+                  ? Math.round(form.keyResults.filter(kr => kr.title.trim() !== '').reduce((acc, kr) => acc + Number(kr.progress || 0), 0) / form.keyResults.filter(kr => kr.title.trim() !== '').length)
+                  : 0}% (מחושב אוטומטית)
+              </div>
+            </div>
+            
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="flex-between mb-2">
+                <label className="text-sm text-secondary block">תוצאות מפתח</label>
+                <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={addKR}>
+                  <Plus size={10} /> הוסף תוצאה
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {form.keyResults.map((kr, index) => (
+                  <div key={index} className="flex-center gap-2" style={{ alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <input 
+                        style={inputStyle} 
+                        value={kr.title} 
+                        onChange={e => updateKR(index, 'title', e.target.value)} 
+                        placeholder={`תוצאת מפתח ${index + 1}...`}
+                      />
+                    </div>
+                    <div style={{ width: '80px' }}>
+                      <input 
+                        type="number" 
+                        style={inputStyle} 
+                        value={kr.progress} 
+                        onChange={e => updateKR(index, 'progress', e.target.value)} 
+                        placeholder="%"
+                      />
+                    </div>
+                    <button 
+                      type="button" 
+                      className="btn-icon" 
+                      style={{ marginTop: '0.6rem' }}
+                      onClick={() => removeKR(index)}
+                      disabled={form.keyResults.length <= 1}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="text-sm text-secondary block mb-2">צוותים מעורבים</label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

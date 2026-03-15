@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Plus, X, Check, MoreHorizontal, Zap, ArrowRight, Clock, MessageSquare } from 'lucide-react';
+import { Plus, X, Check, MoreHorizontal, Zap, ArrowRight, Clock, MessageSquare, CheckCircle, AlertCircle, Trash2, Activity } from 'lucide-react';
 import logger from '../utils/logger';
 import './Roadmaps.css';
 
@@ -24,9 +24,11 @@ const QUARTERS = {
   'Q4': ['אוקטובר', 'נובמבר', 'דצמבר']
 };
 
-const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, data, updateReviewStatus }) => {
+const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, data, updateReviewStatus }) => {
   const [showAdd, setShowAdd] = useState(false);
-  const [newBlock, setNewBlock] = useState({ title: '', startMonth: 0, duration: 1, featureId: '' });
+  const [newBlock, setNewBlock] = useState({ title: '', startMonth: 0, duration: 1, featureId: '', status: 'In Progress' });
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
   
   const currentMonths = QUARTERS[board.quarter || 'Q3'];
   const year = board.year || '2026';
@@ -45,8 +47,26 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, d
       quarter: board.quarter,
       year: board.year
     });
-    setNewBlock({ title: '', startMonth: 0, duration: 1, featureId: '' });
+    setNewBlock({ title: '', startMonth: 0, duration: 1, featureId: '', status: 'In Progress' });
     setShowAdd(false);
+  };
+
+  const handleStartEdit = (item) => {
+    setEditingItemId(item.id);
+    setEditForm({ 
+      title: item.title, 
+      startMonth: item.startMonth || item.start_month || 0, 
+      duration: item.duration || 1, 
+      featureId: item.featureId || '', 
+      status: item.status || 'In Progress' 
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editForm.title.trim()) return;
+    updateRoadmapItem(editingItemId, editForm);
+    setEditingItemId(null);
+    setEditForm(null);
   };
 
   return (
@@ -60,88 +80,198 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, d
         ))}
         
         <div className="timeline-rows">
-          {filteredRoadmaps.map(item => (
-            <div key={item.id} className="timeline-row">
-              <div className="timeline-slot"></div>
-              <div className="timeline-slot"></div>
-              <div className="timeline-slot"></div>
-              <div 
-                className="roadmap-block i-bg-purple"
-                style={{ 
-                  left: `calc(${(item.startMonth / 3) * 100}% + 8px)`, 
-                  width: `calc(${(item.duration / 3) * 100}% - 16px)`,
-                  right: 'auto'
-                }}
-              >
-                <div className="flex-between">
-                  <div className="roadmap-block-title">{item.title}</div>
-                  {(data.reviews || []).filter(r => r.item_id === item.id && r.status === 'Pending').length > 0 && (
-                    <div className="item-review-indicator" title="הערות מנהל פתוחות">
-                      <MessageSquare size={10} />
+          {filteredRoadmaps.map(item => {
+            const start = item.start_month ?? item.startMonth ?? 0;
+            const duration = item.duration ?? 1;
+            return (
+              <div key={item.id} className="timeline-row">
+                <div className="timeline-slot"></div>
+                <div className="timeline-slot"></div>
+                <div className="timeline-slot"></div>
+                <div 
+                  className={`roadmap-block i-bg-purple status-${(item.status || 'In Progress').toLowerCase().replace(/\s+/g, '-')}`}
+                  style={{ 
+                    right: `calc(${(start / 3) * 100}% + 8px)`, 
+                    width: `calc(${(duration / 3) * 100}% - 16px)`,
+                    left: 'auto',
+                    borderRight: item.status === 'Completed Successfully' ? '4px solid #10b981' : (item.status === 'Failed' ? '4px solid #ef4444' : 'none')
+                  }}
+                >
+                  <div className="flex-between items-center">
+                    <div className="roadmap-block-title flex-center gap-1" style={{ justifyContent: 'flex-start' }}>
+                      {item.status === 'Completed Successfully' && <CheckCircle size={12} className="text-emerald-400" />}
+                      {item.status === 'Failed' && <AlertCircle size={12} className="text-red-400" />}
+                      {item.title}
                     </div>
-                  )}
-                </div>
-                {item.featureId && (
-                  <div className="roadmap-block-meta">
-                    <Check size={10} style={{ display:'inline', marginLeft:4 }}/>
-                    {activeFeatures.find(f => f.id === item.featureId)?.title}
+                    <div className="flex-center gap-1">
+                      {(data.reviews || []).filter(r => r.item_id === item.id && r.status === 'Pending').length > 0 && (
+                        <div className="item-review-indicator" title="הערות מנהל פתוחות">
+                          <MessageSquare size={10} />
+                        </div>
+                      )}
+                      <button className="btn-icon-xs text-white" style={{ background: 'rgba(0,0,0,0.1)' }} title="עריכה" onClick={(e) => { e.stopPropagation(); handleStartEdit(item); }}>
+                        <Check size={14}/>
+                      </button>
+                      <button className="btn-icon-xs text-white" style={{ background: 'rgba(0,0,0,0.1)' }} title="מחיקה" onClick={(e) => { e.stopPropagation(); deleteRoadmapItem(item.id); }}>
+                        <Trash2 size={14}/>
+                      </button>
+                    </div>
                   </div>
-                )}
+                  <div className="flex-between mt-1 items-end">
+                    {item.featureId ? (
+                      <div className="roadmap-block-meta">
+                        <Check size={10} style={{ display:'inline', marginLeft:4 }}/>
+                        {activeFeatures.find(f => f.id === item.featureId)?.title}
+                      </div>
+                    ) : <div />}
+                    <div className="status-quick-toggle flex-center gap-1">
+                      <button 
+                        className={`status-dot ${item.status === 'Completed Successfully' ? 'active emerald' : ''}`} 
+                        onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Completed Successfully' }); }}
+                        title="סמן כהצלחה"
+                      >
+                        {item.status === 'Completed Successfully' && <Check />}
+                      </button>
+                      <button 
+                        className={`status-dot ${item.status === 'Failed' ? 'active red' : ''}`} 
+                        onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Failed' }); }}
+                        title="סמן ככשלון"
+                      >
+                        {item.status === 'Failed' && <X />}
+                      </button>
+                      <button 
+                        className={`status-dot ${item.status === 'In Progress' || !item.status ? 'active blue' : ''}`} 
+                        onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'In Progress' }); }}
+                        title="בתהליך"
+                      >
+                        {(item.status === 'In Progress' || !item.status) && <Activity />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-
-          {showAdd ? (
-            <div className="glass-panel p-4 animate-fade-in" style={{ gridColumn: '1 / -1' }}>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'1rem' }}>
-                <div>
-                  <label className="text-xs text-secondary block mb-1">כותרת הבלוק</label>
-                  <input style={inputStyle} value={newBlock.title} onChange={e => setNewBlock({...newBlock, title: e.target.value})} placeholder="למשל: פיתוח MVP..."/>
-                </div>
-                <div>
-                  <label className="text-xs text-secondary block mb-1">חודש התחלה</label>
-                  <select style={inputStyle} value={newBlock.startMonth} onChange={e => setNewBlock({...newBlock, startMonth: parseInt(e.target.value)})}>
-                    {currentMonths.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-secondary block mb-1">משך זמן (חודשים)</label>
-                  <select style={inputStyle} value={newBlock.duration} onChange={e => setNewBlock({...newBlock, duration: parseInt(e.target.value)})}>
-                    <option value={1}>חודש אחד (קצר)</option>
-                    <option value={2}>חודשיים (בינוני)</option>
-                    <option value={3}>שלושה חודשים (ארוך)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-secondary block mb-1">קישור לפיצ'ר</label>
-                  <select style={inputStyle} value={newBlock.featureId} onChange={e => setNewBlock({...newBlock, featureId: e.target.value})}>
-                    <option value="">ללא קישור</option>
-                    {activeFeatures.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="flex-center gap-2 mt-4" style={{ justifyContent:'flex-start' }}>
-                <button className="btn btn-primary" onClick={handleAdd}><Check size={16}/> שמירה</button>
-                <button className="btn btn-secondary" onClick={() => setShowAdd(false)}>ביטול</button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-center py-4" style={{ gridColumn: '1 / -1' }}>
-              <button className="timeline-add-btn" onClick={() => setShowAdd(true)} title="הוספת בלוק למפת הדרכים">
-                 <Plus size={20}/>
-              </button>
-            </div>
-          )}
+            );
+          })}
         </div>
+
+        {showAdd ? (
+          <div className="glass-panel p-4 animate-fade-in" style={{ gridColumn: '1 / -1' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'1rem' }}>
+              <div>
+                <label className="text-xs text-secondary block mb-1">כותרת הבלוק</label>
+                <textarea rows={1} style={{...inputStyle, resize: 'vertical', minHeight: '38px'}} value={newBlock.title} onChange={e => setNewBlock({...newBlock, title: e.target.value})} placeholder="למשל: פיתוח MVP..."/>
+              </div>
+              <div>
+                <label className="text-xs text-secondary block mb-1">חודש התחלה</label>
+                <select style={inputStyle} value={newBlock.startMonth} onChange={e => setNewBlock({...newBlock, startMonth: parseInt(e.target.value)})}>
+                  {currentMonths.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-secondary block mb-1">משך זמן</label>
+                <select style={inputStyle} value={newBlock.duration} onChange={e => setNewBlock({...newBlock, duration: parseFloat(e.target.value)})}>
+                  <option value={0.25}>שבוע (0.25 חודש)</option>
+                  <option value={0.5}>שבועיים (0.5 חודש)</option>
+                  <option value={0.75}>3 שבועות (0.75 חודש)</option>
+                  <option value={1}>חודש (1)</option>
+                  <option value={2}>חודשיים (2)</option>
+                  <option value={3}>3 חודשים (Q)</option>
+                  <option value={6}>6 חודשים (2Q)</option>
+                  <option value={12}>12 חודשים (שנה)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-secondary block mb-1">סטטוס</label>
+                <select style={inputStyle} value={newBlock.status} onChange={e => setNewBlock({...newBlock, status: e.target.value})}>
+                  <option value="In Progress">בתהליך</option>
+                  <option value="Completed Successfully">הושלם בהצלחה</option>
+                  <option value="Failed">נכשל / בעיות</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-secondary block mb-1">קישור לפיצ'ר</label>
+                <select style={inputStyle} value={newBlock.featureId} onChange={e => setNewBlock({...newBlock, featureId: e.target.value})}>
+                  <option value="">ללא קישור</option>
+                  {activeFeatures.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex-center gap-2 mt-4" style={{ justifyContent:'flex-start' }}>
+              <button className="btn btn-primary" onClick={handleAdd}><Check size={16}/> שמירה</button>
+              <button className="btn btn-secondary" onClick={() => setShowAdd(false)}>ביטול</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-center py-4" style={{ gridColumn: '1 / -1' }}>
+            <button className="timeline-add-btn" onClick={() => setShowAdd(true)} title="הוספת בלוק למפת הדרכים">
+               <Plus size={20}/>
+            </button>
+          </div>
+        )}
       </div>
+
+      {editingItemId && editForm && (
+        <div className="glass-panel p-4 animate-fade-in mt-6">
+          <div className="flex-between mb-3">
+            <h4 className="font-semibold text-primary">עריכת פריט</h4>
+            <button className="btn-icon" onClick={() => setEditingItemId(null)}><X size={18}/></button>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'1rem' }}>
+            <div>
+              <label className="text-xs text-secondary block mb-1">כותרת הבלוק</label>
+              <textarea rows={1} style={{...inputStyle, resize: 'vertical', minHeight: '38px'}} value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} placeholder="למשל: פיתוח MVP..."/>
+            </div>
+            <div>
+              <label className="text-xs text-secondary block mb-1">חודש התחלה</label>
+              <select style={inputStyle} value={editForm.startMonth} onChange={e => setEditForm({...editForm, startMonth: parseInt(e.target.value)})}>
+                {currentMonths.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-secondary block mb-1">משך זמן</label>
+              <select style={inputStyle} value={editForm.duration} onChange={e => setEditForm({...editForm, duration: parseFloat(e.target.value)})}>
+                <option value={0.25}>שבוע (0.25 חודש)</option>
+                <option value={0.5}>שבועיים (0.5 חודש)</option>
+                <option value={0.75}>3 שבועות (0.75 חודש)</option>
+                <option value={1}>חודש (1)</option>
+                <option value={2}>חודשיים (2)</option>
+                <option value={3}>3 חודשים (Q)</option>
+                <option value={6}>6 חודשים (2Q)</option>
+                <option value={12}>12 חודשים (שנה)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-secondary block mb-1">סטטוס</label>
+              <select style={inputStyle} value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})}>
+                <option value="In Progress">בתהליך</option>
+                <option value="Completed Successfully">הושלם בהצלחה</option>
+                <option value="Failed">נכשל / בעיות</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-secondary block mb-1">קישור לפיצ'ר</label>
+              <select style={inputStyle} value={editForm.featureId} onChange={e => setEditForm({...editForm, featureId: e.target.value})}>
+                <option value="">ללא קישור</option>
+                {activeFeatures.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex-center gap-2 mt-4" style={{ justifyContent:'flex-start' }}>
+            <button className="btn btn-primary" onClick={handleSaveEdit}><Check size={16}/> שמירה</button>
+            <button className="btn btn-secondary" onClick={() => setEditingItemId(null)}>ביטול</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 const Roadmaps = () => {
-  const { activeRoadmaps, activeProduct, addRoadmapItem, roadmapBoards, activeRoadmapBoard, setActiveRoadmapBoard, activeFeatures, data, updateReviewStatus, loading, searchTerm } = useProductContext();
+  const { activeRoadmaps, activeProduct, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, roadmapBoards, activeRoadmapBoard, setActiveRoadmapBoard, activeFeatures, data, updateReviewStatus, loading, searchTerm } = useProductContext();
   const [addingTo, setAddingTo] = useState(null);
   const [form, setForm] = useState({ title:'', description:'' });
+  const [editingCardId, setEditingCardId] = useState(null);
+  const [cardForm, setCardForm] = useState({ title:'', description:'' });
 
   if (!activeProduct) return null;
 
@@ -156,6 +286,18 @@ const Roadmaps = () => {
     addRoadmapItem({ title:form.title, description:form.description, bucket });
     setForm({ title:'', description:'' });
     setAddingTo(null);
+  };
+
+  const handleStartCardEdit = (item) => {
+    setEditingCardId(item.id);
+    setCardForm({ title: item.title, description: item.description || '' });
+  };
+
+  const handleSaveCardEdit = () => {
+    if (!cardForm.title.trim()) return;
+    updateRoadmapItem(editingCardId, cardForm);
+    setEditingCardId(null);
+    setCardForm({ title:'', description:'' });
   };
 
   const getReviews = (item_id) => (data.reviews || []).filter(r => r.item_id === item_id && r.status === 'Pending');
@@ -190,6 +332,8 @@ const Roadmaps = () => {
           activeRoadmaps={activeRoadmaps} 
           activeFeatures={activeFeatures}
           addRoadmapItem={addRoadmapItem}
+          updateRoadmapItem={updateRoadmapItem}
+          deleteRoadmapItem={deleteRoadmapItem}
           data={data}
           updateReviewStatus={updateReviewStatus}
         />
@@ -222,16 +366,68 @@ const Roadmaps = () => {
                     const reviews = getReviews(item.id);
                     return (
                       <div key={item.id} className="kanban-card-wrapper mb-3">
-                        <div className="kanban-card">
-                          <div className="card-header">
-                            <span className={`badge badge-${color}`}>{label}</span>
-                            <button className="btn-icon text-tertiary"><MoreHorizontal size={16}/></button>
+                        {editingCardId === item.id ? (
+                          <div className="kanban-add-form">
+                            <textarea autoFocus rows={1} style={{...inputStyle, resize: 'vertical', minHeight: '38px'}} placeholder="כותרת..." value={cardForm.title}
+                              onChange={e => setCardForm({...cardForm, title:e.target.value})}
+                              onKeyDown={e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); handleSaveCardEdit(); } if(e.key==='Escape') setEditingCardId(null); }}/>
+                            <textarea style={{...inputStyle, marginTop:'0.5rem', resize:'vertical', minHeight:'60px'}}
+                              placeholder="תיאור (אופציונלי)..." value={cardForm.description}
+                              onChange={e => setCardForm({...cardForm, description:e.target.value})}/>
+                            <div className="flex-center gap-2 mt-2" style={{ justifyContent:'flex-start' }}>
+                              <button className="btn btn-primary" style={{ padding:'0.35rem 0.75rem', fontSize:'0.8rem' }} onClick={handleSaveCardEdit}>
+                                <Check size={14}/> שמירה
+                              </button>
+                              <button className="btn-icon" onClick={() => setEditingCardId(null)}>
+                                <X size={16}/>
+                              </button>
+                            </div>
                           </div>
-                          <div className="card-body">
-                            <h4 className="card-title font-medium">{item.title}</h4>
-                            {item.description && <p className="text-xs text-tertiary mt-1">{item.description}</p>}
+                        ) : (
+                          <div className={`kanban-card status-${(item.status || 'In Progress').toLowerCase().replace(/\s+/g, '-')}`}
+                               style={{ borderRight: item.status === 'Completed Successfully' ? '4px solid #10b981' : (item.status === 'Failed' ? '4px solid #ef4444' : 'none') }}>
+                            <div className="card-header">
+                              <span className={`badge badge-${color}`}>{label}</span>
+                              <div className="flex-center gap-1">
+                                <button className="btn-icon text-tertiary hover:text-primary" onClick={() => handleStartCardEdit(item)} title="עריכה"><Check size={18}/></button>
+                                <button className="btn-icon text-tertiary hover:text-danger" onClick={() => deleteRoadmapItem(item.id)} title="מחיקה"><Trash2 size={18}/></button>
+                                <button className="btn-icon text-tertiary"><MoreHorizontal size={18}/></button>
+                              </div>
+                            </div>
+                            <div className="card-body">
+                              <div className="flex-center gap-1 mb-1" style={{ justifyContent: 'flex-start' }}>
+                                {item.status === 'Completed Successfully' && <CheckCircle size={14} className="text-emerald-400" />}
+                                {item.status === 'Failed' && <AlertCircle size={14} className="text-red-400" />}
+                                <h4 className="card-title font-medium">{item.title}</h4>
+                              </div>
+                              {item.description && <p className="text-xs text-tertiary mt-1">{item.description}</p>}
+
+                              <div className="status-quick-toggle flex-center gap-1 mt-3" style={{ justifyContent: 'flex-start' }}>
+                                <button
+                                  className={`status-dot ${item.status === 'Completed Successfully' ? 'active emerald' : ''}`}
+                                  onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Completed Successfully' }); }}
+                                  title="סמן כהצלחה"
+                                >
+                                  {item.status === 'Completed Successfully' && <Check />}
+                                </button>
+                                <button
+                                  className={`status-dot ${item.status === 'Failed' ? 'active red' : ''}`}
+                                  onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Failed' }); }}
+                                  title="סמן ככשלון"
+                                >
+                                  {item.status === 'Failed' && <X />}
+                                </button>
+                                <button
+                                  className={`status-dot ${item.status === 'In Progress' || !item.status ? 'active blue' : ''}`}
+                                  onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'In Progress' }); }}
+                                  title="בתהליך"
+                                >
+                                  {(item.status === 'In Progress' || !item.status) && <Activity />}
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
                         {reviews.map(rev => (
                           <div key={rev.id} className="item-review-bubble mt-1 p-2 bg-yellow rounded text-[10px] flex-between" style={{ borderRight: '3px solid var(--status-warning)' }}>
                             <span className="flex-center gap-1"><MessageSquare size={10}/> {rev.content}</span>
