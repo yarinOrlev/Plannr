@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../supabaseClient';
 import { Hexagon, LogIn, Mail, Lock, AlertCircle, CheckCircle, Users, Plus, Rocket } from 'lucide-react';
 import './Login.css';
 
@@ -12,7 +11,6 @@ const Login = () => {
   const [name, setName] = useState('');
   const [role, setRole] = useState('PM');
   const [success, setSuccess] = useState(false);
-  const [localLoading, setLocalLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -126,8 +124,8 @@ const Login = () => {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary w-full py-3" disabled={loading || localLoading}>
-            {loading || localLoading ? 'מבצע...' : (
+          <button type="submit" className="btn btn-primary w-full py-3" disabled={loading}>
+            {loading ? 'מבצע...' : (
               <>{isSignUp ? <Plus size={18} className="ml-2" /> : <LogIn size={18} className="ml-2" />} 
               {isSignUp ? 'הרשמה' : 'התחברות'}</>
             )}
