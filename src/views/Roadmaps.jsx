@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Plus, X, Check, MoreHorizontal, Zap, ArrowRight, Clock } from 'lucide-react';
+import { Plus, X, Check, MoreHorizontal, Zap, ArrowRight, Clock, MessageSquare } from 'lucide-react';
+import logger from '../utils/logger';
 import './Roadmaps.css';
 
 const ICON_MAP = {
@@ -23,12 +24,18 @@ const QUARTERS = {
   'Q4': ['אוקטובר', 'נובמבר', 'דצמבר']
 };
 
-const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem }) => {
+const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, data, updateReviewStatus }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [newBlock, setNewBlock] = useState({ title: '', startMonth: 0, duration: 1, featureId: '' });
   
   const currentMonths = QUARTERS[board.quarter || 'Q3'];
   const year = board.year || '2026';
+  const { searchTerm } = useProductContext();
+
+  const filteredRoadmaps = activeRoadmaps.filter(item => 
+    item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleAdd = () => {
     if (!newBlock.title.trim()) return;
@@ -53,7 +60,7 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem })
         ))}
         
         <div className="timeline-rows">
-          {activeRoadmaps.map(item => (
+          {filteredRoadmaps.map(item => (
             <div key={item.id} className="timeline-row">
               <div className="timeline-slot"></div>
               <div className="timeline-slot"></div>
@@ -132,11 +139,17 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem })
 };
 
 const Roadmaps = () => {
-  const { activeRoadmaps, activeProduct, addRoadmapItem, roadmapBoards, activeRoadmapBoard, setActiveRoadmapBoard, activeFeatures, data, updateReviewStatus } = useProductContext();
+  const { activeRoadmaps, activeProduct, addRoadmapItem, roadmapBoards, activeRoadmapBoard, setActiveRoadmapBoard, activeFeatures, data, updateReviewStatus, loading, searchTerm } = useProductContext();
   const [addingTo, setAddingTo] = useState(null);
   const [form, setForm] = useState({ title:'', description:'' });
 
   if (!activeProduct) return null;
+
+  logger.debug('Rendering Roadmaps view', { 
+    boardId: activeRoadmapBoard?.id, 
+    viewType: activeRoadmapBoard?.view_type,
+    itemsCount: activeRoadmaps?.length 
+  });
 
   const handleAdd = (bucket) => {
     if (!form.title.trim()) return;
@@ -183,7 +196,12 @@ const Roadmaps = () => {
       ) : (
         <div className="kanban-board">
           {(activeRoadmapBoard?.columns || []).map(({ key, label, icon, color, desc }) => {
-            const items = activeRoadmaps.filter(r => r.bucket === key);
+            const items = activeRoadmaps.filter(r => 
+              r.bucket === key && (
+                r.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                r.description?.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            );
             const isAdding = addingTo === key;
             const LucideIcon = ICON_MAP[icon] || <Zap size={18}/>;
             return (

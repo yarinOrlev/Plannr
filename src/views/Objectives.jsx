@@ -75,7 +75,7 @@ const ObjectiveCard = ({ objective, linkedFeatures = [] }) => {
 const QUARTERS = ['הכל','Q1 2026','Q2 2026','Q3 2026','Q4 2026','Q1 2027'];
 
 const Objectives = () => {
-  const { activeObjectives, activeProduct, activeKpis, addObjective, data, activeFeatures } = useProductContext();
+  const { activeObjectives, activeProduct, activeKpis, addObjective, data, activeFeatures, searchTerm } = useProductContext();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title:'', progress:0, quarter:'Q3 2026', kr1:'', kr2:'' });
   const [selectedQuarter, setSelectedQuarter] = useState('הכל');
@@ -89,7 +89,8 @@ const Objectives = () => {
       prev.includes(team) ? prev.filter(t => t !== team) : [...prev, team]
     );
   };
-  const filtered = selectedQuarter === 'הכל' ? activeObjectives : activeObjectives.filter(o => o.quarter === selectedQuarter);
+  const filtered = (selectedQuarter === 'הכל' ? activeObjectives : activeObjectives.filter(o => o.quarter === selectedQuarter))
+    .filter(o => o.title.toLowerCase().includes(searchTerm.toLowerCase()) || o.description?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleSubmit = (e) => {
     e.preventDefault();

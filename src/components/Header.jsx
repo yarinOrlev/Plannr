@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2 } from 'lucide-react';
+import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2, LogOut, ArrowRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './Header.css';
 
 const Header = () => {
-  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode } = useProductContext();
+  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode, searchTerm, setSearchTerm } = useProductContext();
+  const { logout, userProfile, isHoD } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
 
@@ -29,6 +34,15 @@ const Header = () => {
     <>
       <header className="header glass-panel">
         <div className="header-left">
+          {isHoD && location.pathname !== '/department' && (
+            <button 
+              className="btn btn-secondary flex-center gap-1" 
+              style={{ marginLeft: '1rem', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+              onClick={() => navigate('/department')}
+            >
+              <ArrowRight size={15} /> חזרה למחלקתי
+            </button>
+          )}
           <div className="product-selector flex-center gap-2">
             <select value={data.activeProductId} onChange={e => setActiveProduct(e.target.value)} className="product-select text-h3 font-semibold">
               {data.products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -53,14 +67,25 @@ const Header = () => {
         </div>
         <div className="header-right">
           <div className="search-bar">
-            <input type="text" placeholder="חיפוש..." />
+            <input 
+              type="text" 
+              placeholder="חיפוש מוצרים או פיצ'רים..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
             <div className="search-icon"><Search size={16} /></div>
           </div>
           <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? 'מצב יום' : 'מצב לילה'}>
             {darkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <div className="user-avatar">
-            <User size={18} />
+          <div className="user-profile-actions flex-center gap-3">
+            <div className="user-info flex-col items-start hidden-md">
+              <span className="text-xs font-bold">{userProfile?.name}</span>
+              <span className="text-[10px] text-tertiary">{userProfile?.role}</span>
+            </div>
+            <button className="btn-icon text-tertiary hover:text-danger" onClick={logout} title="התנתקות">
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </header>

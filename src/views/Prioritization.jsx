@@ -27,7 +27,7 @@ const METRIC_INFO = {
 };
 
 const Prioritization = () => {
-  const { activeFeatures, activeProduct, addFeature, updateFeature, deleteFeature, availableTeams, activeObjectives } = useProductContext();
+  const { activeFeatures, activeProduct, addFeature, updateFeature, deleteFeature, availableTeams, activeObjectives, searchTerm } = useProductContext();
   const [sortKey, setSortKey] = useState('rice');
   const [sortDir, setSortDir] = useState('desc');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -66,7 +66,9 @@ const Prioritization = () => {
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  const sorted = [...activeFeatures].map(f => ({...f, rice: calcRice(f)})).sort((a,b) => {
+  const sorted = [...activeFeatures]
+    .filter(f => f.title.toLowerCase().includes(searchTerm.toLowerCase()) || f.description?.toLowerCase().includes(searchTerm.toLowerCase()))
+    .map(f => ({...f, rice: calcRice(f)})).sort((a,b) => {
     const v = (sortDir === 'asc' ? 1 : -1);
     if (a[sortKey] > b[sortKey]) return v;
     if (a[sortKey] < b[sortKey]) return -v;

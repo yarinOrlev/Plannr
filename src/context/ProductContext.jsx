@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from './AuthContext';
+import logger from '../utils/logger';
 
 const ProductContext = createContext();
 
@@ -27,6 +28,7 @@ export const ProductProvider = ({ children }) => {
   const [data, setData] = useState(defaultData);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('plannr_dark_mode') === 'true');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (darkMode) {
@@ -49,6 +51,7 @@ export const ProductProvider = ({ children }) => {
 
   const fetchAllData = async () => {
     setLoading(true);
+    logger.info('Fetching all data from Supabase...');
     try {
       const [
         { data: products },
@@ -57,7 +60,8 @@ export const ProductProvider = ({ children }) => {
         { data: roadmaps },
         { data: objectives },
         { data: notes },
-        { data: reviews }
+        { data: reviews },
+        { data: roadmap_boards }
       ] = await Promise.all([
         supabase.from('products').select('*').order('created_at', { ascending: true }),
         supabase.from('features').select('*'),
@@ -65,7 +69,8 @@ export const ProductProvider = ({ children }) => {
         supabase.from('roadmaps').select('*'),
         supabase.from('objectives').select('*'),
         supabase.from('notes').select('*').order('created_at', { ascending: false }),
-        supabase.from('reviews').select('*')
+        supabase.from('reviews').select('*'),
+        supabase.from('roadmap_boards').select('*')
       ]);
 
       setData(prev => ({
@@ -77,15 +82,17 @@ export const ProductProvider = ({ children }) => {
         objectives: objectives || [],
         notes: notes || [],
         reviews: reviews || [],
+        roadmapBoards: roadmap_boards || [],
         activeProductId: products?.[0]?.id || prev.activeProductId
       }));
+      logger.info('Data fetch successful', { productsCount: products?.length });
 
       // Auto-seed if NO products exist for this user
       if ((!products || products.length === 0) && isAuthenticated) {
         await seedInitialData(true); // true means "silent" auto-seed
       }
     } catch (error) {
-      console.error('Error fetching data from Supabase:', error);
+      logger.error('Error fetching data from Supabase:', error);
     } finally {
       setLoading(false);
     }
@@ -115,6 +122,7 @@ export const ProductProvider = ({ children }) => {
       if (sErr) throw sErr;
 
       await fetchAllData();
+      logger.info('Demo data seeded successfully');
       if (!silent) alert('נתוני דמו נטענו בהצלחה!');
     } catch (err) {
       console.error('Error seeding data:', err);
@@ -272,28 +280,47 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  const addRoadmapBoard = (board) => {
-    const newId = `board_${Date.now()}`;
-    setData(prev => ({
-      ...prev,
-      roadmapBoards: [...(prev.roadmapBoards || []), { ...board, id: newId, product_id: prev.activeProductId, view_type: board.view_type || 'kanban' }],
-      activeRoadmapBoardId: newId // Auto-switch to newly created board
-    }));
+  const addRoadmapBoard = async (board) => {
+    try {
+      const newBoard = { ...board, id: `board_${Date.now()}`, product_id: data.activeProductId, view_type: board.view_type || 'kanban' };
+      const { data: inserted, error } = await supabase.from('roadmap_boards').insert([newBoard]).select();
+      if (error) throw error;
+      
+      setData(prev => ({
+        ...prev,
+        roadmapBoards: [...(prev.roadmapBoards || []), inserted[0]],
+        activeRoadmapBoardId: inserted[0].id
+      }));
+    } catch (err) {
+      logger.error('Error adding roadmap board:', err);
+    }
   };
 
-  const updateRoadmapBoard = (id, updates) => {
-    setData(prev => ({
-      ...prev,
-      roadmapBoards: prev.roadmapBoards.map(b => b.id === id ? { ...b, ...updates } : b)
-    }));
+  const updateRoadmapBoard = async (id, updates) => {
+    try {
+      const { error } = await supabase.from('roadmap_boards').update(updates).eq('id', id);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        roadmapBoards: (prev.roadmapBoards || []).map(b => b.id === id ? { ...b, ...updates } : b)
+      }));
+    } catch (err) {
+      logger.error('Error updating roadmap board:', err);
+    }
   };
 
-  const deleteRoadmapBoard = (id) => {
-    setData(prev => ({
-      ...prev,
-      roadmapBoards: prev.roadmapBoards.filter(b => b.id !== id),
-      activeRoadmapBoardId: prev.activeRoadmapBoardId === id ? (prev.roadmapBoards.find(b => b.id !== id)?.id || '') : prev.activeRoadmapBoardId
-    }));
+  const deleteRoadmapBoard = async (id) => {
+    try {
+      const { error } = await supabase.from('roadmap_boards').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        roadmapBoards: (prev.roadmapBoards || []).filter(b => b.id !== id),
+        activeRoadmapBoardId: prev.activeRoadmapBoardId === id ? (prev.roadmapBoards.find(b => b.id !== id)?.id || '') : prev.activeRoadmapBoardId
+      }));
+    } catch (err) {
+      logger.error('Error deleting roadmap board:', err);
+    }
   };
 
   const setActiveRoadmapBoard = (id) => {
@@ -425,7 +452,7 @@ export const ProductProvider = ({ children }) => {
   // Robust fallback for activeRoadmapBoard
   const activeRoadmapBoard = activeRoadmapBoards.find(b => b.id === data.activeRoadmapBoardId)
     || activeRoadmapBoards[0]
-    || { ...defaultData.roadmapBoards[0], product_id: data.activeProductId, id: 'temp_board' };
+    || { product_id: data.activeProductId, id: 'board_default', name: 'מפת דרכים', columns: [] };
 
   const activeRoadmaps = data.roadmaps.filter(rm =>
     rm.product_id === data.activeProductId &&
@@ -463,6 +490,8 @@ export const ProductProvider = ({ children }) => {
     activeCustomers,
     darkMode,
     loading,
+    searchTerm,
+    setSearchTerm,
     toggleDarkMode: () => setDarkMode(!darkMode),
     addAvailableTeam,
     removeAvailableTeam,
