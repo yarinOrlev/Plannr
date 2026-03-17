@@ -24,7 +24,7 @@ const defaultData = {
 };
 
 export const ProductProvider = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isHoD } = useAuth();
   const [data, setData] = useState(() => {
     const savedBoards = localStorage.getItem('plannr_roadmap_boards');
     return {
@@ -57,10 +57,58 @@ export const ProductProvider = ({ children }) => {
 
   const fetchAllData = async () => {
     setLoading(true);
-    logger.info('Fetching all data from Supabase...');
+    logger.info('Fetching compartmentalized data from Supabase...');
     try {
+      // 1. Fetch Products based on role and ownership
+      let products;
+      let sharedProductIds = [];
+      let productShares = [];
+
+      if (isHoD) {
+        const { data } = await supabase.from('products').select('*').order('created_at', { ascending: true });
+        products = data || [];
+        // HoD can see all shares to know what's happening
+        const { data: shares } = await supabase.from('product_shares').select('*');
+        productShares = shares || [];
+      } else {
+        // Fetch products owned by user
+        const { data: owned } = await supabase.from('products').select('*').eq('owner_id', user.id).order('created_at', { ascending: true });
+        
+        // Fetch products shared WITH user
+        const { data: sharesWithMe } = await supabase.from('product_shares').select('product_id').eq('shared_with_id', user.id);
+        sharedProductIds = (sharesWithMe || []).map(s => s.product_id);
+        
+        let sharedProducts = [];
+        if (sharedProductIds.length > 0) {
+          const { data: shared } = await supabase.from('products').select('*').in('id', sharedProductIds).order('created_at', { ascending: true });
+          sharedProducts = shared || [];
+        }
+        
+        products = [...(owned || []), ...sharedProducts];
+
+        // Fetch shares FOR products I own (to manage them)
+        const ownedIds = (owned || []).map(p => p.id);
+        if (ownedIds.length > 0) {
+          const { data: myShares } = await supabase.from('product_shares').select('*').in('product_id', ownedIds);
+          productShares = myShares || [];
+        }
+      }
+
+      const allowedProductIds = products.map(p => p.id);
+
+      // 2. Fetch all other data, filtered by allowed products if not HoD
+      const getQuery = (table) => {
+        let q = supabase.from(table).select('*');
+        if (!isHoD && allowedProductIds.length > 0) {
+          q = q.in('product_id', allowedProductIds);
+        } else if (!isHoD && allowedProductIds.length === 0) {
+          // If no products allowed, don't fetch anything but satisfy promise
+          q = q.eq('product_id', 'none_existing_id');
+        }
+        return q;
+      };
+
       const [
-        { data: products },
         { data: features },
         { data: strategy },
         { data: roadmaps },
@@ -70,20 +118,20 @@ export const ProductProvider = ({ children }) => {
         { data: roadmapBoards },
         { data: customers }
       ] = await Promise.all([
-        supabase.from('products').select('*').order('created_at', { ascending: true }),
-        supabase.from('features').select('*'),
-        supabase.from('strategy').select('*'),
-        supabase.from('roadmaps').select('*'),
-        supabase.from('objectives').select('*'),
-        supabase.from('notes').select('*').order('created_at', { ascending: false }),
-        supabase.from('reviews').select('*'),
-        supabase.from('roadmap_boards').select('*'),
-        supabase.from('customers').select('*')
+        getQuery('features'),
+        getQuery('strategy'),
+        getQuery('roadmaps'),
+        getQuery('objectives'),
+        getQuery('notes').order('created_at', { ascending: false }),
+        getQuery('reviews'),
+        getQuery('roadmap_boards'),
+        getQuery('customers')
       ]);
 
       setData(prev => ({
         ...prev,
         products: products || [],
+        productShares: productShares || [],
         features: features || [],
         strategy: strategy || [],
         roadmaps: roadmaps || [],
@@ -97,9 +145,9 @@ export const ProductProvider = ({ children }) => {
       }));
       logger.info('Data fetch successful', { productsCount: products?.length });
 
-      // Auto-seed if NO products exist for this user
-      if ((!products || products.length === 0) && isAuthenticated) {
-        await seedInitialData(true); // true means "silent" auto-seed
+      // Auto-seed if NO products exist for this user AND not HoD
+      if ((!products || products.length === 0) && isAuthenticated && !isHoD) {
+        await seedInitialData(true);
       }
     } catch (error) {
       logger.error('Error fetching data from Supabase:', error);
@@ -112,7 +160,12 @@ export const ProductProvider = ({ children }) => {
     setLoading(true);
     try {
       const demoProductId = `prod_demo_${Date.now()}`;
-      const demoProduct = { id: demoProductId, name: 'מוצר דמו אסטרטגי', description: 'מוצר לצרכי בדיקה והדגמה.' };
+      const demoProduct = { 
+        id: demoProductId, 
+        name: 'מוצר דמו אסטרטגי', 
+        description: 'מוצר לצרכי בדיקה והדגמה.',
+        owner_id: user.id
+      };
 
       const { error: pErr } = await supabase.from('products').insert([demoProduct]);
       if (pErr) throw pErr;
@@ -156,7 +209,8 @@ export const ProductProvider = ({ children }) => {
       const newProduct = { 
         id: product.id || `prod_${Date.now()}`, 
         name: product.name, 
-        description: product.description 
+        description: product.description,
+        owner_id: user.id
       };
       const { data: newProd, error } = await supabase.from('products').insert([newProduct]).select();
       if (error) {
@@ -665,6 +719,33 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  const shareProduct = async (productId, userId) => {
+    try {
+      const { error } = await supabase.from('product_shares').insert([{
+        product_id: productId,
+        shared_with_id: userId
+      }]);
+      if (error) throw error;
+      await fetchAllData();
+      return true;
+    } catch (err) {
+      console.error('Error sharing product:', err);
+      return false;
+    }
+  };
+
+  const unshareProduct = async (productId, userId) => {
+    try {
+      const { error } = await supabase.from('product_shares').delete().eq('product_id', productId).eq('shared_with_id', userId);
+      if (error) throw error;
+      await fetchAllData();
+      return true;
+    } catch (err) {
+      console.error('Error unsharing product:', err);
+      return false;
+    }
+  };
+
 
   const updateReviewStatus = async (reviewId, status) => {
     try {
@@ -727,6 +808,9 @@ export const ProductProvider = ({ children }) => {
     addReview,
     updateReviewStatus,
     deleteProduct,
+    shareProduct,
+    unshareProduct,
+    productShares: data.productShares || [],
     activeProduct,
     activeStrategy,
     activeFeatures,

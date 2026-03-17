@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2, LogOut, ArrowRight } from 'lucide-react';
+import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2, LogOut, ArrowRight, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import SharingModal from './SharingModal';
 import './Header.css';
 
 const Header = () => {
@@ -11,6 +12,7 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showSharingModal, setShowSharingModal] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
 
   const handleAdd = (e) => {
@@ -48,17 +50,26 @@ const Header = () => {
               {data.products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             {data.products.length > 0 && (
-              <button 
-                className="btn-icon-xs text-danger hover:bg-danger/10" 
-                title="מחיקת מוצר"
-                onClick={() => {
-                  if (window.confirm(`האם אתה בטוח שברצונך למחוק את המוצר "${data.products.find(p => p.id === data.activeProductId)?.name}"? פעולה זו תמחק את כל הנתונים הקשורים.`)) {
-                    deleteProduct(data.activeProductId);
-                  }
-                }}
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="flex-center gap-1">
+                <button 
+                  className="btn-icon-xs text-primary hover:bg-primary/10" 
+                  title="שיתוף מוצר"
+                  onClick={() => setShowSharingModal(true)}
+                >
+                  <Users size={16} />
+                </button>
+                <button 
+                  className="btn-icon-xs text-danger hover:bg-danger/10" 
+                  title="מחיקת מוצר"
+                  onClick={() => {
+                    if (window.confirm(`האם אתה בטוח שברצונך למחוק את המוצר "${data.products.find(p => p.id === data.activeProductId)?.name}"? פעולה זו תמחק את כל הנתונים הקשורים.`)) {
+                      deleteProduct(data.activeProductId);
+                    }
+                  }}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             )}
           </div>
           <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => setShowAddProduct(true)}>
@@ -113,6 +124,13 @@ const Header = () => {
             </form>
           </div>
         </div>
+      )}
+      {showSharingModal && (
+        <SharingModal 
+          productId={data.activeProductId}
+          productName={data.products.find(p => p.id === data.activeProductId)?.name}
+          onClose={() => setShowSharingModal(false)}
+        />
       )}
     </>
   );

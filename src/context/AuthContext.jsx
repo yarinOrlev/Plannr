@@ -13,19 +13,46 @@ export const AuthProvider = ({ children }) => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
+      if (session?.user) {
+        syncProfile(session.user);
+      }
       setLoading(false);
     };
 
     getSession();
 
-    // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        syncProfile(session.user);
+      }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const syncProfile = async (userData) => {
+    if (!userData) return;
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userData.id,
+          email: userData.email,
+          name: userData.user_metadata?.name || '',
+          role: userData.user_metadata?.role || 'PM',
+          avatar: userData.user_metadata?.avatar || 'U',
+          updated_at: new Date().toISOString()
+        })
+        .select();
+      
+      if (error) throw error;
+      return profile;
+    } catch (err) {
+      console.error('Error syncing profile:', err);
+    }
+  };
 
   const login = async (email, password) => {
     setLoading(true);
@@ -69,8 +96,27 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
 
+    if (data.user) {
+      await syncProfile(data.user);
+    }
+
     setLoading(false);
     return true;
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('Error fetching all users:', err);
+      return [];
+    }
   };
 
   const logout = async () => {
@@ -84,9 +130,11 @@ export const AuthProvider = ({ children }) => {
     login,
     signup,
     logout,
+    fetchAllUsers,
     isAuthenticated: !!user,
     isHoD: user?.user_metadata?.role === 'HoD',
     userProfile: {
+      id: user?.id,
       name: user?.user_metadata?.name,
       avatar: user?.user_metadata?.avatar,
       role: user?.user_metadata?.role
