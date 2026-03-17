@@ -270,7 +270,11 @@ export const ProductProvider = ({ children }) => {
   const addFeature = async (productFeature) => {
     try {
       console.log('ProductContext: addFeature called', { productFeature });
-      const { data: inserted, error } = await supabase.from('features').insert([productFeature]).select();
+      const newFeature = {
+        ...productFeature,
+        id: productFeature.id || `feat_${Date.now()}`
+      };
+      const { data: inserted, error } = await supabase.from('features').insert([newFeature]).select();
       if (error) {
         console.error('Supabase error in addFeature:', error);
         throw error;
