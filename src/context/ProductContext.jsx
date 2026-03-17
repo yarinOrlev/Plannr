@@ -406,12 +406,12 @@ export const ProductProvider = ({ children }) => {
       console.log('ProductContext: addRoadmapItem called', { item });
       const activeBoards = (data.roadmapBoards || []).filter(b => b.product_id === data.activeProductId);
       const activeBoard = activeBoards.find(b => b.id === data.activeRoadmapBoardId) || activeBoards[0];
-      const boardId = activeBoard?.id || '';
+      const fallbackBoardId = activeBoard?.id || '';
 
       const newItem = { 
         id: item.id || `rm_${Date.now()}`,
-        product_id: data.activeProductId, 
-        board_id: boardId,
+        product_id: item.product_id || data.activeProductId, 
+        board_id: item.board_id || item.boardId || fallbackBoardId,
         title: item.title,
         bucket: item.bucket,
         description: item.description,
@@ -814,6 +814,7 @@ export const ProductProvider = ({ children }) => {
     deleteProduct,
     shareProduct,
     unshareProduct,
+    products: data.products || [],
     productShares: data.productShares || [],
     activeProduct,
     activeStrategy,

@@ -24,7 +24,7 @@ const QUARTERS = {
   'Q4': ['אוקטובר', 'נובמבר', 'דצמבר']
 };
 
-const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, data, updateReviewStatus }) => {
+const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, data, updateReviewStatus, isCompact }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [newBlock, setNewBlock] = useState({ title: '', startMonth: 0, duration: 1, featureId: '', status: 'In Progress', teams: [] });
   const [editingItemId, setEditingItemId] = useState(null);
@@ -33,6 +33,25 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
   const currentMonths = QUARTERS[board.quarter || 'Q3'];
   const year = board.year || '2026';
   const { searchTerm } = useProductContext();
+
+  const getProductColor = (productId) => {
+    // Deterministic color based on ID
+    const colors = [
+      { bg: 'i-bg-purple', border: '#7C3AED' },
+      { bg: 'i-bg-blue', border: '#2563EB' },
+      { bg: 'i-bg-indigo', border: '#4F46E5' },
+      { bg: 'i-bg-teal', border: '#0D9488' },
+      { bg: 'i-bg-pink', border: '#DB2777' },
+      { bg: 'i-bg-orange', border: '#EA580C' }
+    ];
+    let hash = 0;
+    if (productId) {
+      for (let i = 0; i < productId.length; i++) {
+        hash = productId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
 
   const filteredRoadmaps = activeRoadmaps.filter(item => 
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -43,9 +62,10 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
     if (!newBlock.title.trim()) return;
     addRoadmapItem({ 
       ...newBlock, 
-      bucket: 'Timeline', // Legacy field compatibility
-      quarter: board.quarter,
-      year: board.year
+      product_id: board?.product_id, // Ensure it's for the right product
+      bucket: 'Timeline', 
+      quarter: board?.quarter,
+      year: board?.year
     });
     setNewBlock({ title: '', startMonth: 0, duration: 1, featureId: '', status: 'In Progress', teams: [] });
     setShowAdd(false);
@@ -55,7 +75,7 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
     setEditingItemId(item.id);
     setEditForm({ 
       title: item.title, 
-      startMonth: item.startMonth || item.start_month || 0, 
+      startMonth: item.start_month || item.startMonth || 0, 
       duration: item.duration || 1, 
       featureId: item.featureId || '', 
       status: item.status || 'In Progress',
@@ -71,7 +91,7 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
   };
 
   return (
-    <div className="timeline-container animate-fade-in">
+    <div className={`timeline-container animate-fade-in ${isCompact ? 'is-compact' : ''}`}>
       <div className="timeline-grid">
         <div className="timeline-header-quarter text-h3 font-bold">
           {board.quarter} {year}
@@ -90,68 +110,79 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
                 <div className="timeline-slot"></div>
                 <div className="timeline-slot"></div>
                 <div 
-                  className={`roadmap-block i-bg-purple status-${(item.status || 'In Progress').toLowerCase().replace(/\s+/g, '-')}`}
+                   className={`roadmap-block group ${getProductColor(item.product_id || board?.product_id).bg} status-${(item.status || 'In Progress').toLowerCase().replace(/\s+/g, '-')}`}
                   style={{ 
                     right: `calc(${(start / 3) * 100}% + 8px)`, 
                     width: `calc(${(duration / 3) * 100}% - 16px)`,
                     left: 'auto',
-                    borderRight: item.status === 'Completed Successfully' ? '4px solid #10b981' : (item.status === 'Failed' ? '4px solid #ef4444' : 'none')
+                    borderRight: item.status === 'Completed Successfully' ? '4px solid #10b981' : (item.status === 'Failed' ? '4px solid #ef4444' : `4px solid ${getProductColor(item.product_id || board?.product_id).border}`)
                   }}
                 >
                   <div className="flex-between items-center">
                     <div className="roadmap-block-title flex-center gap-1" style={{ justifyContent: 'flex-start' }}>
-                      {item.status === 'Completed Successfully' && <CheckCircle size={12} className="text-emerald-400" />}
-                      {item.status === 'Failed' && <AlertCircle size={12} className="text-red-400" />}
+                      {item.status === 'Completed Successfully' && <CheckCircle size={isCompact ? 10 : 12} className="text-emerald-400" />}
+                      {item.status === 'Failed' && <AlertCircle size={isCompact ? 10 : 12} className="text-red-400" />}
                       {item.title}
                     </div>
-                    <div className="flex-center gap-1">
-                      {(item.teams || []).map(t => (
-                        <span key={t} className="badge" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>{t}</span>
-                      ))}
-                      {(data.reviews || []).filter(r => r.item_id === item.id && r.status === 'Pending').length > 0 && (
-                        <div className="item-review-indicator" title="הערות מנהל פתוחות">
-                          <MessageSquare size={10} />
-                        </div>
-                      )}
-                      <button className="btn-icon-xs text-white" style={{ background: 'rgba(0,0,0,0.1)' }} title="עריכה" onClick={(e) => { e.stopPropagation(); handleStartEdit(item); }}>
-                        <Check size={14}/>
-                      </button>
-                      <button className="btn-icon-xs text-white" style={{ background: 'rgba(0,0,0,0.1)' }} title="מחיקה" onClick={(e) => { e.stopPropagation(); deleteRoadmapItem(item.id); }}>
-                        <Trash2 size={14}/>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex-between mt-1 items-end">
-                    {item.featureId ? (
-                      <div className="roadmap-block-meta">
-                        <Check size={10} style={{ display:'inline', marginLeft:4 }}/>
-                        {activeFeatures.find(f => f.id === item.featureId)?.title}
+                    {!isCompact && (
+                      <div className="flex-center gap-1">
+                        {(item.teams || []).map(t => (
+                          <span key={t} className="badge" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>{t}</span>
+                        ))}
+                        {(data.reviews || []).filter(r => r.item_id === item.id && r.status === 'Pending').length > 0 && (
+                          <div className="item-review-indicator" title="הערות מנהל פתוחות">
+                            <MessageSquare size={10} />
+                          </div>
+                        )}
+                        <button className="btn-icon-xs text-white" style={{ background: 'rgba(0,0,0,0.1)' }} title="עריכה" onClick={(e) => { e.stopPropagation(); handleStartEdit(item); }}>
+                          <Check size={14}/>
+                        </button>
+                        <button className="btn-icon-xs text-white" style={{ background: 'rgba(0,0,0,0.1)' }} title="מחיקה" onClick={(e) => { e.stopPropagation(); deleteRoadmapItem(item.id); }}>
+                          <Trash2 size={14}/>
+                        </button>
                       </div>
-                    ) : <div />}
-                    <div className="status-quick-toggle flex-center gap-1">
-                      <button 
-                        className={`status-dot ${item.status === 'Completed Successfully' ? 'active emerald' : ''}`} 
-                        onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Completed Successfully' }); }}
-                        title="סמן כהצלחה"
-                      >
-                        {item.status === 'Completed Successfully' && <Check />}
-                      </button>
-                      <button 
-                        className={`status-dot ${item.status === 'Failed' ? 'active red' : ''}`} 
-                        onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Failed' }); }}
-                        title="סמן ככשלון"
-                      >
-                        {item.status === 'Failed' && <X />}
-                      </button>
-                      <button 
-                        className={`status-dot ${item.status === 'In Progress' || !item.status ? 'active blue' : ''}`} 
-                        onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'In Progress' }); }}
-                        title="בתהליך"
-                      >
-                        {(item.status === 'In Progress' || !item.status) && <Activity />}
-                      </button>
-                    </div>
+                    )}
+                    {isCompact && (
+                      <div className="flex-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button className="btn-icon-xs text-white" style={{ background: 'rgba(0,0,0,0.1)' }} title="עריכה" onClick={(e) => { e.stopPropagation(); handleStartEdit(item); }}>
+                          <Check size={10}/>
+                        </button>
+                      </div>
+                    )}
                   </div>
+                  {!isCompact && (
+                    <div className="flex-between mt-1 items-end">
+                      {item.featureId ? (
+                        <div className="roadmap-block-meta">
+                          <Check size={10} style={{ display:'inline', marginLeft:4 }}/>
+                          {activeFeatures.find(f => f.id === item.featureId)?.title}
+                        </div>
+                      ) : <div />}
+                      <div className="status-quick-toggle flex-center gap-1">
+                        <button 
+                          className={`status-dot ${item.status === 'Completed Successfully' ? 'active emerald' : ''}`} 
+                          onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Completed Successfully' }); }}
+                          title="סמן כהצלחה"
+                        >
+                          {item.status === 'Completed Successfully' && <Check />}
+                        </button>
+                        <button 
+                          className={`status-dot ${item.status === 'Failed' ? 'active red' : ''}`} 
+                          onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Failed' }); }}
+                          title="סמן ככשלון"
+                        >
+                          {item.status === 'Failed' && <X />}
+                        </button>
+                        <button 
+                          className={`status-dot ${item.status === 'In Progress' || !item.status ? 'active blue' : ''}`} 
+                          onClick={(e) => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'In Progress' }); }}
+                          title="בתהליך"
+                        >
+                          {(item.status === 'In Progress' || !item.status) && <Activity />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -309,19 +340,44 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
 };
 
 const Roadmaps = () => {
-  const { activeRoadmaps, activeProduct, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, roadmapBoards, activeRoadmapBoard, setActiveRoadmapBoard, activeFeatures, data, updateReviewStatus, loading, searchTerm } = useProductContext();
+  const { activeRoadmaps, activeProduct, products, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, roadmapBoards, activeRoadmapBoard, setActiveRoadmapBoard, activeFeatures, data, updateReviewStatus, loading, searchTerm } = useProductContext();
   const [addingTo, setAddingTo] = useState(null);
   const [form, setForm] = useState({ title:'', description:'', teams: [] });
   const [editingCardId, setEditingCardId] = useState(null);
   const [cardForm, setCardForm] = useState({ title:'', description:'', teams: [] });
+  
+  // State for multiple product selection in timeline view
+  const [selectedProductIds, setSelectedProductIds] = useState(activeProduct ? [activeProduct.id] : []);
+  const [isCompact, setIsCompact] = useState(false);
 
   if (!activeProduct) return null;
 
   logger.debug('Rendering Roadmaps view', { 
     boardId: activeRoadmapBoard?.id, 
     viewType: activeRoadmapBoard?.view_type,
-    itemsCount: activeRoadmaps?.length 
+    itemsCount: activeRoadmaps?.length,
+    selectedProducts: selectedProductIds
   });
+
+  const isTimeline = activeRoadmapBoard?.view_type === 'timeline';
+
+  // Toggle product selection
+  const toggleProduct = (pid) => {
+    setSelectedProductIds(prev => 
+      prev.includes(pid) 
+        ? (prev.length > 1 ? prev.filter(id => id !== pid) : prev) 
+        : [...prev, pid]
+    );
+  };
+
+  // Aggregated roadmaps for timeline
+  const aggregatedRoadmaps = isTimeline 
+    ? (data.roadmaps || []).filter(r => 
+        selectedProductIds.includes(r.product_id) && 
+        r.quarter === activeRoadmapBoard.quarter &&
+        r.year === activeRoadmapBoard.year
+      )
+    : activeRoadmaps;
 
   const handleAdd = (bucket) => {
     if (!form.title.trim()) return;
@@ -346,38 +402,72 @@ const Roadmaps = () => {
 
   return (
     <div className="content-area animate-fade-in roadmaps-layout">
-      <header className="page-header" style={{ alignItems: 'center' }}>
-        <div>
+      <header className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '300px' }}>
           <h1 className="text-h1 mb-2">{activeRoadmapBoard?.name || 'מפת דרכים'}</h1>
-          <p className="text-secondary text-lg">ניהול תוכנית עבודה עבור <strong className="text-primary">{activeProduct?.name}</strong></p>
+          <p className="text-secondary text-lg">ניהול תוכנית עבודה</p>
         </div>
-        {!loading && (
-          <div className="board-selector flex-center gap-3">
-            <span className="text-sm text-secondary">בחר לוח:</span>
-            <select 
-              value={activeRoadmapBoard?.id} 
-              onChange={e => setActiveRoadmapBoard(e.target.value)}
-              className="modal-input"
-              style={{ width: '200px', height: '38px', padding: '0 0.75rem' }}
-            >
-              {(roadmapBoards || []).map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+
+        <div className="flex-center gap-4" style={{ flexWrap: 'wrap' }}>
+          {isTimeline && (
+            <>
+              <button 
+                className={`btn btn-secondary flex-center gap-2 ${isCompact ? 'bg-primary/10 border-primary' : ''}`}
+                style={{ padding: '0.4rem 0.75rem', height: '38px' }}
+                onClick={() => setIsCompact(!isCompact)}
+                title={isCompact ? 'תצוגה רגילה' : 'תצוגה דחוסה'}
+              >
+                <MoreHorizontal size={18} style={{ transform: isCompact ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+                <span className="text-sm">{isCompact ? 'דחוס' : 'רגיל'}</span>
+              </button>
+
+              <div className="product-multi-toggles flex-center gap-2">
+                <span className="text-xs text-tertiary font-medium">מוצרים מוצגים:</span>
+                <div className="flex-center gap-1 flex-wrap">
+                  {(products || []).map(p => (
+                    <button 
+                      key={p.id}
+                      className={`badge ${selectedProductIds.includes(p.id) ? 'badge-blue' : 'badge-gray'}`}
+                      style={{ cursor: 'pointer', padding: '0.25rem 0.6rem', fontSize: '0.75rem', opacity: selectedProductIds.includes(p.id) ? 1 : 0.6 }}
+                      onClick={() => toggleProduct(p.id)}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {!loading && (
+            <div className="board-selector flex-center gap-3">
+              <span className="text-sm text-secondary">בחר לוח:</span>
+              <select 
+                value={activeRoadmapBoard?.id} 
+                onChange={e => setActiveRoadmapBoard(e.target.value)}
+                className="modal-input"
+                style={{ width: '200px', height: '38px', padding: '0 0.75rem' }}
+              >
+                {(roadmapBoards || []).map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </header>
 
-      {activeRoadmapBoard?.view_type === 'timeline' ? (
+      {isTimeline ? (
         <TimelineView 
           board={activeRoadmapBoard} 
-          activeRoadmaps={activeRoadmaps} 
+          activeRoadmaps={aggregatedRoadmaps} 
           activeFeatures={activeFeatures}
           addRoadmapItem={addRoadmapItem}
           updateRoadmapItem={updateRoadmapItem}
           deleteRoadmapItem={deleteRoadmapItem}
           data={data}
           updateReviewStatus={updateReviewStatus}
+          isCompact={isCompact}
         />
       ) : (
         <div className="kanban-board">

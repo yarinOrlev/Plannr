@@ -146,6 +146,11 @@
   gap: 1rem;
   height: 100px;
   position: relative;
+  transition: height var(--transition-normal);
+}
+
+.timeline-container.is-compact .timeline-row {
+  height: 56px;
 }
 
 .timeline-slot {
@@ -177,6 +182,13 @@
   transition: transform var(--transition-fast);
   z-index: 10;
   padding: 1rem 1.25rem; /* Increased horizontal padding slightly */
+  transition: all var(--transition-fast);
+}
+
+.timeline-container.is-compact .roadmap-block {
+  top: 6px;
+  bottom: 6px;
+  padding: 0.5rem 0.75rem;
 }
 
 .roadmap-block:hover {
@@ -195,6 +207,14 @@
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.timeline-container.is-compact .roadmap-block-title {
+  font-size: 0.875rem;
+  margin-bottom: 0;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
 }
 
 .roadmap-block-meta {
@@ -304,6 +324,10 @@ body:not(.dark) .roadmap-block .status-dot:hover {
   opacity: 0.7;
 }
 
+.timeline-container.is-compact .btn-icon-xs {
+  padding: 1px;
+}
+
 .btn-icon-xs:hover {
   background-color: rgba(255, 255, 255, 0.1);
   opacity: 1;
@@ -317,4 +341,25 @@ body:not(.dark) .roadmap-block .status-dot:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.product-multi-toggles {
+  background-color: var(--bg-tertiary);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.product-multi-toggles .badge {
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.product-multi-toggles .badge:hover {
+  transform: scale(1.05);
+}
+
+.roadmap-block {
+  /* Ensure text is readable against various background colors */
+  text-shadow: 0 1px 1px rgba(0,0,0,0.05);
 }
