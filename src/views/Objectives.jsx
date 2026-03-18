@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Target, ChevronRight, Plus, Calendar, Activity, TrendingUp, TrendingDown, Minus, X, Check, Trash2 } from 'lucide-react';
+import { Target, ChevronRight, ChevronDown, ChevronUp, Plus, Calendar, Activity, TrendingUp, TrendingDown, Minus, X, Check, Trash2 } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
+import ProductBadge from '../components/ProductBadge';
 import './Objectives.css';
 
 const KpiCard = ({ kpi }) => {
@@ -25,19 +26,20 @@ const KpiCard = ({ kpi }) => {
 };
 
 const ObjectiveCard = ({ objective, productName, linkedFeatures = [], onEdit, onDelete }) => {
-  const krs = objective.key_results || objective.keyResults || [
-    { title: 'תוצאת מפתח 1', progress: Math.min(100, objective.progress+15) },
-    { title: 'תוצאת מפתח 2', progress: Math.max(0, objective.progress-10) },
-  ];
+  const [expanded, setExpanded] = useState(false);
+  const krs = objective.key_results || objective.keyResults || [];
+  
   return (
-    <div className="objective-card glass-panel">
+    <div className={`objective-card glass-panel ${expanded ? 'expanded' : ''}`}>
       <div className="objective-header">
-        <div className="flex-center gap-3" style={{ justifyContent:'flex-start', alignItems: 'center' }}>
-          <div className="icon-badge-rounded i-bg-indigo"><Target size={18}/></div>
-          <div>
+        <div className="flex-center gap-3" style={{ justifyContent:'flex-start', alignItems: 'flex-start', flex: 1 }}>
+          <div className="icon-badge-rounded i-bg-indigo mt-1"><Target size={18}/></div>
+          <div style={{ flex: 1 }}>
+            <div className="mb-1" style={{ display: 'flex', justifyContent: 'flex-start' }}>
+               <ProductBadge productName={productName} productId={objective.product_id} />
+            </div>
             <div className="flex-center gap-2 mb-1" style={{ justifyContent: 'flex-start' }}>
-               <h3 className="text-h3">{objective.title}</h3>
-               {productName && <span className="text-[10px] font-bold text-accent-primary bg-accent-primary/10 px-1.5 py-0.5 rounded">{productName}</span>}
+               <h3 className="text-h3" style={{ margin: 0, lineHeight: 1.2 }}>{objective.title}</h3>
             </div>
             <div className="flex-center gap-2 mt-1" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               <p className="text-sm text-tertiary">{objective.quarter||'Q3 2026'}</p>
@@ -47,33 +49,82 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], onEdit, on
             </div>
           </div>
         </div>
-        <div className="objective-progress-overall">
-          <div className="progress-value">{objective.progress}%</div>
-          <div className="progress-label text-xs text-tertiary">כולל</div>
-          <div className="flex-center gap-1 mt-2">
-            <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Check size={14}/></button>
-            <button className="btn-icon-xs text-tertiary hover:text-danger" onClick={() => onDelete(objective.id)} title="מחיקה"><Trash2 size={14}/></button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+          <div className="objective-progress-overall" style={{ textAlign: 'left' }}>
+            <div className="progress-value">{objective.progress}%</div>
+            <div className="progress-label text-xs text-tertiary">כולל</div>
+            <div className="flex-center gap-1 mt-2">
+              <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Check size={14}/></button>
+              <button className="btn-icon-xs text-tertiary hover:text-danger" onClick={() => onDelete(objective.id)} title="מחיקה"><Trash2 size={14}/></button>
+            </div>
           </div>
+          <button className="btn-icon mt-1" onClick={() => setExpanded(!expanded)}>
+            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
         </div>
       </div>
       <div className="progress-bar-container mt-4"><div className="progress-bar-fill" style={{ width:`${objective.progress}%` }}/></div>
-      <div className="key-results mt-6">
-        <h4 className="text-sm font-semibold mb-3 text-secondary uppercase" style={{ letterSpacing:'0.05em' }}>תוצאות מפתח</h4>
-        {krs.map((kr,i) => (
-          <div key={i} className="key-result-item">
-            <div className="kr-info"><span className="kr-title text-sm">{kr.title}</span><span className="kr-value text-sm font-medium">{kr.progress}%</span></div>
-            <div className="progress-bar-container sm"><div className="progress-bar-fill" style={{ width:`${kr.progress}%` }}/></div>
+      
+      {expanded && (
+        <div className="objective-details mt-6 animate-fade-in">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+            {objective.businessValue && (
+              <div>
+                <h4 className="text-xs font-bold text-tertiary uppercase mb-2">ערך עסקי</h4>
+                <p className="text-sm leading-relaxed">{objective.businessValue}</p>
+              </div>
+            )}
+            {objective.risks && (
+              <div>
+                <h4 className="text-xs font-bold text-tertiary uppercase mb-2">סיכונים</h4>
+                <p className="text-sm leading-relaxed">{objective.risks}</p>
+              </div>
+            )}
+            {objective.dependencies && (
+              <div>
+                <h4 className="text-xs font-bold text-tertiary uppercase mb-2">תלויות</h4>
+                <p className="text-sm leading-relaxed">{objective.dependencies}</p>
+              </div>
+            )}
           </div>
-        ))}
-      </div>
-      {linkedFeatures.length > 0 && (
-        <div className="linked-features mt-6 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-          <h4 className="text-xs font-semibold mb-3 text-secondary uppercase" style={{ letterSpacing:'0.05em' }}>פיצ'רים קשורים</h4>
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {linkedFeatures.map(f => (
-              <span key={f.id} className="badge badge-gray" style={{ fontSize: '0.7rem' }}>{f.title}</span>
-            ))}
+
+          {(objective.customFields || []).length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-xs font-bold text-tertiary uppercase mb-2">מידע נוסף</h4>
+              <div className="flex gap-4 flex-wrap">
+                {objective.customFields.map((cf, idx) => (
+                  <div key={idx} className="glass-panel p-2 px-3 bg-white/5" style={{ borderRadius: '8px' }}>
+                    <span className="text-[10px] text-tertiary block font-bold mb-1">{cf.label}</span>
+                    <span className="text-sm font-medium">{cf.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="key-results">
+            <h4 className="text-xs font-bold text-tertiary uppercase mb-3" style={{ letterSpacing:'0.05em' }}>תוצאות מפתח</h4>
+            {krs.length > 0 ? krs.map((kr,i) => (
+              <div key={i} className="key-result-item mb-3">
+                <div className="flex-between mb-1">
+                  <span className="kr-title text-sm">{kr.title}</span>
+                  <span className="kr-value text-sm font-medium">{kr.progress}%</span>
+                </div>
+                <div className="progress-bar-container sm"><div className="progress-bar-fill" style={{ width:`${kr.progress}%` }}/></div>
+              </div>
+            )) : <p className="text-xs text-tertiary italic">אין תוצאות מפתח שהוגדרו</p>}
           </div>
+
+          {linkedFeatures.length > 0 && (
+            <div className="linked-features mt-6 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+              <h4 className="text-xs font-bold text-tertiary uppercase mb-3" style={{ letterSpacing:'0.05em' }}>פיצ'רים קשורים</h4>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {linkedFeatures.map(f => (
+                  <span key={f.id} className="badge badge-gray" style={{ fontSize: '0.7rem' }}>{f.title}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -85,7 +136,7 @@ const YEAR_OPTIONS = ['2025', '2026', '2027', '2028'];
 const QUARTERS = ['הכל','Q1 2026','Q2 2026','Q3 2026','Q4 2026','Q1 2027'];
 
 const Objectives = () => {
-  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, data, activeFeatures, searchTerm, selectedProductIds } = useProductContext();
+  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, data, activeFeatures, searchTerm, selectedProductIds, products } = useProductContext();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ 
@@ -93,13 +144,28 @@ const Objectives = () => {
     progress: 0, 
     quarter: 'Q3',
     year: '2026', 
-    keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }] 
+    product_id: data?.activeProductId || '',
+    keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }],
+    businessValue: '',
+    risks: '',
+    dependencies: '',
+    customFields: [],
+    progressMode: 'auto',
+    manualProgress: 0
   });
   const [selectedQuarter, setSelectedQuarter] = useState('הכל');
   const [selectedTeams, setSelectedTeams] = useState([]);
 
   if (!activeProduct) return null;
   const availableTeams = data.availableTeams || [];
+
+  const addCustomField = () => setForm(prev => ({ ...prev, customFields: [...prev.customFields, { label: '', value: '' }] }));
+  const removeCustomField = (idx) => setForm(prev => ({ ...prev, customFields: prev.customFields.filter((_, i) => i !== idx) }));
+  const updateCustomField = (idx, field, val) => {
+    const next = [...form.customFields];
+    next[idx] = { ...next[idx], [field]: val };
+    setForm(prev => ({ ...prev, customFields: next }));
+  };
 
   const toggleTeam = (team) => {
     setSelectedTeams(prev =>
@@ -136,7 +202,14 @@ const Objectives = () => {
       progress: obj.progress || 0,
       quarter: q,
       year: y,
-      keyResults: obj.key_results || obj.keyResults || [{ title: '', progress: 0 }, { title: '', progress: 0 }]
+      product_id: obj.product_id || data?.activeProductId,
+      keyResults: obj.key_results || obj.keyResults || [{ title: '', progress: 0 }, { title: '', progress: 0 }],
+      businessValue: obj.businessValue || '',
+      risks: obj.risks || '',
+      dependencies: obj.dependencies || '',
+      customFields: obj.customFields || [],
+      progressMode: obj.progressMode || 'auto',
+      manualProgress: obj.progress || 0
     });
     setSelectedTeams(obj.teams || []);
     setEditingId(obj.id);
@@ -154,29 +227,30 @@ const Objectives = () => {
     if (!form.title.trim()) return;
     
     const validKRs = form.keyResults.filter(kr => kr.title.trim() !== '');
-    const totalProgress = validKRs.length > 0 
-      ? Math.round(validKRs.reduce((acc, kr) => acc + Number(kr.progress || 0), 0) / validKRs.length)
-      : 0;
+    const totalProgress = form.progressMode === 'auto'
+      ? (validKRs.length > 0 ? Math.round(validKRs.reduce((acc, kr) => acc + Number(kr.progress || 0), 0) / validKRs.length) : 0)
+      : Number(form.manualProgress || 0);
 
     const combinedQuarter = `${form.quarter} ${form.year}`;
 
+    const objectiveData = {
+      title: form.title,
+      progress: totalProgress,
+      quarter: combinedQuarter,
+      product_id: form.product_id || activeProduct.id,
+      keyResults: validKRs,
+      teams: selectedTeams,
+      businessValue: form.businessValue,
+      risks: form.risks,
+      dependencies: form.dependencies,
+      customFields: form.customFields,
+      progressMode: form.progressMode
+    };
+
     if (editingId) {
-      updateObjective(editingId, {
-        title: form.title,
-        progress: totalProgress,
-        quarter: combinedQuarter,
-        keyResults: validKRs,
-        teams: selectedTeams
-      });
+      updateObjective(editingId, objectiveData);
     } else {
-      addObjective({ 
-        product_id: activeProduct.id, 
-        title: form.title, 
-        progress: totalProgress, 
-        quarter: combinedQuarter, 
-        keyResults: validKRs,
-        teams: selectedTeams
-      });
+      addObjective(objectiveData);
     }
 
     setForm({ 
@@ -184,7 +258,14 @@ const Objectives = () => {
       progress: 0, 
       quarter: 'Q3', 
       year: '2026',
-      keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }] 
+      product_id: activeProduct.id,
+      keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }],
+      businessValue: '',
+      risks: '',
+      dependencies: '',
+      customFields: [],
+      progressMode: 'auto',
+      manualProgress: 0
     });
     setSelectedTeams([]);
     setEditingId(null);
@@ -221,11 +302,6 @@ const Objectives = () => {
           <div className="flex-between mb-4">
             <div className="flex-center gap-2">
               <h3 className="text-h3">{editingId ? 'עריכת יעד' : 'יעד חדש'}</h3>
-              <span className="badge badge-indigo">
-                {editingId 
-                  ? data.products.find(p => p.id === activeObjectives.find(o => o.id === editingId)?.product_id)?.name
-                  : activeProduct.name}
-              </span>
             </div>
             <button type="button" className="btn-icon" onClick={()=>{setShowForm(false); setEditingId(null);}}><X size={18}/></button>
           </div>
@@ -234,27 +310,106 @@ const Objectives = () => {
               <label className="text-sm text-secondary block mb-1">כותרת היעד</label>
               <input type="text" required autoFocus style={inputStyle} value={form.title} onChange={e => setForm({...form,title:e.target.value})} placeholder="לדוגמה: הגדלת שיעור שימור משתמשים"/>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '120px' }}>
                 <label className="text-sm text-secondary block mb-1">רבעון</label>
                 <select style={inputStyle} value={form.quarter} onChange={e => setForm({...form, quarter: e.target.value})}>
                   {QUARTER_OPTIONS.map(q => <option key={q} value={q}>{q}</option>)}
                 </select>
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: '120px' }}>
                 <label className="text-sm text-secondary block mb-1">שנה</label>
                 <select style={inputStyle} value={form.year} onChange={e => setForm({...form, year: e.target.value})}>
                   {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
-            </div>
-            <div>
-              <label className="text-sm text-secondary block mb-1">התקדמות משוערת (%)</label>
-              <div style={{ ...inputStyle, background: 'var(--bg-tertiary)', opacity: 0.8, display: 'flex', alignItems: 'center' }}>
-                {form.keyResults.filter(kr => kr.title.trim() !== '').length > 0 
-                  ? Math.round(form.keyResults.filter(kr => kr.title.trim() !== '').reduce((acc, kr) => acc + Number(kr.progress || 0), 0) / form.keyResults.filter(kr => kr.title.trim() !== '').length)
-                  : 0}% (מחושב אוטומטית)
+              <div style={{ flex: 1, minWidth: '150px' }}>
+                <label className="text-sm text-secondary block mb-1">מוצר</label>
+                <select style={inputStyle} value={form.product_id} onChange={e => setForm({...form, product_id: e.target.value})}>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
               </div>
+            </div>
+            <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+              <div>
+                <label className="text-sm text-secondary block mb-1">ערך עסקי</label>
+                <textarea 
+                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} 
+                  value={form.businessValue} 
+                  onChange={e => setForm({...form, businessValue: e.target.value})} 
+                  placeholder="איך היעד עוזר לעסק?"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-secondary block mb-1">סיכונים</label>
+                <textarea 
+                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} 
+                  value={form.risks} 
+                  onChange={e => setForm({...form, risks: e.target.value})} 
+                  placeholder="מהם הסיכונים האפשריים?"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-secondary block mb-1">תלויות</label>
+                <textarea 
+                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} 
+                  value={form.dependencies} 
+                  onChange={e => setForm({...form, dependencies: e.target.value})} 
+                  placeholder="באילו גורמים או צוותים היעד תלוי?"
+                />
+              </div>
+            </div>
+
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="flex-between mb-2">
+                <label className="text-sm text-secondary block">שדות מותאמים אישית</label>
+                <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={addCustomField}>
+                  <Plus size={10} /> הוסף שדה
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {form.customFields.map((cf, idx) => (
+                  <div key={idx} className="flex-center gap-2">
+                    <input style={{ ...inputStyle, flex: 1 }} value={cf.label} onChange={e => updateCustomField(idx, 'label', e.target.value)} placeholder="שם השדה (למשל: ערוץ שיווק)..." />
+                    <input style={{ ...inputStyle, flex: 2 }} value={cf.value} onChange={e => updateCustomField(idx, 'value', e.target.value)} placeholder="ערך..." />
+                    <button type="button" className="btn-icon" onClick={() => removeCustomField(idx)}><Trash2 size={16} /></button>
+                  </div>
+                ))}
+                {form.customFields.length === 0 && <p className="text-xs text-tertiary italic">אין שדות מותאמים אישית</p>}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex-between mb-1">
+                <label className="text-sm text-secondary block">התקדמות (%)</label>
+                <div className="flex-center gap-2">
+                  <span className="text-[10px] text-tertiary">{form.progressMode === 'auto' ? 'חישוב אוטומטי' : 'הזנה ידנית'}</span>
+                  <button 
+                    type="button" 
+                    className={`btn-icon-xs ${form.progressMode === 'manual' ? 'text-primary' : 'text-tertiary'}`}
+                    onClick={() => setForm({...form, progressMode: form.progressMode === 'auto' ? 'manual' : 'auto'})}
+                    title="החלף מצב חישוב"
+                  >
+                    <Activity size={14} />
+                  </button>
+                </div>
+              </div>
+              {form.progressMode === 'auto' ? (
+                <div style={{ ...inputStyle, background: 'var(--bg-tertiary)', opacity: 0.8, display: 'flex', alignItems: 'center' }}>
+                  {form.keyResults.filter(kr => kr.title.trim() !== '').length > 0 
+                    ? Math.round(form.keyResults.filter(kr => kr.title.trim() !== '').reduce((acc, kr) => acc + Number(kr.progress || 0), 0) / form.keyResults.filter(kr => kr.title.trim() !== '').length)
+                    : 0}% (מחושב)
+                </div>
+              ) : (
+                <input 
+                  type="number" 
+                  min="0" max="100" 
+                  style={inputStyle} 
+                  value={form.manualProgress} 
+                  onChange={e => setForm({...form, manualProgress: e.target.value})} 
+                  placeholder="הזן אחוז התקדמות..."
+                />
+              )}
             </div>
             
             <div style={{ gridColumn: '1 / -1' }}>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Users, Plus, Trash2, Calendar, Zap, ArrowRight, Clock } from 'lucide-react';
+import { Users, Plus, Trash2, Calendar, Zap, ArrowRight, Clock, Check } from 'lucide-react';
 import './Settings.css';
 
 const Settings = () => {
@@ -76,33 +76,34 @@ const Settings = () => {
               <h3 className="text-h3">לוחות מפת דרכים</h3>
             </div>
             
-            <div className="add-board-form w-full">
+            <div className="add-board-form w-full bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700" style={{ direction: 'rtl' }}>
               <div className="flex gap-2 mb-3">
-                <input
-                  type="text"
-                  className="modal-input"
-                  style={{ flex: 1 }}
-                  value={newBoardName}
-                  onChange={e => setNewBoardName(e.target.value)}
-                  placeholder="שם לוח חדש..."
-                />
                 <select 
-                  className="modal-input" 
-                  style={{ width: '160px' }}
+                  className="modal-input flex-1" 
                   value={newBoardType}
                   onChange={e => setNewBoardType(e.target.value)}
+                  style={{ height: '36px', padding: '0 0.75rem' }}
                 >
                   <option value="kanban">התקדמות (Kanban)</option>
                   <option value="timeline">ציר זמן (Timeline)</option>
                 </select>
+                <input
+                  type="text"
+                  className="modal-input flex-1"
+                  value={newBoardName}
+                  onChange={e => setNewBoardName(e.target.value)}
+                  placeholder="שם לוח חדש..."
+                  style={{ height: '36px' }}
+                />
               </div>
               
               {newBoardType === 'timeline' && (
-                <div className="flex gap-2 mb-3 animate-fade-in">
+                <div className="flex gap-2 mb-4">
                   <select 
                     className="modal-input" 
                     value={newBoardQuarter}
                     onChange={e => setNewBoardQuarter(e.target.value)}
+                    style={{ width: '80px', height: '36px' }}
                   >
                     <option value="Q1">Q1</option>
                     <option value="Q2">Q2</option>
@@ -114,18 +115,37 @@ const Settings = () => {
                     className="modal-input"
                     value={newBoardYear}
                     onChange={e => setNewBoardYear(e.target.value)}
-                    placeholder="שנה"
+                    placeholder="שנה (e.g. 2026)"
+                    style={{ flex: 1, height: '36px' }}
                   />
                 </div>
               )}
               
-              <button className="btn btn-primary w-full" onClick={() => { 
-                  if(!newBoardName.trim()) return;
+              <button className="btn btn-primary w-full flex-center justify-center gap-2" style={{ height: '38px', borderRadius: '8px' }} onClick={() => { 
+                  // If timeline and no name provided, auto-generate one
+                  const finalName = newBoardName.trim() || (newBoardType === 'timeline' ? `Timeline ${newBoardQuarter} ${newBoardYear}` : '');
+                  if(!finalName) return;
+                  
+                  // For timeline boards, enforce one per Q+Year (team-wide)
+                  if (newBoardType === 'timeline') {
+                    const exists = (roadmapBoards || []).find(b => 
+                      b.view_type === 'timeline' && 
+                      b.quarter === newBoardQuarter && 
+                      b.year === newBoardYear
+                    );
+                    if (exists) {
+                      alert(`כבר קיים ציר זמן עבור ${newBoardQuarter} ${newBoardYear}. לכל רבעון יש ציר זמן אחד עבור כל הצוות.`);
+                      return;
+                    }
+                  }
+                  
                   addRoadmapBoard({ 
-                    name: newBoardName, 
+                    name: finalName, 
                     view_type: newBoardType,
                     quarter: newBoardQuarter,
                     year: newBoardYear,
+                    // All boards (Timeline and Kanban) are now team-wide, so no product_id is assigned to the board itself.
+                    product_id: null,
                     columns: newBoardType === 'kanban' ? [
                       { key: 'Now', label: 'עכשיו', color: 'blue', icon: 'Zap' },
                       { key: 'Next', label: 'הבא', color: 'purple', icon: 'ArrowRight' },
@@ -134,7 +154,7 @@ const Settings = () => {
                   }); 
                   setNewBoardName(''); 
                 }}>
-                <Plus size={16} /> יצירת לוח חדש
+                <Check size={16} /> שמור
               </button>
             </div>
           </div>
@@ -154,7 +174,7 @@ const Settings = () => {
                       {board.view_type === 'timeline' ? `${board.quarter} ${board.year}` : `${(board.columns || []).length} עמודות`}
                     </span>
                     <span className="text-xs text-accent-primary opacity-60">
-                      • {data.products.find(p => p.id === board.product_id)?.name || 'כללי'}
+                      • {(data.products || []).find(p => p.id === board.product_id)?.name || 'כללי'}
                     </span>
                   </div>
                 </div>

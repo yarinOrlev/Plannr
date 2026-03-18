@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { Users, Plus, Trash2, ChevronDown, ChevronUp, MessageSquarePlus, X, Check, User } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
+import ProductBadge from '../components/ProductBadge';
 import './Customers.css';
 
 const SEGMENTS = ['כלל הלקוחות', 'Enterprise', 'SMB', 'Self-serve'];
@@ -56,16 +57,18 @@ const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, on
   return (
     <div className="customer-card glass-panel">
       <div className="customer-card-header">
-        <div className="flex-center gap-3" style={{ justifyContent: 'flex-start', alignItems: 'center' }}>
-          <div className="customer-avatar i-bg-pink">
+        <div className="flex-center gap-3" style={{ justifyContent: 'flex-start', alignItems: 'flex-start' }}>
+          <div className="customer-avatar i-bg-pink mt-1">
             <User size={18} />
           </div>
           <div>
-            <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
-               <h4 className="font-semibold">{customer.name}</h4>
-               {productName && <span className="text-[10px] font-bold text-accent-primary bg-accent-primary/10 px-1.5 py-0.5 rounded">{productName}</span>}
+            <div className="mb-1" style={{ display: 'flex', justifyContent: 'flex-start' }}>
+               <ProductBadge productName={productName} productId={customer.product_id} />
             </div>
-            <p className="text-xs text-tertiary">{customer.company} · {customer.segment || 'Enterprise'}</p>
+            <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
+               <h4 className="font-semibold" style={{ margin: 0, lineHeight: 1.2 }}>{customer.name}</h4>
+            </div>
+            <p className="text-xs text-tertiary mt-1">{customer.company} · {customer.segment || 'Enterprise'}</p>
           </div>
         </div>
         <div className="flex-center gap-1">
@@ -201,7 +204,6 @@ const Customers = () => {
           <div className="flex-between mb-4">
             <div className="flex-center gap-2">
               <h3 className="text-h3">לקוח חדש</h3>
-              <span className="badge badge-indigo">{activeProduct.name}</span>
             </div>
             <button type="button" className="btn-icon" onClick={() => setShowForm(false)}><X size={18}/></button>
           </div>

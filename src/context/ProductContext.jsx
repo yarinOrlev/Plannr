@@ -23,16 +23,24 @@ const defaultData = {
   availableTeams: ['Bifrost', 'Picasso', 'Olympus', 'DWH', 'Cloud', 'Everest', 'Maavarim', '43', 'Genesis', 'Opal', 'Infra', 'Cyber'],
   reviews: [],
   teams: [],
-  teamMembers: []
+  teamMembers: [],
+  scoringConfig: [
+    { id: 'reach', label: 'טווח (Reach)', weight: 1, type: 'multiplier', defaultValue: 1, info: 'כמה משתמשים יושפעו?' },
+    { id: 'impact', label: 'השפעה (Impact)', weight: 1, type: 'multiplier', defaultValue: 1, info: 'כמה זה יתרום למטרה?' },
+    { id: 'confidence', label: 'ביטחון (Confidence)', weight: 1, type: 'multiplier', defaultValue: 1, info: 'כמה אנחנו בטוחים?' },
+    { id: 'effort', label: 'מאמץ (Effort)', weight: 1, type: 'divider', defaultValue: 1, info: 'כמה זמן זה ייקח?' }
+  ]
 };
 
 export const ProductProvider = ({ children }) => {
   const { user, isAuthenticated, isHoD } = useAuth();
   const [data, setData] = useState(() => {
     const savedBoards = localStorage.getItem('plannr_roadmap_boards');
+    const savedScoring = localStorage.getItem('plannr_scoring_config');
     return {
       ...defaultData,
-      roadmapBoards: savedBoards ? JSON.parse(savedBoards) : []
+      roadmapBoards: savedBoards ? JSON.parse(savedBoards) : [],
+      scoringConfig: savedScoring ? JSON.parse(savedScoring) : defaultData.scoringConfig
     };
   });
   const [loading, setLoading] = useState(true);
@@ -343,24 +351,41 @@ export const ProductProvider = ({ children }) => {
   const addFeature = async (productFeature) => {
     try {
       console.log('ProductContext: addFeature called', { productFeature });
-      const newFeature = {
-        ...productFeature,
-        id: productFeature.id || `feat_${Date.now()}`
-      };
-      const { data: inserted, error } = await supabase.from('features').insert([newFeature]).select();
+      const { productIds, ...rest } = productFeature;
+      
+      const featuresToInsert = (productIds || [data.activeProductId]).map(pid => ({
+        ...rest,
+        id: `feat_${Date.now()}_${pid}`, // Unique ID per product copy
+        product_id: pid,
+        group_id: productFeature.id || `group_${Date.now()}` // Shared identifier for future linking
+      }));
+
+      // Since we don't have product_ids column, we'll insert multiple rows if needed,
+      // but only if the user specifically asked for 'each product... i want to add'.
+      // If we only have product_id column, we'll just insert multiple rows.
+      // NOTE: Remove columns that don't exist in the schema cache to avoid errors.
+      const sanitized = featuresToInsert.map(({ product_ids, productIds, group_id, totalScore, ...f }) => f);
+
+      const { data: inserted, error } = await supabase.from('features').insert(sanitized).select();
       if (error) {
         console.error('Supabase error in addFeature:', error);
         throw error;
       }
-      setData(prev => ({ ...prev, features: [...prev.features, inserted[0]] }));
+      setData(prev => ({ ...prev, features: [...prev.features, ...inserted] }));
     } catch (err) {
       console.error('Error adding feature:', err);
     }
   };
 
+  const updateScoringConfig = (config) => {
+    setData(prev => ({ ...prev, scoringConfig: config }));
+    localStorage.setItem('plannr_scoring_config', JSON.stringify(config));
+  };
+
   const updateFeature = async (id, updates) => {
     try {
-      const { error } = await supabase.from('features').update(updates).eq('id', id);
+      const { product_ids, productIds, group_id, totalScore, ...sanitized } = updates;
+      const { error } = await supabase.from('features').update(sanitized).eq('id', id);
       if (error) throw error;
       setData(prev => ({
         ...prev,
@@ -478,14 +503,26 @@ export const ProductProvider = ({ children }) => {
   const addRoadmapItem = async (item) => {
     try {
       console.log('ProductContext: addRoadmapItem called', { item });
-      const activeBoards = (data.roadmapBoards || []).filter(b => b.product_id === data.activeProductId);
-      const activeBoard = activeBoards.find(b => b.id === data.activeRoadmapBoardId) || activeBoards[0];
-      const fallbackBoardId = activeBoard?.id || '';
+      const targetProductId = item.product_id || data.activeProductId;
+      
+      // Find a board for the target product
+      const targetProductBoards = (data.roadmapBoards || []).filter(b => b.product_id === targetProductId);
+      
+      // Try to find a board with the same quarter/year as the current active board
+      const currentBoard = (data.roadmapBoards || []).find(b => b.id === data.activeRoadmapBoardId);
+      let targetBoard = null;
+      
+      if (currentBoard) {
+        targetBoard = targetProductBoards.find(b => b.quarter === currentBoard.quarter && b.year === currentBoard.year);
+      }
+      
+      // Fallback to the first board for that product or an empty string
+      const boardId = item.board_id || item.boardId || targetBoard?.id || targetProductBoards[0]?.id || '';
 
       const newItem = { 
         id: item.id || `rm_${Date.now()}`,
-        product_id: item.product_id || data.activeProductId, 
-        board_id: item.board_id || item.boardId || fallbackBoardId,
+        product_id: targetProductId, 
+        board_id: boardId,
         title: item.title,
         bucket: item.bucket,
         description: item.description,
@@ -561,9 +598,20 @@ export const ProductProvider = ({ children }) => {
   const addRoadmapBoard = async (board) => {
     try {
       console.log('ProductContext: addRoadmapBoard called', { board });
+      
+      // Enforce "One Timeline per Team" per timeframe
+      if (board.view_type === 'timeline') {
+        const existing = (data.roadmapBoards || []).find(b => b.view_type === 'timeline' && b.quarter === board.quarter && b.year === board.year);
+        if (existing) {
+          console.warn('Roadmap board for this timeframe already exists. Reusing existing board.');
+          return;
+        }
+      }
+
       const newBoard = { 
         id: `board_${Date.now()}`,
-        product_id: data.activeProductId, 
+        // Timeline boards are team-wide (null product_id). Kanban boards are per-product.
+        product_id: board.product_id !== undefined ? board.product_id : (board.view_type === 'timeline' ? null : data.activeProductId),
         name: board.name,
         view_type: board.view_type || 'kanban',
         columns: board.columns || [
@@ -880,7 +928,10 @@ export const ProductProvider = ({ children }) => {
 
   const activeProduct = data.products.find(p => p.id === data.activeProductId);
   const activeStrategy = data.strategy.filter(s => selectedProductIds.includes(s.product_id));
-  const activeFeatures = data.features.filter(f => selectedProductIds.includes(f.product_id));
+  const activeFeatures = data.features.filter(f => {
+    const pids = f.product_ids || [f.product_id];
+    return pids.some(id => selectedProductIds.includes(id));
+  });
   const activeKpis = (data.kpis || []).filter(k => selectedProductIds.includes(k.product_id));
   const activeObjectives = data.objectives.filter(obj => selectedProductIds.includes(obj.product_id));
   const activeDocs = data.documentation.filter(doc => !doc.product_id || selectedProductIds.includes(doc.product_id));
@@ -888,11 +939,15 @@ export const ProductProvider = ({ children }) => {
   const activeCustomers = (data.customers || []).filter(c => selectedProductIds.includes(c.product_id));
   const activeReviews = (data.reviews || []).filter(r => selectedProductIds.includes(r.product_id));
 
-  const activeRoadmapBoards = (data.roadmapBoards || []).filter(b => selectedProductIds.includes(b.product_id));
+  const allRoadmapBoards = data.roadmapBoards || [];
+  const activeRoadmapBoards = allRoadmapBoards.filter(b =>
+    // Include kanban boards for selected products AND all timeline boards (team-wide, null product_id)
+    b.view_type === 'timeline' || selectedProductIds.includes(b.product_id)
+  );
 
-  // Robust fallback for activeRoadmapBoard
-  const activeRoadmapBoard = activeRoadmapBoards.find(b => b.id === data.activeRoadmapBoardId)
-    || activeRoadmapBoards[0]
+  // Robust fallback for activeRoadmapBoard — look across all boards
+  const activeRoadmapBoard = allRoadmapBoards.find(b => b.id === data.activeRoadmapBoardId)
+    || allRoadmapBoards[0]
     || { product_id: data.activeProductId, id: 'board_default', name: 'מפת דרכים', columns: [] };
 
   const activeRoadmaps = data.roadmaps.filter(rm =>
@@ -908,6 +963,7 @@ export const ProductProvider = ({ children }) => {
     addFeature,
     updateFeature,
     deleteFeature,
+    updateScoringConfig,
     addObjective,
     updateObjective,
     deleteObjective,
@@ -952,8 +1008,9 @@ export const ProductProvider = ({ children }) => {
     addAvailableTeam,
     removeAvailableTeam,
     availableTeams: data.availableTeams || [],
-    roadmapBoards: activeRoadmapBoards,
+    roadmapBoards: allRoadmapBoards,    // ALL boards: both timeline (team-wide) and kanban (per-product)
     activeRoadmapBoard,
+    products: data.products,             // expose raw products array
     addRoadmapBoard,
     updateRoadmapBoard,
     deleteRoadmapBoard,

@@ -45,22 +45,19 @@ const Header = () => {
               <ArrowRight size={15} /> חזרה למחלקתי
             </button>
           )}
-          <div className="product-selector flex-center gap-2">
-            <select value={data.activeProductId} onChange={e => setActiveProduct(e.target.value)} className="product-select text-h3 font-semibold">
-              {data.products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            {data.products.length > 0 && (
-              <div className="flex-center gap-1">
+          <div className="flex-center gap-2">
+            {data.activeProductId && data.products.length > 0 && (
+              <div className="flex-center gap-2 mr-2">
                 <button 
-                  className="btn-icon-xs text-primary hover:bg-primary/10" 
-                  title="ניהול צוות"
+                  className="btn-icon text-primary hover:bg-primary/10" 
+                  title="ניהול צוות למוצר נוכחי"
                   onClick={() => setShowSharingModal(true)}
                 >
                   <Users size={16} />
                 </button>
                 <button 
-                  className="btn-icon-xs text-danger hover:bg-danger/10" 
-                  title="מחיקת מוצר"
+                  className="btn-icon text-danger hover:bg-danger/10" 
+                  title="מחיקת מוצר נוכחי"
                   onClick={() => {
                     if (window.confirm(`האם אתה בטוח שברצונך למחוק את המוצר "${data.products.find(p => p.id === data.activeProductId)?.name}"? פעולה זו תמחק את כל הנתונים הקשורים.`)) {
                       deleteProduct(data.activeProductId);
@@ -71,10 +68,10 @@ const Header = () => {
                 </button>
               </div>
             )}
+            <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => setShowAddProduct(true)}>
+              <Plus size={15} /> מוצר חדש
+            </button>
           </div>
-          <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => setShowAddProduct(true)}>
-            <Plus size={15} /> מוצר חדש
-          </button>
         </div>
         <div className="header-right">
           <div className="search-bar">
