@@ -109,7 +109,91 @@
   }
 }
 
-/* ── Tab Navigation ── */
+/* ── Team Tabs ── */
+.team-tabs-container {
+  border-bottom: 2px solid var(--bg-secondary);
+}
+
+.team-tabs {
+  min-width: max-content;
+}
+
+.team-tab-btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 0.9rem;
+  border-bottom: 2px solid transparent;
+}
+
+.team-tab-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+}
+
+.team-tab-btn.active {
+  background: var(--accent-primary);
+  color: white;
+  border-bottom: 2px solid var(--accent-primary);
+}
+
+/* ── Product Chips ── */
+.product-selector-chips {
+  padding: 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-lg);
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.chip.active {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.chip.inactive {
+  opacity: 0.5;
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.chip-dot.bg-indigo {
+  background-color: var(--accent-primary);
+}
+
+.chip-dot.bg-gray {
+  background-color: var(--text-tertiary);
+}
+
+/* ── Sub-Tab Navigation ── */
 .tab-navigation {
   display: flex;
   gap: 1rem;
@@ -229,4 +313,3 @@
   height: 10px;
   border-radius: 2px;
 }
-

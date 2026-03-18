@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { Plus, ChevronDown, ChevronUp, ChevronsUpDown, X, Check, Info, Pencil, Trash2 } from 'lucide-react';
+import MultiProductSelector from '../components/MultiProductSelector';
 import './Prioritization.css';
 
 const calcRice = (f) => {
@@ -27,7 +28,7 @@ const METRIC_INFO = {
 };
 
 const Prioritization = () => {
-  const { activeFeatures, activeProduct, addFeature, updateFeature, deleteFeature, availableTeams, activeObjectives, searchTerm } = useProductContext();
+  const { activeFeatures, activeProduct, data, addFeature, updateFeature, deleteFeature, availableTeams, activeObjectives, searchTerm, selectedProductIds } = useProductContext();
   const [sortKey, setSortKey] = useState('rice');
   const [sortDir, setSortDir] = useState('desc');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -110,17 +111,26 @@ const Prioritization = () => {
       <header className="page-header">
         <div>
           <h1 className="text-h1 mb-2">תעדוף פיצ'רים</h1>
-          <p className="text-secondary text-lg">מסגרת RICE עבור <strong className="text-primary">{activeProduct.name}</strong></p>
+          <p className="text-secondary text-lg">תעדוף משימות ופיצ'רים לפי מודל RICE</p>
         </div>
         <button className="btn btn-primary" onClick={() => (showAddForm ? resetForm() : setShowAddForm(true))}>
           <Plus size={18}/> {showAddForm ? 'ביטול' : 'הוספת פיצ\'ר'}
         </button>
       </header>
 
+      <MultiProductSelector />
+
       {showAddForm && (
         <form onSubmit={handleAddSubmit} className="glass-panel p-6 mb-4 animate-fade-in edit-form-container">
           <div className="flex-between mb-4">
-            <h3 className="text-h3">{editingId ? 'עריכת פיצ\'ר' : 'פיצ\'ר חדש'}</h3>
+            <div className="flex-center gap-2">
+              <h3 className="text-h3">{editingId ? 'עריכת פיצ\'ר' : 'פיצ\'ר חדש'}</h3>
+              <span className="badge badge-indigo">
+                {editingId 
+                  ? data.products.find(p => p.id === activeFeatures.find(f => f.id === editingId)?.product_id)?.name
+                  : activeProduct.name}
+              </span>
+            </div>
             <button type="button" className="btn-icon" onClick={resetForm}><X size={18}/></button>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px,1fr))', gap:'1rem' }}>
@@ -153,7 +163,9 @@ const Prioritization = () => {
               >
                 <option value="">ללא יעד</option>
                 {objectives.map(obj => (
-                  <option key={obj.id} value={obj.id}>{obj.title}</option>
+                  <option key={obj.id} value={obj.id}>
+                    ({data.products.find(p => p.id === obj.product_id)?.name}) {obj.title}
+                  </option>
                 ))}
               </select>
             </div>
@@ -186,6 +198,7 @@ const Prioritization = () => {
             <thead>
               <tr>
                 <th style={{ textAlign:'right' }}>שם הפיצ'ר</th>
+                {selectedProductIds.length > 1 && <th>מוצר</th>}
                 <th>צוותים</th>
                 <th>OKR</th>
                 {[
@@ -214,6 +227,13 @@ const Prioritization = () => {
               {sorted.map((f) => (
                 <tr key={f.id} className={editingId === f.id ? 'editing-row' : ''}>
                   <td className="font-medium">{f.title}</td>
+                  {selectedProductIds.length > 1 && (
+                    <td>
+                      <span className="text-xs font-bold text-accent-primary">
+                        {data.products.find(p => p.id === f.product_id)?.name}
+                      </span>
+                    </td>
+                  )}
                   <td>
                     <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', justifyContent:'center' }}>
                       {(f.teams || []).length > 0 ? f.teams.map(t => (
@@ -251,7 +271,7 @@ const Prioritization = () => {
               ))}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan="9" className="text-center py-8 text-secondary">לא הוגדרו פיצ'רים לתעדוף</td>
+                  <td colSpan={selectedProductIds.length > 1 ? "10" : "9"} className="text-center py-8 text-secondary">לא הוגדרו פיצ'רים לתעדוף</td>
                 </tr>
               )}
             </tbody>

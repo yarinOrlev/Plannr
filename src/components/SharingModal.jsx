@@ -6,14 +6,15 @@ import './Header.css'; // Reuse modal styles from Header
 
 const SharingModal = ({ productId, productName, onClose }) => {
   const { fetchAllUsers, userProfile, isHoD } = useAuth();
-  const { productShares, shareProduct, unshareProduct, activeProduct } = useProductContext();
+  const { teams, teamMembers, addTeamMember, removeTeamMember, activeProduct } = useProductContext();
   
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
 
-  const isOwner = activeProduct?.owner_id === userProfile?.id || isHoD;
+  const team = teams.find(t => t.id === activeProduct?.team_id);
+  const isOwner = team?.owner_id === userProfile?.id || isHoD;
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -26,18 +27,17 @@ const SharingModal = ({ productId, productName, onClose }) => {
     loadUsers();
   }, [fetchAllUsers, userProfile?.id]);
 
-  const currentShares = productShares.filter(s => s.product_id === productId);
-  const sharedWithIds = currentShares.map(s => s.shared_with_id);
+  const currentMembers = teamMembers.filter(m => m.team_id === team?.id);
+  const memberIds = currentMembers.map(m => m.user_id);
 
-  const handleShare = async (userId) => {
+  const handleToggleMember = async (userId) => {
+    if (!team) return;
     setActionLoading(userId);
-    await shareProduct(productId, userId);
-    setActionLoading(null);
-  };
-
-  const handleUnshare = async (userId) => {
-    setActionLoading(userId);
-    await unshareProduct(productId, userId);
+    if (memberIds.includes(userId)) {
+      await removeTeamMember(team.id, userId);
+    } else {
+      await addTeamMember(team.id, userId);
+    }
     setActionLoading(null);
   };
 
@@ -51,15 +51,15 @@ const SharingModal = ({ productId, productName, onClose }) => {
       <div className="strategy-modal glass-panel sharing-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
         <div className="flex-between mb-4">
           <div>
-            <h3 className="text-h3">ניהול הרשאות: {productName}</h3>
-            <p className="text-xs text-tertiary">קבע מי עוד יכול לצפות במוצר זה</p>
+            <h3 className="text-h3">ניהול צוות: {team?.name || 'ללא צוות'}</h3>
+            <p className="text-xs text-tertiary">נהל את חברי הצוות שיכולים לצפות ולערוך מוצרים בצוות זה</p>
           </div>
           <button className="btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
 
         {!isOwner && (
           <div className="alert alert-info mb-4 text-sm" style={{ padding: '0.75rem', borderRadius: 'var(--border-radius-sm)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
-            <Shield size={14} className="inline-block mr-1" /> רק בעלי המוצר או ראש מחלקה יכולים לנהל הרשאות.
+            <Shield size={14} className="inline-block mr-1" /> רק מנהל הצוות או ראש מחלקה יכולים לנהל חברים.
           </div>
         )}
 
@@ -106,21 +106,21 @@ const SharingModal = ({ productId, productName, onClose }) => {
                   
                   {isOwner ? (
                     <button 
-                      className={`btn-icon-sm ${isShared ? 'text-danger' : 'text-primary'}`}
-                      onClick={() => isShared ? handleUnshare(u.id) : handleShare(u.id)}
+                      className={`btn-icon-sm ${memberIds.includes(u.id) ? 'text-danger' : 'text-primary'}`}
+                      onClick={() => handleToggleMember(u.id)}
                       disabled={actionLoading === u.id}
-                      title={isShared ? 'הסר גישה' : 'שתף גישה'}
+                      title={memberIds.includes(u.id) ? 'הסר מהצוות' : 'הוסף לצוות'}
                     >
                       {actionLoading === u.id ? (
                         <Loader2 className="animate-spin" size={16} />
-                      ) : isShared ? (
+                      ) : memberIds.includes(u.id) ? (
                         <UserMinus size={18} />
                       ) : (
                         <UserPlus size={18} />
                       )}
                     </button>
                   ) : (
-                    isShared ? <div className="text-xs text-primary font-medium px-2 py-1 bg-primary/10 rounded">שותף</div> : null
+                    memberIds.includes(u.id) ? <div className="text-xs text-primary font-medium px-2 py-1 bg-primary/10 rounded">חבר צוות</div> : null
                   )}
                 </div>
               );

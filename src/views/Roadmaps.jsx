@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { Plus, X, Check, MoreHorizontal, Zap, ArrowRight, Clock, MessageSquare, CheckCircle, AlertCircle, Trash2, Activity } from 'lucide-react';
+import MultiProductSelector from '../components/MultiProductSelector';
 import logger from '../utils/logger';
 import './Roadmaps.css';
 
@@ -340,14 +341,29 @@ const TimelineView = ({ activeRoadmaps, board, activeFeatures, addRoadmapItem, u
 };
 
 const Roadmaps = () => {
-  const { activeRoadmaps, activeProduct, products, addRoadmapItem, updateRoadmapItem, deleteRoadmapItem, roadmapBoards, activeRoadmapBoard, setActiveRoadmapBoard, activeFeatures, data, updateReviewStatus, loading, searchTerm } = useProductContext();
+  const { 
+    activeRoadmaps, 
+    activeProduct, 
+    products, 
+    selectedProductIds,
+    setSelectedProductIds,
+    addRoadmapItem, 
+    updateRoadmapItem, 
+    deleteRoadmapItem, 
+    roadmapBoards, 
+    activeRoadmapBoard, 
+    setActiveRoadmapBoard, 
+    activeFeatures, 
+    data, 
+    updateReviewStatus, 
+    loading, 
+    searchTerm 
+  } = useProductContext();
   const [addingTo, setAddingTo] = useState(null);
   const [form, setForm] = useState({ title:'', description:'', teams: [] });
   const [editingCardId, setEditingCardId] = useState(null);
   const [cardForm, setCardForm] = useState({ title:'', description:'', teams: [] });
   
-  // State for multiple product selection in timeline view
-  const [selectedProductIds, setSelectedProductIds] = useState(activeProduct ? [activeProduct.id] : []);
   const [isCompact, setIsCompact] = useState(false);
 
   if (!activeProduct) return null;
@@ -361,13 +377,15 @@ const Roadmaps = () => {
 
   const isTimeline = activeRoadmapBoard?.view_type === 'timeline';
 
-  // Toggle product selection
+  // Toggle product selection (keep for backward compatibility if needed, but we use the selector now)
   const toggleProduct = (pid) => {
-    setSelectedProductIds(prev => 
-      prev.includes(pid) 
-        ? (prev.length > 1 ? prev.filter(id => id !== pid) : prev) 
-        : [...prev, pid]
-    );
+    if (selectedProductIds.includes(pid)) {
+      if (selectedProductIds.length > 1) {
+        setSelectedProductIds(selectedProductIds.filter(id => id !== pid));
+      }
+    } else {
+      setSelectedProductIds([...selectedProductIds, pid]);
+    }
   };
 
   // Aggregated roadmaps for timeline
@@ -410,34 +428,18 @@ const Roadmaps = () => {
 
         <div className="flex-center gap-4" style={{ flexWrap: 'wrap' }}>
           {isTimeline && (
-            <>
-              <button 
-                className={`btn btn-secondary flex-center gap-2 ${isCompact ? 'bg-primary/10 border-primary' : ''}`}
-                style={{ padding: '0.4rem 0.75rem', height: '38px' }}
-                onClick={() => setIsCompact(!isCompact)}
-                title={isCompact ? 'תצוגה רגילה' : 'תצוגה דחוסה'}
-              >
-                <MoreHorizontal size={18} style={{ transform: isCompact ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
-                <span className="text-sm">{isCompact ? 'דחוס' : 'רגיל'}</span>
-              </button>
-
-              <div className="product-multi-toggles flex-center gap-2">
-                <span className="text-xs text-tertiary font-medium">מוצרים מוצגים:</span>
-                <div className="flex-center gap-1 flex-wrap">
-                  {(products || []).map(p => (
-                    <button 
-                      key={p.id}
-                      className={`badge ${selectedProductIds.includes(p.id) ? 'badge-blue' : 'badge-gray'}`}
-                      style={{ cursor: 'pointer', padding: '0.25rem 0.6rem', fontSize: '0.75rem', opacity: selectedProductIds.includes(p.id) ? 1 : 0.6 }}
-                      onClick={() => toggleProduct(p.id)}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
+            <button 
+              className={`btn btn-secondary flex-center gap-2 ${isCompact ? 'bg-primary/10 border-primary' : ''}`}
+              style={{ padding: '0.4rem 0.75rem', height: '38px' }}
+              onClick={() => setIsCompact(!isCompact)}
+              title={isCompact ? 'תצוגה רגילה' : 'תצוגה דחוסה'}
+            >
+              <MoreHorizontal size={18} style={{ transform: isCompact ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+              <span className="text-sm">{isCompact ? 'דחוס' : 'רגיל'}</span>
+            </button>
           )}
+
+          <MultiProductSelector />
 
           {!loading && (
             <div className="board-selector flex-center gap-3">

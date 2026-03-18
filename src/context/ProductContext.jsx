@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from './AuthContext';
 import logger from '../utils/logger';
@@ -9,6 +9,7 @@ const ProductContext = createContext();
 const defaultData = {
   products: [],
   activeProductId: '',
+  selectedProductIds: [],
   strategy: [],
   features: [],
   kpis: [],
@@ -20,7 +21,9 @@ const defaultData = {
   roadmapBoards: [],
   activeRoadmapBoardId: '',
   availableTeams: ['Bifrost', 'Picasso', 'Olympus', 'DWH', 'Cloud', 'Everest', 'Maavarim', '43', 'Genesis', 'Opal', 'Infra', 'Cyber'],
-  reviews: []
+  reviews: [],
+  teams: [],
+  teamMembers: []
 };
 
 export const ProductProvider = ({ children }) => {
@@ -33,6 +36,8 @@ export const ProductProvider = ({ children }) => {
     };
   });
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const isFetching = useRef(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('plannr_dark_mode') === 'true');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -47,50 +52,67 @@ export const ProductProvider = ({ children }) => {
 
   // Fetch all data from Supabase on login
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       fetchAllData();
-    } else {
+    } else if (!isAuthenticated) {
       setData(defaultData);
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   const fetchAllData = async () => {
+    if (!user) {
+      logger.info('fetchAllData: No user available yet, skipping fetch');
+      setLoading(false);
+      return;
+    }
+    if (isFetching.current) {
+      logger.info('fetchAllData: Fetch already in progress, skipping');
+      return;
+    }
+    
+    isFetching.current = true;
     setLoading(true);
-    logger.info('Fetching compartmentalized data from Supabase...');
+    setFetchError(null);
+    logger.info('Fetching compartmentalized data from Supabase...', { userId: user.id });
     try {
-      // 1. Fetch Products based on role and ownership
-      let products;
-      let sharedProductIds = [];
-      let productShares = [];
+      let products = [];
+      let teams = [];
+      let teamMembers = [];
 
       if (isHoD) {
-        const { data } = await supabase.from('products').select('*').order('created_at', { ascending: true });
-        products = data || [];
-        // HoD can see all shares to know what's happening
-        const { data: shares } = await supabase.from('product_shares').select('*');
-        productShares = shares || [];
+        const { data: allTeams } = await supabase.from('teams').select('*').order('name');
+        const { data: allMembers } = await supabase.from('team_members').select('*');
+        const { data: allProducts } = await supabase.from('products').select('*').order('created_at', { ascending: true });
+        
+        teams = allTeams || [];
+        teamMembers = allMembers || [];
+        products = allProducts || [];
       } else {
-        // Fetch products owned by user
-        const { data: owned } = await supabase.from('products').select('*').eq('owner_id', user.id).order('created_at', { ascending: true });
+        // 1. Fetch teams I belong to
+        const { data: myMemberships } = await supabase.from('team_members').select('team_id').eq('user_id', user.id);
+        const teamIds = (myMemberships || []).map(m => m.team_id);
         
-        // Fetch products shared WITH user
-        const { data: sharesWithMe } = await supabase.from('product_shares').select('product_id').eq('shared_with_id', user.id);
-        sharedProductIds = (sharesWithMe || []).map(s => s.product_id);
+        // Also include teams I own (in case I am not explicitly listed as a member yet)
+        const { data: ownedTeams } = await supabase.from('teams').select('id').eq('owner_id', user.id);
+        const ownedTeamIds = (ownedTeams || []).map(t => t.id);
         
-        let sharedProducts = [];
-        if (sharedProductIds.length > 0) {
-          const { data: shared } = await supabase.from('products').select('*').in('id', sharedProductIds).order('created_at', { ascending: true });
-          sharedProducts = shared || [];
-        }
-        
-        products = [...(owned || []), ...sharedProducts];
+        const allMyTeamIds = [...new Set([...teamIds, ...ownedTeamIds])];
 
-        // Fetch shares FOR products I own (to manage them)
-        const ownedIds = (owned || []).map(p => p.id);
-        if (ownedIds.length > 0) {
-          const { data: myShares } = await supabase.from('product_shares').select('*').in('product_id', ownedIds);
-          productShares = myShares || [];
+        if (allMyTeamIds.length > 0) {
+          const { data: myTeams } = await supabase.from('teams').select('*').in('id', allMyTeamIds).order('name');
+          const { data: members } = await supabase.from('team_members').select('*').in('team_id', allMyTeamIds);
+          const { data: teamProds } = await supabase.from('products').select('*').in('team_id', allMyTeamIds).order('created_at', { ascending: true });
+          
+          teams = myTeams || [];
+          teamMembers = members || [];
+          products = teamProds || [];
+        }
+
+        // 2. Legacy/Fallback: Fetch products I own directly but aren't in a team yet (should be few after migration)
+        const { data: ownedDirectly } = await supabase.from('products').select('*').eq('owner_id', user.id).is('team_id', null);
+        if (ownedDirectly && ownedDirectly.length > 0) {
+          products = [...products, ...ownedDirectly];
         }
       }
 
@@ -108,56 +130,74 @@ export const ProductProvider = ({ children }) => {
         return q;
       };
 
-      const [
-        { data: features },
-        { data: strategy },
-        { data: roadmaps },
-        { data: objectives },
-        { data: notes },
-        { data: reviews },
-        { data: roadmapBoards },
-        { data: customers }
-      ] = await Promise.all([
-        getQuery('features'),
-        getQuery('strategy'),
-        getQuery('roadmaps'),
-        getQuery('objectives'),
-        getQuery('notes').order('created_at', { ascending: false }),
-        getQuery('reviews'),
-        getQuery('roadmap_boards'),
-        getQuery('customers')
-      ]);
+      logger.info('Performing secondary data fetches...', { allowedProductIds });
 
-      setData(prev => ({
-        ...prev,
-        products: products || [],
-        productShares: productShares || [],
-        features: features || [],
-        strategy: strategy || [],
-        roadmaps: roadmaps || [],
-        objectives: objectives || [],
-        notes: notes || [],
-        reviews: reviews || [],
-        roadmapBoards: roadmapBoards || [],
-        customers: customers || [],
-        activeProductId: products?.[0]?.id || prev.activeProductId,
-        activeRoadmapBoardId: (roadmapBoards || []).find(b => b.product_id === (products?.[0]?.id || prev.activeProductId))?.id || ''
-      }));
-      logger.info('Data fetch successful', { productsCount: products?.length });
+      const fetchTable = async (table, query) => {
+        try {
+          const { data, error } = await query;
+          if (error) {
+            logger.error(`Error fetching ${table}:`, error);
+            return [];
+          }
+          return data || [];
+        } catch (e) {
+          logger.error(`Crash fetching ${table}:`, e);
+          return [];
+        }
+      };
 
-      // Auto-seed if NO products exist for this user AND not HoD
+      const features = await fetchTable('features', getQuery('features'));
+      const strategy = await fetchTable('strategy', getQuery('strategy'));
+      const roadmaps = await fetchTable('roadmaps', getQuery('roadmaps'));
+      const objectives = await fetchTable('objectives', getQuery('objectives'));
+      const notes = await fetchTable('notes', getQuery('notes').order('created_at', { ascending: false }));
+      const reviews = await fetchTable('reviews', getQuery('reviews'));
+      const roadmapBoards = await fetchTable('roadmap_boards', getQuery('roadmap_boards'));
+      const customers = await fetchTable('customers', getQuery('customers'));
+
+      setData(prev => {
+        const nextActiveProductId = products?.[0]?.id || prev.activeProductId;
+        const nextActiveBoardId = (roadmapBoards || []).find(b => b.product_id === nextActiveProductId)?.id || '';
+        
+        return {
+          ...prev,
+          products: products || [],
+          teams: teams || [],
+          teamMembers: teamMembers || [],
+          features,
+          strategy,
+          roadmaps,
+          objectives,
+          notes,
+          reviews,
+          roadmapBoards,
+          customers,
+          activeProductId: nextActiveProductId,
+          selectedProductIds: products.map(p => p.id),
+          activeRoadmapBoardId: nextActiveBoardId
+        };
+      });
+      logger.info('Data fetch successful', { productsCount: products?.length, teamsCount: teams?.length });
+
+      // Auto-seeding removed to prevent infinite loops. Users can add products manually.
       if ((!products || products.length === 0) && isAuthenticated && !isHoD) {
-        await seedInitialData(true);
+        logger.info('No products found for user, but skipping auto-seed to prevent loops.');
       }
     } catch (error) {
       logger.error('Error fetching data from Supabase:', error);
+      setFetchError(error.message || 'שגיאת תקשורת עם בסיס הנתונים');
+      setLoading(false);
     } finally {
       setLoading(false);
+      isFetching.current = false;
     }
   };
 
   const seedInitialData = async (silent = false) => {
+    if (isFetching.current) return;
+    isFetching.current = true;
     setLoading(true);
+    setFetchError(null);
     try {
       const demoProductId = `prod_demo_${Date.now()}`;
       const demoProduct = { 
@@ -192,6 +232,7 @@ export const ProductProvider = ({ children }) => {
       if (!silent) alert('שגיאה בטעינת נתונים: ' + err.message);
     } finally {
       setLoading(false);
+      isFetching.current = false;
     }
   };
 
@@ -206,11 +247,16 @@ export const ProductProvider = ({ children }) => {
   const addProduct = async (product) => {
     try {
       console.log('ProductContext: addProduct called', { product });
+      // Find the user's primary team to associate this product with
+      const myOwnedTeams = data.teams.filter(t => t.owner_id === user.id);
+      const teamId = myOwnedTeams[0]?.id || null;
+
       const newProduct = { 
         id: product.id || `prod_${Date.now()}`, 
         name: product.name, 
         description: product.description,
-        owner_id: user.id
+        owner_id: user.id,
+        team_id: teamId
       };
       const { data: newProd, error } = await supabase.from('products').insert([newProduct]).select();
       if (error) {
@@ -234,7 +280,6 @@ export const ProductProvider = ({ children }) => {
       const { error: bErr } = await supabase.from('roadmap_boards').insert([defaultBoard]);
       if (bErr) {
         console.error('Supabase error saving default board:', bErr);
-        // We continue anyway as the product was added, but the UI might be inconsistent
       }
 
       setData(prev => ({
@@ -251,19 +296,47 @@ export const ProductProvider = ({ children }) => {
 
   const deleteProduct = async (id) => {
     try {
+      console.log('ProductContext: deleteProduct called with thorough cleanup', { id });
+      
+      // 1. Delete all dependent data in Supabase (order matters for potential internal constraints)
+      await Promise.all([
+        supabase.from('roadmaps').delete().eq('product_id', id),
+        supabase.from('roadmap_boards').delete().eq('product_id', id),
+        supabase.from('features').delete().eq('product_id', id),
+        supabase.from('strategy').delete().eq('product_id', id),
+        supabase.from('objectives').delete().eq('product_id', id),
+        supabase.from('notes').delete().eq('product_id', id),
+        supabase.from('reviews').delete().eq('product_id', id),
+        supabase.from('customers').delete().eq('product_id', id),
+        supabase.from('product_shares').delete().eq('product_id', id)
+      ]);
+
+      // 2. Finally delete the product itself
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
 
+      // 3. Update local state for ALL tables to keep UI consistent
       setData(prev => {
-        const nextProducts = prev.products.filter(p => p.id !== id);
+        const nextProducts = (prev.products || []).filter(p => p.id !== id);
         return {
           ...prev,
           products: nextProducts,
+          roadmaps: (prev.roadmaps || []).filter(r => r.product_id !== id),
+          roadmapBoards: (prev.roadmapBoards || []).filter(b => b.product_id !== id),
+          features: (prev.features || []).filter(f => f.product_id !== id),
+          strategy: (prev.strategy || []).filter(s => s.product_id !== id),
+          objectives: (prev.objectives || []).filter(o => o.product_id !== id),
+          notes: (prev.notes || []).filter(n => n.product_id !== id),
+          reviews: (prev.reviews || []).filter(rv => rv.product_id !== id),
+          customers: (prev.customers || []).filter(c => c.product_id !== id),
           activeProductId: prev.activeProductId === id ? (nextProducts[0]?.id || '') : prev.activeProductId
         };
       });
+      
+      logger.info('Product and all its data deleted successfully', { productId: id });
     } catch (err) {
-      console.error('Error deleting product:', err);
+      console.error('Error deleting product and its dependencies:', err);
+      alert('שגיאה במחיקת המוצר: ' + err.message);
     }
   };
 
@@ -367,9 +440,10 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  const updateStrategy = async (type, title, description) => {
+  const updateStrategy = async (type, title, description, productId) => {
     try {
-      const existing = data.strategy.find(s => s.product_id === data.activeProductId && s.type === type);
+      const targetId = productId || data.activeProductId;
+      const existing = data.strategy.find(s => s.product_id === targetId && s.type === type);
       if (existing) {
         const { error } = await supabase.from('strategy').update({ title, description }).eq('id', existing.id);
         if (error) throw error;
@@ -380,7 +454,7 @@ export const ProductProvider = ({ children }) => {
       } else {
         const newStrat = { 
           id: `strat_${Date.now()}`,
-          product_id: data.activeProductId, 
+          product_id: targetId, 
           type, 
           title, 
           description 
@@ -531,6 +605,11 @@ export const ProductProvider = ({ children }) => {
     } catch (err) {
       console.error('Error updating roadmap board:', err);
     }
+  };
+
+
+  const setSelectedProductIds = (ids) => {
+    setData(prev => ({ ...prev, selectedProductIds: ids }));
   };
 
   const deleteRoadmapBoard = async (id) => {
@@ -724,29 +803,61 @@ export const ProductProvider = ({ children }) => {
   };
 
   const shareProduct = async (productId, userId) => {
+    // This is now legacy, using team-based access. 
+    // For compatibility, we can add them to the product's team.
+    const product = data.products.find(p => p.id === productId);
+    if (product?.team_id) {
+      return await addTeamMember(product.team_id, userId);
+    }
+    return false;
+  };
+
+  const addTeamMember = async (teamId, userId) => {
     try {
-      const { error } = await supabase.from('product_shares').insert([{
-        product_id: productId,
-        shared_with_id: userId
+      const { error } = await supabase.from('team_members').insert([{
+        team_id: teamId,
+        user_id: userId
       }]);
       if (error) throw error;
       await fetchAllData();
       return true;
     } catch (err) {
-      console.error('Error sharing product:', err);
+      console.error('Error adding team member:', err);
       return false;
     }
   };
 
-  const unshareProduct = async (productId, userId) => {
+  const removeTeamMember = async (teamId, userId) => {
     try {
-      const { error } = await supabase.from('product_shares').delete().eq('product_id', productId).eq('shared_with_id', userId);
+      const { error } = await supabase.from('team_members').delete().eq('team_id', teamId).eq('user_id', userId);
       if (error) throw error;
       await fetchAllData();
       return true;
     } catch (err) {
-      console.error('Error unsharing product:', err);
+      console.error('Error removing team member:', err);
       return false;
+    }
+  };
+
+  const createTeam = async (name) => {
+    try {
+      const { data: newTeam, error } = await supabase.from('teams').insert([{
+        name,
+        owner_id: user.id
+      }]).select();
+      if (error) throw error;
+      
+      // Auto-add owner as member
+      await supabase.from('team_members').insert([{
+        team_id: newTeam[0].id,
+        user_id: user.id
+      }]);
+      
+      await fetchAllData();
+      return newTeam[0];
+    } catch (err) {
+      console.error('Error creating team:', err);
+      return null;
     }
   };
 
@@ -765,16 +876,19 @@ export const ProductProvider = ({ children }) => {
   };
 
   // Helper selectors
-  const activeProduct = data.products.find(p => p.id === data.activeProductId);
-  const activeStrategy = data.strategy.filter(s => s.product_id === data.activeProductId);
-  const activeFeatures = data.features.filter(f => f.product_id === data.activeProductId);
-  const activeKpis = (data.kpis || []).filter(k => k.product_id === data.activeProductId);
-  const activeObjectives = data.objectives.filter(obj => obj.product_id === data.activeProductId);
-  const activeDocs = data.documentation.filter(doc => !doc.product_id || doc.product_id === data.activeProductId);
-  const activeNotes = (data.notes || []).filter(n => n.product_id === data.activeProductId);
-  const activeCustomers = (data.customers || []).filter(c => c.product_id === data.activeProductId);
+  const selectedProductIds = data.selectedProductIds || (data.activeProductId ? [data.activeProductId] : []);
 
-  const activeRoadmapBoards = (data.roadmapBoards || []).filter(b => b.product_id === data.activeProductId);
+  const activeProduct = data.products.find(p => p.id === data.activeProductId);
+  const activeStrategy = data.strategy.filter(s => selectedProductIds.includes(s.product_id));
+  const activeFeatures = data.features.filter(f => selectedProductIds.includes(f.product_id));
+  const activeKpis = (data.kpis || []).filter(k => selectedProductIds.includes(k.product_id));
+  const activeObjectives = data.objectives.filter(obj => selectedProductIds.includes(obj.product_id));
+  const activeDocs = data.documentation.filter(doc => !doc.product_id || selectedProductIds.includes(doc.product_id));
+  const activeNotes = (data.notes || []).filter(n => selectedProductIds.includes(n.product_id));
+  const activeCustomers = (data.customers || []).filter(c => selectedProductIds.includes(c.product_id));
+  const activeReviews = (data.reviews || []).filter(r => selectedProductIds.includes(r.product_id));
+
+  const activeRoadmapBoards = (data.roadmapBoards || []).filter(b => selectedProductIds.includes(b.product_id));
 
   // Robust fallback for activeRoadmapBoard
   const activeRoadmapBoard = activeRoadmapBoards.find(b => b.id === data.activeRoadmapBoardId)
@@ -782,7 +896,7 @@ export const ProductProvider = ({ children }) => {
     || { product_id: data.activeProductId, id: 'board_default', name: 'מפת דרכים', columns: [] };
 
   const activeRoadmaps = data.roadmaps.filter(rm =>
-    rm.product_id === data.activeProductId &&
+    selectedProductIds.includes(rm.product_id) &&
     (rm.board_id === activeRoadmapBoard.id || (!rm.board_id && activeRoadmapBoard.id === 'board_default'))
   );
 
@@ -812,10 +926,13 @@ export const ProductProvider = ({ children }) => {
     addReview,
     updateReviewStatus,
     deleteProduct,
-    shareProduct,
-    unshareProduct,
-    products: data.products || [],
-    productShares: data.productShares || [],
+    addTeamMember,
+    removeTeamMember,
+    createTeam,
+    teams: data.teams || [],
+    teamMembers: data.teamMembers || [],
+    selectedProductIds,
+    setSelectedProductIds,
     activeProduct,
     activeStrategy,
     activeFeatures,
@@ -825,8 +942,10 @@ export const ProductProvider = ({ children }) => {
     activeDocs,
     activeNotes,
     activeCustomers,
+    activeReviews,
     darkMode,
     loading,
+    fetchError,
     searchTerm,
     setSearchTerm,
     toggleDarkMode: () => setDarkMode(!darkMode),

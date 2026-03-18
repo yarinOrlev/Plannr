@@ -19,6 +19,7 @@ const Sidebar = () => {
     { path: '/documentation', icon: <BookOpen size={18} />, label: 'תיעוד', color: 'yellow' },
     { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green' },
     { path: '/department', icon: <Briefcase size={18} />, label: 'מבט מחלקתי', color: 'indigo', roles: ['HoD'] },
+    { path: '/settings', icon: <Settings size={18} />, label: 'הגדרות', color: 'gray' },
   ];
 
   // Explicitly define visibility logic

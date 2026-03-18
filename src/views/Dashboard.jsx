@@ -1,6 +1,7 @@
 import React from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { BarChart3, Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
+import MultiProductSelector from '../components/MultiProductSelector';
 import './Dashboard.css';
 
 const StatCard = ({ title, value, label, icon, trend, type }) => (
@@ -18,10 +19,10 @@ const StatCard = ({ title, value, label, icon, trend, type }) => (
 );
 
 const Dashboard = () => {
-  const { activeProduct, activeRoadmaps, activeObjectives, data, updateReviewStatus } = useProductContext();
+  const { activeProduct, activeRoadmaps, activeObjectives, activeReviews, data, updateReviewStatus, selectedProductIds } = useProductContext();
   if (!activeProduct) return null;
 
-  const productReviews = (data.reviews || []).filter(r => r.product_id === activeProduct.id && r.status === 'Pending');
+  const pendingReviews = activeReviews.filter(r => r.status === 'Pending');
 
   const nowItems = activeRoadmaps.filter(r => r.bucket === 'Now').length;
   const avgProgress = activeObjectives.length
@@ -33,9 +34,11 @@ const Dashboard = () => {
       <header className="page-header">
         <div>
           <h1 className="text-h1 mb-2">ברוכים הבאים 👋</h1>
-          <p className="text-secondary text-lg">סקירה עבור <strong className="text-primary">{activeProduct.name}</strong></p>
+          <p className="text-secondary text-lg">סקירת ביצועים ופעילות</p>
         </div>
       </header>
+
+      <MultiProductSelector />
 
       <section className="dashboard-grid">
         <StatCard title="פיצ'רים בעבודה" value={nowItems} label="בשלב Now" icon={<Activity size={20} />} type="blue" />
@@ -52,7 +55,14 @@ const Dashboard = () => {
               <div key={rm.id} className="milestone-item">
                 <div className="milestone-dot"></div>
                 <div className="milestone-content">
-                  <div className="milestone-title font-medium">{rm.title}</div>
+                  <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
+                    <div className="milestone-title font-medium">{rm.title}</div>
+                    {selectedProductIds.length > 1 && (
+                      <span className="text-[10px] font-bold text-accent-primary bg-accent-primary/10 px-1.5 py-0.5 rounded">
+                        {data.products.find(p => p.id === rm.product_id)?.name}
+                      </span>
+                    )}
+                  </div>
                   <div className="milestone-meta text-sm text-tertiary">{rm.bucket} · {rm.description?.slice(0,40) || ''}</div>
                 </div>
               </div>
@@ -81,18 +91,21 @@ const Dashboard = () => {
         </section>
       </div>
 
-      {productReviews.length > 0 && (
+      {pendingReviews.length > 0 && (
         <section className="glass-panel p-6 mt-6 border-left-accent">
           <div className="flex-between mb-4">
             <h3 className="text-h3 flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
               <Activity size={20} className="text-yellow" /> הערות מנהל מחלקה לטיפול
             </h3>
-            <span className="badge badge-yellow">{productReviews.length} הערות פתוחות</span>
+            <span className="badge badge-yellow">{pendingReviews.length} הערות פתוחות</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {productReviews.map(rev => (
+            {pendingReviews.map(rev => (
               <div key={rev.id} className="review-card-pm glass-panel p-4 flex-between">
                 <div>
+                  <div className="flex-center gap-2 mb-1" style={{ justifyContent: 'flex-start' }}>
+                    <p className="text-sm font-medium">{data.products.find(p => p.id === rev.product_id)?.name}</p>
+                  </div>
                   <p className="text-sm mb-2">{rev.content}</p>
                   <span className="text-xs text-tertiary">{new Date(rev.created_at).toLocaleDateString('he-IL')}</span>
                 </div>

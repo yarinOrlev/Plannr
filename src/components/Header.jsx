@@ -53,7 +53,7 @@ const Header = () => {
               <div className="flex-center gap-1">
                 <button 
                   className="btn-icon-xs text-primary hover:bg-primary/10" 
-                  title="שיתוף מוצר"
+                  title="ניהול צוות"
                   onClick={() => setShowSharingModal(true)}
                 >
                   <Users size={16} />

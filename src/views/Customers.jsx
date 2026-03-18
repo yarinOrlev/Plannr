@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { Users, Plus, Trash2, ChevronDown, ChevronUp, MessageSquarePlus, X, Check, User } from 'lucide-react';
+import MultiProductSelector from '../components/MultiProductSelector';
 import './Customers.css';
 
 const SEGMENTS = ['כלל הלקוחות', 'Enterprise', 'SMB', 'Self-serve'];
 
-const CustomerCard = ({ customer, onDelete, onAddNote, onUpdate, onDeleteNote }) => {
+const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, onDeleteNote }) => {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -60,7 +61,10 @@ const CustomerCard = ({ customer, onDelete, onAddNote, onUpdate, onDeleteNote })
             <User size={18} />
           </div>
           <div>
-            <h4 className="font-semibold">{customer.name}</h4>
+            <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
+               <h4 className="font-semibold">{customer.name}</h4>
+               {productName && <span className="text-[10px] font-bold text-accent-primary bg-accent-primary/10 px-1.5 py-0.5 rounded">{productName}</span>}
+            </div>
             <p className="text-xs text-tertiary">{customer.company} · {customer.segment || 'Enterprise'}</p>
           </div>
         </div>
@@ -91,7 +95,6 @@ const CustomerCard = ({ customer, onDelete, onAddNote, onUpdate, onDeleteNote })
       {expanded && (
         <div className="customer-notes mt-3">
           <h5 className="text-sm font-semibold mb-2 text-secondary">הערות לקוח</h5>
-          {/* ... existing notes logic ... */}
 
           {showNoteInput && (
             <div className="note-input-row mb-3">
@@ -148,7 +151,7 @@ const CustomerCard = ({ customer, onDelete, onAddNote, onUpdate, onDeleteNote })
 };
 
 const Customers = () => {
-  const { activeProduct, activeCustomers, addCustomer, addCustomerNote, deleteCustomer, updateCustomer, deleteCustomerNote } = useProductContext();
+  const { activeProduct, activeCustomers, data, addCustomer, addCustomerNote, deleteCustomer, updateCustomer, deleteCustomerNote, selectedProductIds } = useProductContext();
   const [showForm, setShowForm] = useState(false);
   const [filterSeg, setFilterSeg] = useState('כלל הלקוחות');
   const [form, setForm] = useState({ name:'', company:'', email:'', segment:'Enterprise', wants:'', description:'' });
@@ -162,7 +165,7 @@ const Customers = () => {
   const handleAdd = (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    addCustomer(form);
+    addCustomer({ ...form, product_id: activeProduct.id });
     setForm({ name:'', company:'', email:'', segment:'Enterprise', wants:'', description:'' });
     setShowForm(false);
   };
@@ -174,17 +177,17 @@ const Customers = () => {
       <header className="page-header">
         <div>
           <h1 className="text-h1 mb-2">לקוחות</h1>
-          <p className="text-secondary text-lg">
-            ניהול לקוחות עבור <strong className="text-primary">{activeProduct.name}</strong>
-          </p>
+          <p className="text-secondary text-lg">ניהול לקוחות ופידבק</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
           <Plus size={18} /> {showForm ? 'ביטול' : 'לקוח חדש'}
         </button>
       </header>
 
+      <MultiProductSelector />
+
       {/* Segment filter */}
-      <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap' }}>
+      <div className="mb-6" style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap' }}>
         {SEGMENTS.map(s => (
           <button key={s} className={`btn ${filterSeg===s?'btn-primary':'btn-secondary'}`} style={{ padding:'0.3rem 0.75rem', fontSize:'0.8rem' }} onClick={() => setFilterSeg(s)}>
             {s}
@@ -194,9 +197,12 @@ const Customers = () => {
 
       {/* Add form */}
       {showForm && (
-        <form onSubmit={handleAdd} className="glass-panel p-6 animate-fade-in">
+        <form onSubmit={handleAdd} className="glass-panel p-6 mb-6 animate-fade-in">
           <div className="flex-between mb-4">
-            <h3 className="text-h3">לקוח חדש</h3>
+            <div className="flex-center gap-2">
+              <h3 className="text-h3">לקוח חדש</h3>
+              <span className="badge badge-indigo">{activeProduct.name}</span>
+            </div>
             <button type="button" className="btn-icon" onClick={() => setShowForm(false)}><X size={18}/></button>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px,1fr))', gap:'1rem' }}>
@@ -237,6 +243,7 @@ const Customers = () => {
             <CustomerCard 
               key={c.id} 
               customer={c} 
+              productName={selectedProductIds.length > 1 ? data.products.find(p => p.id === c.product_id)?.name : null}
               onDelete={deleteCustomer} 
               onAddNote={addCustomerNote} 
               onUpdate={updateCustomer} 

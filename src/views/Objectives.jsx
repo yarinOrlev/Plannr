@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { Target, ChevronRight, Plus, Calendar, Activity, TrendingUp, TrendingDown, Minus, X, Check, Trash2 } from 'lucide-react';
+import MultiProductSelector from '../components/MultiProductSelector';
 import './Objectives.css';
 
 const KpiCard = ({ kpi }) => {
@@ -23,7 +24,7 @@ const KpiCard = ({ kpi }) => {
   );
 };
 
-const ObjectiveCard = ({ objective, linkedFeatures = [], onEdit, onDelete }) => {
+const ObjectiveCard = ({ objective, productName, linkedFeatures = [], onEdit, onDelete }) => {
   const krs = objective.key_results || objective.keyResults || [
     { title: 'תוצאת מפתח 1', progress: Math.min(100, objective.progress+15) },
     { title: 'תוצאת מפתח 2', progress: Math.max(0, objective.progress-10) },
@@ -34,7 +35,10 @@ const ObjectiveCard = ({ objective, linkedFeatures = [], onEdit, onDelete }) => 
         <div className="flex-center gap-3" style={{ justifyContent:'flex-start', alignItems: 'center' }}>
           <div className="icon-badge-rounded i-bg-indigo"><Target size={18}/></div>
           <div>
-            <h3 className="text-h3">{objective.title}</h3>
+            <div className="flex-center gap-2 mb-1" style={{ justifyContent: 'flex-start' }}>
+               <h3 className="text-h3">{objective.title}</h3>
+               {productName && <span className="text-[10px] font-bold text-accent-primary bg-accent-primary/10 px-1.5 py-0.5 rounded">{productName}</span>}
+            </div>
             <div className="flex-center gap-2 mt-1" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               <p className="text-sm text-tertiary">{objective.quarter||'Q3 2026'}</p>
               {(objective.teams || []).map(t => (
@@ -81,7 +85,7 @@ const YEAR_OPTIONS = ['2025', '2026', '2027', '2028'];
 const QUARTERS = ['הכל','Q1 2026','Q2 2026','Q3 2026','Q4 2026','Q1 2027'];
 
 const Objectives = () => {
-  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, data, activeFeatures, searchTerm } = useProductContext();
+  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, data, activeFeatures, searchTerm, selectedProductIds } = useProductContext();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ 
@@ -194,7 +198,7 @@ const Objectives = () => {
       <header className="page-header">
         <div>
           <h1 className="text-h1 mb-2">יעדים ותוצאות מפתח (OKR)</h1>
-          <p className="text-secondary text-lg">מדוד את מה שחשוב עבור <strong className="text-primary">{activeProduct.name}</strong></p>
+          <p className="text-secondary text-lg">תכנון ומדידת יעדים רבעוניים</p>
         </div>
         <div className="header-actions">
           <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap' }}>
@@ -210,9 +214,21 @@ const Objectives = () => {
         </div>
       </header>
 
+      <MultiProductSelector />
+
         {showForm && (
         <form onSubmit={handleSubmit} className="glass-panel p-6 mb-4 animate-fade-in">
-          <div className="flex-between mb-4"><h3 className="text-h3">{editingId ? 'עריכת יעד' : 'יעד חדש'}</h3><button type="button" className="btn-icon" onClick={()=>{setShowForm(false); setEditingId(null);}}><X size={18}/></button></div>
+          <div className="flex-between mb-4">
+            <div className="flex-center gap-2">
+              <h3 className="text-h3">{editingId ? 'עריכת יעד' : 'יעד חדש'}</h3>
+              <span className="badge badge-indigo">
+                {editingId 
+                  ? data.products.find(p => p.id === activeObjectives.find(o => o.id === editingId)?.product_id)?.name
+                  : activeProduct.name}
+              </span>
+            </div>
+            <button type="button" className="btn-icon" onClick={()=>{setShowForm(false); setEditingId(null);}}><X size={18}/></button>
+          </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px,1fr))', gap:'1rem' }}>
             <div style={{ gridColumn:'1 / -1' }}>
               <label className="text-sm text-secondary block mb-1">כותרת היעד</label>
@@ -322,6 +338,7 @@ const Objectives = () => {
             <ObjectiveCard 
               key={obj.id} 
               objective={obj} 
+              productName={selectedProductIds.length > 1 ? data.products.find(p => p.id === obj.product_id)?.name : null}
               linkedFeatures={activeFeatures.filter(f => f.objective_id === obj.id)}
               onEdit={handleEdit}
               onDelete={handleDelete}

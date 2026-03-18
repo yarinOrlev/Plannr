@@ -12,6 +12,7 @@ import Documentation from './views/Documentation';
 import Notes from './views/Notes';
 import Customers from './views/Customers';
 import DepartmentOverview from './views/DepartmentOverview';
+import SettingsView from './views/Settings';
 import FloatingNoteBubble from './components/FloatingNoteBubble';
 import Login from './views/Login';
 
@@ -27,8 +28,20 @@ const ProtectedRoute = ({ children, requireHoD = false }) => {
 
 function AppContent() {
   const { isAuthenticated, isHoD, loading: authLoading } = useAuth();
-  const { activeProduct, loading: productLoading } = useProductContext();
+  const { activeProduct, loading: productLoading, fetchError } = useProductContext();
   const location = useLocation();
+
+  if (fetchError) {
+    return (
+      <div className="loading-screen flex-center flex-col h-screen bg-slate-900 text-white p-4">
+        <div className="text-danger mb-4 text-h2 font-bold">שגיאה בטעינת הנתונים</div>
+        <div className="bg-danger/10 border border-danger/20 p-4 rounded text-center max-w-md">
+          <p className="mb-4">{fetchError}</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>נסה שוב</button>
+        </div>
+      </div>
+    );
+  }
 
   if (authLoading || productLoading) {
     return (
@@ -78,6 +91,7 @@ function AppContent() {
           <Route path="/customers" element={<Customers />} />
           <Route path="/documentation" element={<Documentation />} />
           <Route path="/notes" element={<Notes />} />
+          <Route path="/settings" element={<SettingsView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
