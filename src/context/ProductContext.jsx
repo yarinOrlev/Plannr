@@ -18,6 +18,7 @@ const defaultData = {
   documentation: [], // Documentation is mostly static/reference in this app
   notes: [],
   customers: [],
+  productUsers: [],
   roadmapBoards: [],
   activeRoadmapBoardId: '',
   availableTeams: ['Bifrost', 'Picasso', 'Olympus', 'DWH', 'Cloud', 'Everest', 'Maavarim', '43', 'Genesis', 'Opal', 'Infra', 'Cyber'],
@@ -162,6 +163,7 @@ export const ProductProvider = ({ children }) => {
       const reviews = await fetchTable('reviews', getQuery('reviews'));
       const roadmapBoards = await fetchTable('roadmap_boards', getQuery('roadmap_boards'));
       const customers = await fetchTable('customers', getQuery('customers'));
+      const productUsers = await fetchTable('product_users', getQuery('product_users'));
 
       setData(prev => {
         const nextActiveProductId = products?.[0]?.id || prev.activeProductId;
@@ -180,6 +182,7 @@ export const ProductProvider = ({ children }) => {
           reviews,
           roadmapBoards,
           customers,
+          productUsers,
           activeProductId: nextActiveProductId,
           selectedProductIds: products.map(p => p.id),
           activeRoadmapBoardId: nextActiveBoardId
@@ -316,6 +319,7 @@ export const ProductProvider = ({ children }) => {
         supabase.from('notes').delete().eq('product_id', id),
         supabase.from('reviews').delete().eq('product_id', id),
         supabase.from('customers').delete().eq('product_id', id),
+        supabase.from('product_users').delete().eq('product_id', id),
         supabase.from('product_shares').delete().eq('product_id', id)
       ]);
 
@@ -337,6 +341,7 @@ export const ProductProvider = ({ children }) => {
           notes: (prev.notes || []).filter(n => n.product_id !== id),
           reviews: (prev.reviews || []).filter(rv => rv.product_id !== id),
           customers: (prev.customers || []).filter(c => c.product_id !== id),
+          productUsers: (prev.productUsers || []).filter(u => u.product_id !== id),
           activeProductId: prev.activeProductId === id ? (nextProducts[0]?.id || '') : prev.activeProductId
         };
       });
@@ -826,6 +831,71 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  const addProductUser = async (user) => {
+    try {
+      const newUser = { ...user, id: user.id || `u_${Date.now()}` };
+      const { data: inserted, error } = await supabase.from('product_users').insert([newUser]).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, productUsers: [...(prev.productUsers || []), inserted[0]] }));
+    } catch (err) {
+      console.error('Error adding product user:', err);
+    }
+  };
+
+  const updateProductUser = async (id, updates) => {
+    try {
+      const { error } = await supabase.from('product_users').update(updates).eq('id', id);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        productUsers: prev.productUsers.map(u => u.id === id ? { ...u, ...updates } : u)
+      }));
+    } catch (err) {
+      console.error('Error updating product user:', err);
+    }
+  };
+
+  const deleteProductUser = async (id) => {
+    try {
+      const { error } = await supabase.from('product_users').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, productUsers: prev.productUsers.filter(u => u.id !== id) }));
+    } catch (err) {
+      console.error('Error deleting product user:', err);
+    }
+  };
+
+  const addProductUserNote = async (userId, text) => {
+    try {
+      const user = data.productUsers.find(u => u.id === userId);
+      const newNote = { id: Date.now(), text, createdAt: new Date().toISOString() };
+      const updatedNotes = [...(user.notes || []), newNote];
+      const { error } = await supabase.from('product_users').update({ notes: updatedNotes }).eq('id', userId);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        productUsers: prev.productUsers.map(u => u.id === userId ? { ...u, notes: updatedNotes } : u)
+      }));
+    } catch (err) {
+      console.error('Error adding user note:', err);
+    }
+  };
+
+  const deleteProductUserNote = async (userId, noteId) => {
+    try {
+      const user = data.productUsers.find(u => u.id === userId);
+      const updatedNotes = (user.notes || []).filter(n => n.id !== noteId);
+      const { error } = await supabase.from('product_users').update({ notes: updatedNotes }).eq('id', userId);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        productUsers: prev.productUsers.map(u => u.id === userId ? { ...u, notes: updatedNotes } : u)
+      }));
+    } catch (err) {
+      console.error('Error deleting user note:', err);
+    }
+  };
+
   const addReview = async (product_id, content, item_id = null) => {
     try {
       console.log('ProductContext: addReview called', { product_id, content, item_id });
@@ -923,6 +993,8 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+
+
   // Helper selectors
   const selectedProductIds = data.selectedProductIds || (data.activeProductId ? [data.activeProductId] : []);
 
@@ -937,6 +1009,7 @@ export const ProductProvider = ({ children }) => {
   const activeDocs = data.documentation.filter(doc => !doc.product_id || selectedProductIds.includes(doc.product_id));
   const activeNotes = (data.notes || []).filter(n => selectedProductIds.includes(n.product_id));
   const activeCustomers = (data.customers || []).filter(c => selectedProductIds.includes(c.product_id));
+  const activeProductUsers = (data.productUsers || []).filter(u => selectedProductIds.includes(u.product_id));
   const activeReviews = (data.reviews || []).filter(r => selectedProductIds.includes(r.product_id));
 
   const allRoadmapBoards = data.roadmapBoards || [];
@@ -979,6 +1052,11 @@ export const ProductProvider = ({ children }) => {
     addCustomerNote,
     deleteCustomerNote,
     deleteCustomer,
+    addProductUser,
+    updateProductUser,
+    deleteProductUser,
+    addProductUserNote,
+    deleteProductUserNote,
     addReview,
     updateReviewStatus,
     deleteProduct,
@@ -998,6 +1076,7 @@ export const ProductProvider = ({ children }) => {
     activeDocs,
     activeNotes,
     activeCustomers,
+    activeProductUsers,
     activeReviews,
     darkMode,
     loading,

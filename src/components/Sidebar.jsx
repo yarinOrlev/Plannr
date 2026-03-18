@@ -15,7 +15,7 @@ const Sidebar = () => {
     { path: '/prioritization', icon: <SlidersHorizontal size={18} />, label: 'תעדוף', color: 'purple' },
     { path: '/roadmaps', icon: <Map size={18} />, label: 'מפת דרכים', color: 'teal' },
     { path: '/objectives', icon: <Target size={18} />, label: 'יעדים', color: 'red' },
-    { path: '/customers', icon: <Users size={18} />, label: 'לקוחות', color: 'pink' },
+    { path: '/customers', icon: <Users size={18} />, label: 'לקוחות ומשתמשים', color: 'pink' },
     { path: '/documentation', icon: <BookOpen size={18} />, label: 'תיעוד', color: 'yellow' },
     { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green' },
     { path: '/department', icon: <Briefcase size={18} />, label: 'מבט מחלקתי', color: 'indigo', roles: ['HoD'] },
