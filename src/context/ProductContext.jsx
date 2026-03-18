@@ -164,6 +164,7 @@ export const ProductProvider = ({ children }) => {
       const roadmapBoards = await fetchTable('roadmap_boards', getQuery('roadmap_boards'));
       const customers = await fetchTable('customers', getQuery('customers'));
       const productUsers = await fetchTable('product_users', getQuery('product_users'));
+      const documentation = await fetchTable('documentation', getQuery('documentation'));
 
       setData(prev => {
         const nextActiveProductId = products?.[0]?.id || prev.activeProductId;
@@ -183,6 +184,7 @@ export const ProductProvider = ({ children }) => {
           roadmapBoards,
           customers,
           productUsers,
+          documentation: documentation || [],
           activeProductId: nextActiveProductId,
           selectedProductIds: products.map(p => p.id),
           activeRoadmapBoardId: nextActiveBoardId
@@ -498,11 +500,44 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  const addDoc = (doc) => {
-    setData(prev => ({
-      ...prev,
-      documentation: [...prev.documentation, { ...doc, id: `doc_${Date.now()}`, product_id: prev.activeProductId, updatedAt: new Date().toISOString().split('T')[0] }]
-    }));
+  const addDoc = async (doc) => {
+    try {
+      const newDoc = { 
+        ...doc, 
+        id: doc.id || `doc_${Date.now()}`, 
+        product_id: doc.product_id || data.activeProductId, 
+        updated_at: new Date().toISOString().split('T')[0],
+        category: doc.category || 'General'
+      };
+      const { data: inserted, error } = await supabase.from('documentation').insert([newDoc]).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, documentation: [...(prev.documentation || []), inserted[0]] }));
+    } catch (err) {
+      console.error('Error adding doc:', err);
+    }
+  };
+
+  const updateDoc = async (id, updates) => {
+    try {
+      const { error } = await supabase.from('documentation').update({ ...updates, updated_at: new Date().toISOString().split('T')[0] }).eq('id', id);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        documentation: (prev.documentation || []).map(d => d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString().split('T')[0] } : d)
+      }));
+    } catch (err) {
+      console.error('Error updating doc:', err);
+    }
+  };
+
+  const deleteDoc = async (id) => {
+    try {
+      const { error } = await supabase.from('documentation').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, documentation: (prev.documentation || []).filter(d => d.id !== id) }));
+    } catch (err) {
+      console.error('Error deleting doc:', err);
+    }
   };
 
   const addRoadmapItem = async (item) => {
@@ -1042,6 +1077,8 @@ export const ProductProvider = ({ children }) => {
     deleteObjective,
     updateStrategy,
     addDoc,
+    updateDoc,
+    deleteDoc,
     addRoadmapItem,
     updateRoadmapItem,
     deleteRoadmapItem,

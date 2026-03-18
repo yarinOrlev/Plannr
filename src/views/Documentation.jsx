@@ -1,69 +1,137 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { BookOpen, FileText, Database, Plus, Search, X, Check } from 'lucide-react';
+import { 
+  BookOpen, FileText, Database, Plus, Search, X, Check, 
+  Folder, FolderOpen, ExternalLink, Link, File, Upload,
+  MoreVertical, Trash2, Edit3, Globe
+} from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import './Documentation.css';
 
+const DOC_TYPES = [
+  { id: 'Doc', label: 'מסמך', icon: <FileText size={18}/> },
+  { id: 'Dictionary', label: 'מילון', icon: <Database size={18}/> },
+  { id: 'Link', label: 'קישור Drive', icon: <Globe size={18}/> },
+  { id: 'File', label: 'קובץ מקומי', icon: <File size={18}/> },
+];
+
+const CategoryFolder = ({ name, docs, selectedDocId, onSelect, expanded, onToggle }) => {
+  return (
+    <div className="folder-item">
+      <div className="folder-header" onClick={onToggle}>
+        {expanded ? <FolderOpen size={16} className="text-yellow-400"/> : <Folder size={16} className="text-yellow-500"/>}
+        <span>{name}</span>
+        <span className="text-[10px] bg-white/5 px-1.5 rounded-full mr-auto">{docs.length}</span>
+      </div>
+      {expanded && (
+        <div className="folder-content animate-fade-in">
+          {docs.map(doc => (
+            <button 
+              key={doc.id} 
+              className={`doc-list-item ${selectedDocId===doc.id?'active':''}`} 
+              onClick={() => onSelect(doc.id)}
+            >
+              <div className="flex-center gap-2" style={{ justifyContent: 'flex-start', width: '100%' }}>
+                {doc.type === 'Link' ? <Link size={13}/> : doc.type === 'File' ? <File size={13}/> : doc.type === 'Dictionary' ? <Database size={13}/> : <FileText size={13}/>}
+                <span className="truncate text-xs">{doc.title}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Documentation = () => {
-  const { activeDocs, activeProduct, data, addDoc, selectedProductIds } = useProductContext();
+  const { activeDocs, activeProduct, data, addDoc, updateDoc, deleteDoc, selectedProductIds } = useProductContext();
   const [selectedDocId, setSelectedDocId] = useState(activeDocs.length > 0 ? activeDocs[0].id : null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [form, setForm] = useState({ title:'', type:'Dictionary', content:'' });
+  const [expandedFolders, setExpandedFolders] = useState(['General']);
+  
+  const [form, setForm] = useState({ 
+    title:'', 
+    type:'Doc', 
+    content:'', 
+    category:'General',
+    url: '',
+    fileName: '',
+    fileType: ''
+  });
 
   if (!activeProduct) return null;
 
-  const filteredDocs = activeDocs.filter(d => d.title.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Group by category
+  const docsByCategory = activeDocs.reduce((acc, doc) => {
+    const cat = doc.category || 'General';
+    if (!acc[cat]) acc[cat] = [];
+    if (doc.title.toLowerCase().includes(searchTerm.toLowerCase())) {
+      acc[cat].push(doc);
+    }
+    return acc;
+  }, {});
+
+  const categories = Object.keys(docsByCategory).sort();
   const selectedDoc = activeDocs.find(d => d.id === selectedDocId);
 
   const handleAddDoc = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
     addDoc({ ...form, product_id: activeProduct.id });
-    setForm({ title:'', type:'Dictionary', content:'' });
+    setForm({ title:'', type:'Doc', content:'', category:'General', url:'', fileName:'', fileType:'' });
     setShowAddForm(false);
   };
 
-  const mockSchema = [
-    { name:'user_id', type:'UUID', description:'מזהה ייחודי של המשתמש.' },
-    { name:'event_name', type:'String', description:'שם האירוע שנרשם.' },
-    { name:'timestamp', type:'Timestamp', description:'חותמת זמן UTC.' },
-    { name:'properties', type:'JSON', description:'מטאדאטה נוסף של האירוע.' },
-  ];
+  const handleToggleFolder = (cat) => {
+    if (expandedFolders.includes(cat)) {
+      setExpandedFolders(expandedFolders.filter(f => f !== cat));
+    } else {
+      setExpandedFolders([...expandedFolders, cat]);
+    }
+  };
+
+  const handleFileSimulate = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setForm({ ...form, fileName: file.name, fileType: file.type });
+    }
+  };
 
   const inputStyle = { width:'100%', border:'1.5px solid var(--border-color)', background:'var(--bg-primary)', color:'var(--text-primary)', padding:'0.6rem 0.8rem', borderRadius:'var(--border-radius-sm)', fontFamily:'var(--font-family)', direction:'rtl' };
 
   return (
     <div className="content-area animate-fade-in docs-layout-outer">
+      <header className="page-header sticky top-0 bg-inherit z-10 pb-2">
+        <div>
+          <h1 className="text-h1 mb-1">מרכז ידע ותיעוד</h1>
+          <p className="text-secondary text-sm">ניהול מסמכים, מפרטים וקישורים חיצוניים</p>
+        </div>
+      </header>
+
       <MultiProductSelector />
       
       <div className="docs-layout">
         <div className="docs-sidebar glass-panel">
           <div className="docs-sidebar-header">
-            <h3 className="text-h3 font-semibold">מסמכים</h3>
-            <button className="btn-icon" title="הוספת מסמך" onClick={() => setShowAddForm(!showAddForm)}><Plus size={18}/></button>
+            <h3 className="text-h3 font-semibold">תיקיות</h3>
+            <button className="btn-icon" title="מסמך חדש" onClick={() => { setShowAddForm(true); setSelectedDocId(null); }}><Plus size={18}/></button>
           </div>
           <div className="search-bar-small">
             <Search size={14} className="text-tertiary"/>
-            <input type="text" placeholder="סינון..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ direction:'rtl' }}/>
+            <input type="text" placeholder="חיפוש במסמכים..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ direction:'rtl' }}/>
           </div>
-          <div className="docs-list mt-4">
-            {filteredDocs.map(doc => (
-              <button key={doc.id} className={`doc-list-item ${selectedDocId===doc.id?'active':''}`} onClick={() => { setSelectedDocId(doc.id); setShowAddForm(false); }}>
-                <div className="flex-center gap-2" style={{ justifyContent: 'flex-start', width: '100%' }}>
-                  <div className="icon-badge-sm i-bg-yellow" style={{ width: '24px', height: '24px', flexShrink: 0 }}>
-                    {doc.type==='Dictionary'?<Database size={14}/>:<FileText size={14}/>}
-                  </div>
-                  <div style={{ textAlign: 'right', flex: 1, minWidth: 0 }}>
-                    <div className="doc-item-title text-sm truncate">{doc.title}</div>
-                    {selectedProductIds.length > 1 && doc.product_id && (
-                      <div className="text-[9px] text-tertiary truncate">
-                        {data.products.find(p => p.id === doc.product_id)?.name}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </button>
+          <div className="docs-list mt-2">
+            {categories.map(cat => (
+              <CategoryFolder 
+                key={cat} 
+                name={cat} 
+                docs={docsByCategory[cat]} 
+                selectedDocId={selectedDocId}
+                onSelect={setSelectedDocId}
+                expanded={expandedFolders.includes(cat)}
+                onToggle={() => handleToggleFolder(cat)}
+              />
             ))}
           </div>
         </div>
@@ -73,58 +141,130 @@ const Documentation = () => {
             <form onSubmit={handleAddDoc} className="doc-add-form animate-fade-in">
               <div className="flex-between mb-6">
                 <div className="flex-center gap-3">
-                  <h2 className="text-h2">מסמך חדש</h2>
+                  <h2 className="text-h2">יצירת פריט תיעוד</h2>
                   <span className="badge badge-indigo">{activeProduct.name}</span>
                 </div>
                 <button type="button" className="btn-icon" onClick={() => setShowAddForm(false)}><X size={18}/></button>
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:'1.25rem' }}>
-                <div><label className="text-sm text-secondary block mb-1">כותרת</label><input required autoFocus type="text" style={inputStyle} value={form.title} onChange={e => setForm({...form,title:e.target.value})} placeholder="לדוגמה: מילון אירועים"/></div>
-                <div><label className="text-sm text-secondary block mb-1">סוג מסמך</label>
-                  <select style={inputStyle} value={form.type} onChange={e => setForm({...form,type:e.target.value})}>
-                    <option value="Dictionary">מילון</option>
-                    <option value="Spec">מפרט</option>
-                    <option value="Guide">מדריך</option>
-                    <option value="Other">אחר</option>
-                  </select>
-                </div>
-                <div><label className="text-sm text-secondary block mb-1">תוכן</label><textarea rows={5} style={{...inputStyle, resize:'vertical'}} value={form.content} onChange={e => setForm({...form,content:e.target.value})} placeholder="תיאור ותוכן ראשוני..."/></div>
-                <div style={{ display:'flex', justifyContent:'flex-start' }}><button type="submit" className="btn btn-primary"><Check size={16}/> שמירה</button></div>
+
+              <div className="type-selector">
+                {DOC_TYPES.map(t => (
+                  <div 
+                    key={t.id} 
+                    className={`type-option ${form.type === t.id ? 'active' : ''}`}
+                    onClick={() => setForm({...form, type: t.id})}
+                  >
+                    {t.icon}
+                    <span>{t.label}</span>
+                  </div>
+                ))}
               </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.25rem' }}>
+                <div style={{ gridColumn: '1 / -1' }}><label className="text-sm text-secondary block mb-1">כותרת התיעוד *</label><input required autoFocus type="text" style={inputStyle} value={form.title} onChange={e => setForm({...form,title:e.target.value})} placeholder="לדוגמה: אפיון דרישות למערכת הניהול"/></div>
+                <div><label className="text-sm text-secondary block mb-1">תיקייה / קטגוריה</label>
+                  <input list="categories" style={inputStyle} value={form.category} onChange={e => setForm({...form,category:e.target.value})} placeholder="בחר או הקלד שם חדש..."/>
+                  <datalist id="categories">
+                    {categories.map(c => <option key={c} value={c}/>)}
+                  </datalist>
+                </div>
+                
+                {form.type === 'Link' ? (
+                  <div style={{ gridColumn: '1 / -1' }}><label className="text-sm text-secondary block mb-1">קישור Google Drive (או URL אחר)</label>
+                    <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
+                      <Globe size={18} style={{ position:'absolute', right:'12px', color:'var(--text-tertiary)' }}/>
+                      <input required type="url" style={{...inputStyle, paddingRight:'2.5rem'}} value={form.url} onChange={e => setForm({...form,url:e.target.value})} placeholder="https://drive.google.com/..."/>
+                    </div>
+                  </div>
+                ) : form.type === 'File' ? (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label className="text-sm text-secondary block mb-1">צירוף קובץ (סימולציה)</label>
+                    <div className="file-upload-zone" onClick={() => document.getElementById('sim-upload').click()}>
+                      <Upload size={32} className="text-tertiary mb-2 mx-auto"/>
+                      <p className="text-sm text-secondary">{form.fileName ? `קובץ נבחר: ${form.fileName}` : 'לחץ להעלאת קובץ מהמחשב'}</p>
+                      <input id="sim-upload" type="file" style={{display:'none'}} onChange={handleFileSimulate}/>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ gridColumn: '1 / -1' }}><label className="text-sm text-secondary block mb-1">תוכן המסמך</label><textarea rows={8} style={{...inputStyle, resize:'vertical'}} value={form.content} onChange={e => setForm({...form,content:e.target.value})} placeholder="כתוב כאן את גוף המסמך ב-Markdown או טקסט חופשי..."/></div>
+                )}
+              </div>
+              <div className="mt-8 flex gap-3"><button type="submit" className="btn btn-primary"><Check size={16}/> שמירת תיעוד</button><button type="button" className="btn btn-secondary" onClick={()=>setShowAddForm(false)}>ביטול</button></div>
             </form>
           ) : selectedDoc ? (
             <div className="doc-viewer animate-fade-in">
-              <header className="doc-header mb-6">
-                <div className="flex-center gap-2 mb-2" style={{ justifyContent:'flex-start' }}>
-                  <span className="badge badge-purple">{selectedDoc.type}</span>
-                  <span className="text-xs text-tertiary">עודכן {selectedDoc.updatedAt}</span>
+              <header className="doc-header mb-8 pb-6">
+                <div className="flex-between mb-4">
+                  <div className="flex-center gap-2" style={{ justifyContent:'flex-start' }}>
+                    <div className="icon-badge-sm i-bg-yellow">
+                      {selectedDoc.type === 'Link' ? <Globe size={16}/> : selectedDoc.type === 'File' ? <File size={16}/> : <FileText size={16}/>}
+                    </div>
+                    <span className="badge badge-indigo">{selectedDoc.category}</span>
+                    <span className="text-xs text-tertiary">עודכן ב-{selectedDoc.updated_at}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="btn-icon" title="מחיקה" onClick={() => { if(window.confirm('למחוק מסמך זה?')){ deleteDoc(selectedDoc.id); setSelectedDocId(null); } }}><Trash2 size={16}/></button>
+                  </div>
+                </div>
+                <h1 className="text-h1 mb-2">{selectedDoc.title}</h1>
+                <div className="flex items-center gap-2 text-tertiary text-sm">
+                  <BookOpen size={14}/>
+                  <span>{selectedDoc.type === 'Link' ? 'קישור חיצוני' : selectedDoc.type === 'File' ? 'קובץ מקומי' : 'מסמך מקומי'}</span>
                   {selectedProductIds.length > 1 && selectedDoc.product_id && (
-                    <span className="badge badge-gray">{data.products.find(p => p.id === selectedDoc.product_id)?.name}</span>
+                     <>
+                       <span>•</span>
+                       <span className="badge badge-gray">{data.products.find(p => p.id === selectedDoc.product_id)?.name}</span>
+                     </>
                   )}
                 </div>
-                <h1 className="text-h1">{selectedDoc.title}</h1>
               </header>
-              <div className="doc-body text-secondary">
-                {selectedDoc.content ? <p className="text-lg">{selectedDoc.content}</p> : (
-                  <>
-                    <p className="mb-6 text-lg">מילון זה מגדיר את סכמת האירועים הבסיסית עבור <strong className="text-primary">{data.products.find(p => p.id === selectedDoc.product_id)?.name || activeProduct.name}</strong>.</p>
-                    <h3 className="text-h3 mb-4 text-primary">הגדרת סכמה</h3>
-                    <div className="table-container">
-                      <table className="schema-table">
-                        <thead><tr><th>שם שדה</th><th>סוג נתון</th><th>תיאור</th></tr></thead>
-                        <tbody>{mockSchema.map((row,i) => (<tr key={i}><td className="font-medium text-primary font-mono">{row.name}</td><td><span className="badge badge-blue">{row.type}</span></td><td>{row.description}</td></tr>))}</tbody>
-                      </table>
+
+              <div className="doc-body">
+                {selectedDoc.type === 'Link' ? (
+                  <div className="link-viewer glass-panel p-8 text-center animate-slide-up">
+                    <Globe size={48} className="text-blue-500 mb-4 mx-auto"/>
+                    <h3 className="text-h3 mb-2">קישור חיצוני זמין</h3>
+                    <p className="text-secondary mb-6">מסמך זה מאוחסן במיקום חיצוני (Google Drive או דומה).</p>
+                    <a href={selectedDoc.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary inline-flex gap-2">
+                       מעבר למסמך <ExternalLink size={16}/>
+                    </a>
+                    <div className="mt-4 p-2 bg-white/5 rounded text-xs break-all font-mono text-tertiary">
+                      {selectedDoc.url}
                     </div>
-                  </>
+                  </div>
+                ) : selectedDoc.type === 'File' ? (
+                  <div className="file-viewer glass-panel p-8 text-center animate-slide-up">
+                    <File size={48} className="text-yellow-500 mb-4 mx-auto"/>
+                    <h3 className="text-h3 mb-2">{selectedDoc.fileName || 'קובץ ללא שם'}</h3>
+                    <p className="text-secondary mb-4">סוג קובץ: {selectedDoc.fileType || 'לא ידוע'}</p>
+                    <button className="btn btn-secondary inline-flex gap-2" onClick={() => alert('הורדת קובץ בגרסת הדמו')}>
+                       הורדת קובץ <Upload size={16} className="rotate-180"/>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="prose text-secondary leading-relaxed">
+                    {selectedDoc.content ? (
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{selectedDoc.content}</div>
+                    ) : (
+                      <div className="p-8 text-center bg-white/5 rounded-lg border border-dashed border-white/10">
+                        <FileText size={32} className="text-tertiary mb-3 mx-auto"/>
+                        <p>אין תוכן להצגה במסמך זה.</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="empty-state">
-              <BookOpen size={48} className="text-tertiary mb-4"/>
-              <h3 className="text-h3 mb-2">אין מסמך נבחר</h3>
-              <p className="text-secondary mb-4">בחר מסמך מהסרגל הצדדי או צור חדש.</p>
-              <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={16}/> מסמך חדש</button>
+            <div className="empty-state text-center py-20">
+              <div className="icon-badge-xl i-bg-yellow mb-6 mx-auto" style={{ width: '80px', height: '80px' }}>
+                <BookOpen size={40} className="text-yellow-500"/>
+              </div>
+              <h3 className="text-h2 mb-4">בחירת פריט תיעוד</h3>
+              <p className="text-secondary text-lg mb-8 max-w-md mx-auto">כאן תוכל לנהל את כל הידע של המוצר שלך - מפרטים, מילוני נתונים, מדריכים וקישורים למסמכים ב-Google Drive.</p>
+              <button className="btn btn-primary btn-lg" onClick={() => setShowAddForm(true)}>
+                <Plus size={20}/> התחלת תיעוד חדש
+              </button>
             </div>
           )}
         </div>
