@@ -91,7 +91,7 @@ const SharingModal = ({ productId, productName, onClose }) => {
             <div className="text-center p-8 text-tertiary text-sm">לא נמצאו משתמשים</div>
           ) : (
             filteredUsers.map(u => {
-              const isShared = sharedWithIds.includes(u.id);
+              const isMember = memberIds.includes(u.id);
               return (
                 <div key={u.id} className="user-item flex-between p-2 rounded hover:bg-secondary/50 transition-colors" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
                   <div className="flex-center gap-2">
