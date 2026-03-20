@@ -15,11 +15,12 @@ import DepartmentOverview from './views/DepartmentOverview';
 import SettingsView from './views/Settings';
 import FloatingNoteBubble from './components/FloatingNoteBubble';
 import Login from './views/Login';
+import LoadingScreen from './components/LoadingScreen';
 
 const ProtectedRoute = ({ children, requireHoD = false }) => {
   const { isAuthenticated, isHoD, loading } = useAuth();
 
-  if (loading) return <div className="loading-screen">טוען...</div>;
+  if (loading) return <LoadingScreen />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (requireHoD && !isHoD) return <Navigate to="/" replace />;
 
@@ -44,12 +45,7 @@ function AppContent() {
   }
 
   if (authLoading || productLoading) {
-    return (
-      <div className="loading-screen flex-center h-screen bg-slate-900 text-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-indigo-500"></div>
-        <span className="mr-3">טוען...</span>
-      </div>
-    );
+    return <LoadingScreen />
   }
 
   if (!isAuthenticated) {
