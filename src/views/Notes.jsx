@@ -7,20 +7,54 @@ import './Notes.css';
 const TAGS = ['כללי','רעיון','החלטה','סיכון','מעקב'];
 
 const Notes = () => {
-  const { activeProduct, activeNotes, data, addNote, deleteNote, selectedProductIds } = useProductContext();
+  const { activeProduct, activeNotes, data, addNote, updateNote, deleteNote, selectedProductIds } = useProductContext();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title:'', content:'', tag:'כללי' });
+  const [editingId, setEditingId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [filterTag, setFilterTag] = useState('הכל');
 
   if (!activeProduct) return null;
 
   const filtered = filterTag === 'הכל' ? activeNotes : activeNotes.filter(n => n.tag === filterTag);
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
-    addNote({ ...form, product_id: activeProduct.id });
+    
+    setIsSaving(true);
+    try {
+      let res;
+      if (editingId) {
+        res = await updateNote(editingId, form);
+      } else {
+        res = await addNote({ ...form, product_id: activeProduct.id });
+      }
+
+      if (res.success) {
+        setForm({ title:'', content:'', tag:'כללי' });
+        setShowForm(false);
+        setEditingId(null);
+      } else {
+        alert('שגיאה בשמירת ההערה: ' + res.error);
+      }
+    } catch (err) {
+      alert('שגיאה לא צפויה: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const startEdit = (note) => {
+    setForm({ title: note.title, content: note.content || '', tag: note.tag || 'כללי' });
+    setEditingId(note.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
     setForm({ title:'', content:'', tag:'כללי' });
+    setEditingId(null);
     setShowForm(false);
   };
 
@@ -33,7 +67,7 @@ const Notes = () => {
           <h1 className="text-h1 mb-2">הערות</h1>
           <p className="text-secondary text-lg">רעיונות, החלטות ומעקב</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+        <button className="btn btn-primary" onClick={() => showForm ? cancelEdit() : setShowForm(true)}>
           <Plus size={18}/> {showForm?'ביטול':'הערה חדשה'}
         </button>
       </header>
@@ -47,18 +81,24 @@ const Notes = () => {
       </div>
 
       {showForm && (
-        <form onSubmit={handleAdd} className="glass-panel p-6 mb-6 animate-fade-in">
+        <form onSubmit={handleAdd} className="glass-panel p-6 mb-6 animate-fade-in" style={{ borderRight: editingId ? '4px solid var(--accent-primary)' : 'none' }}>
           <div className="flex-between mb-4">
              <div className="flex-center gap-2">
-                <h3 className="text-h3">הערה חדשה</h3>
+                <h3 className="text-h3">{editingId ? 'עריכת הערה' : 'הערה חדשה'}</h3>
                 <span className="badge badge-indigo">{activeProduct.name}</span>
              </div>
+             {editingId && <button type="button" className="btn-icon" onClick={cancelEdit}><X size={18}/></button>}
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
             <div><label className="text-sm text-secondary block mb-1">כותרת</label><input autoFocus required type="text" style={inputStyle} value={form.title} onChange={e => setForm({...form,title:e.target.value})} placeholder="כותרת ההערה..."/></div>
             <div><label className="text-sm text-secondary block mb-1">תוכן</label><textarea rows={4} style={{...inputStyle, resize:'vertical'}} value={form.content} onChange={e => setForm({...form,content:e.target.value})} placeholder="כתוב את מחשבותיך..."/></div>
             <div><label className="text-sm text-secondary block mb-1">תגית</label><select style={inputStyle} value={form.tag} onChange={e => setForm({...form,tag:e.target.value})}>{TAGS.map(t => <option key={t}>{t}</option>)}</select></div>
-            <div style={{ display:'flex', justifyContent:'flex-start' }}><button type="submit" className="btn btn-primary">שמירה</button></div>
+            <div className="flex gap-2">
+              <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                {isSaving ? 'שומר...' : 'שמירה'}
+              </button>
+              {editingId && <button type="button" className="btn btn-secondary" onClick={cancelEdit}>ביטול</button>}
+            </div>
           </div>
         </form>
       )}
@@ -86,11 +126,16 @@ const Notes = () => {
                     </span>
                   )}
                 </div>
-                <button className="btn-icon text-danger" title="מחיקה" onClick={() => deleteNote(note.id)}><Trash2 size={15}/></button>
+                <div className="flex gap-1">
+                  <button className="btn-icon" title="עריכה" onClick={() => startEdit(note)}><Plus size={14}/></button>
+                  <button className="btn-icon text-danger" title="מחיקה" onClick={() => { if(window.confirm('למחוק הערה זו?')) deleteNote(note.id); }}><Trash2 size={15}/></button>
+                </div>
               </div>
               <h4 className="note-title font-medium mt-2 mb-1">{note.title}</h4>
-              {note.content && <p className="text-sm text-secondary">{note.content}</p>}
-              <p className="text-xs text-tertiary mt-3" style={{ borderTop:'1px solid var(--border-color)', paddingTop:'0.5rem' }}>{new Date(note.createdAt).toLocaleDateString('he-IL')}</p>
+              {note.content && <p className="text-sm text-secondary leading-relaxed">{note.content}</p>}
+              <p className="text-xs text-tertiary mt-3" style={{ borderTop:'1px solid var(--border-color)', paddingTop:'0.5rem' }}>
+                {new Date(note.created_at || note.createdAt).toLocaleDateString('he-IL')}
+              </p>
             </div>
           ))}
         </div>

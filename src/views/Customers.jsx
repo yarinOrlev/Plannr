@@ -21,11 +21,15 @@ const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate,
 
   const customerName = customers.find(c => c.id === user.customer_id)?.name || 'ללא חברה';
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     if (!noteText.trim()) return;
-    onAddNote(user.id, noteText);
-    setNoteText('');
-    setShowNoteInput(false);
+    const res = await onAddNote(user.id, noteText);
+    if (res?.success || res === undefined) { // Fallback for undefined if caller doesn't return
+      setNoteText('');
+      setShowNoteInput(false);
+    } else {
+      alert('שגיאה בשמירת ההערה: ' + res.error);
+    }
   };
 
   const handleUpdate = () => {
@@ -193,11 +197,15 @@ const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, on
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ ...customer });
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     if (!noteText.trim()) return;
-    onAddNote(customer.id, noteText);
-    setNoteText('');
-    setShowNoteInput(false);
+    const res = await onAddNote(customer.id, noteText);
+    if (res?.success || res === undefined) {
+      setNoteText('');
+      setShowNoteInput(false);
+    } else {
+      alert('שגיאה בשמירת ההערה: ' + res.error);
+    }
   };
 
   const handleUpdate = () => {

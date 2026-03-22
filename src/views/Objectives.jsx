@@ -25,10 +25,16 @@ const KpiCard = ({ kpi }) => {
   );
 };
 
-const ObjectiveCard = ({ objective, productName, linkedFeatures = [], onEdit, onDelete }) => {
+const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableFeatures = [], onEdit, onDelete, onLinkFeature }) => {
   const [expanded, setExpanded] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
   const krs = objective.key_results || objective.keyResults || [];
   
+  const linkableFeatures = availableFeatures.filter(f => 
+    f.product_id === objective.product_id && 
+    f.objective_id !== objective.id
+  );
+
   return (
     <div className={`objective-card glass-panel ${expanded ? 'expanded' : ''}`}>
       <div className="objective-header">
@@ -54,7 +60,7 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], onEdit, on
             <div className="progress-value">{objective.progress}%</div>
             <div className="progress-label text-xs text-tertiary">כולל</div>
             <div className="flex-center gap-1 mt-2">
-              <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Check size={14}/></button>
+              <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Plus size={14}/></button>
               <button className="btn-icon-xs text-tertiary hover:text-danger" onClick={() => onDelete(objective.id)} title="מחיקה"><Trash2 size={14}/></button>
             </div>
           </div>
@@ -115,16 +121,56 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], onEdit, on
             )) : <p className="text-xs text-tertiary italic">אין תוצאות מפתח שהוגדרו</p>}
           </div>
 
-          {linkedFeatures.length > 0 && (
-            <div className="linked-features mt-6 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-              <h4 className="text-xs font-bold text-tertiary uppercase mb-3" style={{ letterSpacing:'0.05em' }}>פיצ'רים קשורים</h4>
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                {linkedFeatures.map(f => (
-                  <span key={f.id} className="badge badge-gray" style={{ fontSize: '0.7rem' }}>{f.title}</span>
-                ))}
-              </div>
+          <div className="linked-features mt-6 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+            <div className="flex-between mb-3">
+              <h4 className="text-xs font-bold text-tertiary uppercase" style={{ letterSpacing:'0.05em' }}>פיצ'רים קשורים</h4>
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: '0.2rem 0.6rem', fontSize: '10px' }}
+                onClick={() => setIsLinking(!isLinking)}
+              >
+                {isLinking ? 'ביטול' : (
+                  <><Plus size={10} className="ml-1" /> קישור פיצ'ר</>
+                )}
+              </button>
             </div>
-          )}
+
+            {isLinking && (
+              <div className="mb-4 animate-slide-up">
+                <select 
+                  className="premium-input text-xs" 
+                  style={{ height: '32px' }}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      onLinkFeature(e.target.value, objective.id);
+                      setIsLinking(false);
+                    }
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>בחר פיצ'ר לקישור...</option>
+                  {linkableFeatures.map(f => (
+                    <option key={f.id} value={f.id}>{f.title}</option>
+                  ))}
+                  {linkableFeatures.length === 0 && <option disabled>אין פיצ'רים זמינים למוצר זה</option>}
+                </select>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              {linkedFeatures.length > 0 ? linkedFeatures.map(f => (
+                <div key={f.id} className="flex-center gap-1 badge badge-gray" style={{ fontSize: '0.7rem' }}>
+                  {f.title}
+                  <X 
+                    size={10} 
+                    className="cursor-pointer hover:text-danger" 
+                    onClick={() => onLinkFeature(f.id, null)}
+                    title="ביטול קישור"
+                  />
+                </div>
+              )) : <span className="text-xs text-tertiary italic">אין פיצ'רים קשורים</span>}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -495,8 +541,10 @@ const Objectives = () => {
               objective={obj} 
               productName={selectedProductIds.length > 1 ? data.products.find(p => p.id === obj.product_id)?.name : null}
               linkedFeatures={activeFeatures.filter(f => f.objective_id === obj.id)}
+              availableFeatures={activeFeatures}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onLinkFeature={(featureId, objectiveId) => updateFeature(featureId, { objective_id: objectiveId })}
             />
           ))}
           {filtered.length === 0 && (

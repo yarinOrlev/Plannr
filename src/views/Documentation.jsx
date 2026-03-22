@@ -48,6 +48,8 @@ const Documentation = () => {
   const [selectedDocId, setSelectedDocId] = useState(activeDocs.length > 0 ? activeDocs[0].id : null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState(['General']);
   
   const [form, setForm] = useState({ 
@@ -56,8 +58,8 @@ const Documentation = () => {
     content:'', 
     category:'General',
     url: '',
-    fileName: '',
-    fileType: ''
+    file_name: '',
+    file_type: ''
   });
 
   if (!activeProduct) return null;
@@ -75,11 +77,52 @@ const Documentation = () => {
   const categories = Object.keys(docsByCategory).sort();
   const selectedDoc = activeDocs.find(d => d.id === selectedDocId);
 
-  const handleAddDoc = (e) => {
+  const handleAddDoc = async (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
-    addDoc({ ...form, product_id: activeProduct.id });
-    setForm({ title:'', type:'Doc', content:'', category:'General', url:'', fileName:'', fileType:'' });
+    
+    setIsSaving(true);
+    try {
+      let res;
+      if (editingId) {
+        res = await updateDoc(editingId, form);
+      } else {
+        res = await addDoc({ ...form, product_id: activeProduct.id });
+      }
+
+      if (res.success) {
+        setForm({ title:'', type:'Doc', content:'', category:'General', url:'', file_name:'', file_type:'' });
+        setShowAddForm(false);
+        setEditingId(null);
+        if (res.data) setSelectedDocId(res.data.id);
+      } else {
+        alert('שגיאה בשמירת התיעוד: ' + res.error);
+      }
+    } catch (err) {
+      alert('שגיאה לא צפויה: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const startEdit = () => {
+    if (!selectedDoc) return;
+    setForm({ 
+      title: selectedDoc.title, 
+      type: selectedDoc.type, 
+      content: selectedDoc.content || '', 
+      category: selectedDoc.category || 'General',
+      url: selectedDoc.url || '',
+      file_name: selectedDoc.file_name || '',
+      file_type: selectedDoc.file_type || ''
+    });
+    setEditingId(selectedDoc.id);
+    setShowAddForm(true);
+  };
+
+  const cancelEdit = () => {
+    setForm({ title:'', type:'Doc', content:'', category:'General', url:'', file_name:'', file_type:'' });
+    setEditingId(null);
     setShowAddForm(false);
   };
 
@@ -94,7 +137,7 @@ const Documentation = () => {
   const handleFileSimulate = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setForm({ ...form, fileName: file.name, fileType: file.type });
+      setForm({ ...form, file_name: file.name, file_type: file.type });
     }
   };
 
@@ -115,7 +158,7 @@ const Documentation = () => {
         <div className="docs-sidebar glass-panel">
           <div className="docs-sidebar-header">
             <h3 className="text-h3 font-semibold">תיקיות</h3>
-            <button className="btn-icon" title="מסמך חדש" onClick={() => { setShowAddForm(true); setSelectedDocId(null); }}><Plus size={18}/></button>
+            <button className="btn-icon" title="מסמך חדש" onClick={() => { cancelEdit(); setShowAddForm(true); setSelectedDocId(null); }}><Plus size={18}/></button>
           </div>
           <div className="search-bar-small">
             <Search size={14} className="text-tertiary"/>
@@ -128,7 +171,7 @@ const Documentation = () => {
                 name={cat} 
                 docs={docsByCategory[cat]} 
                 selectedDocId={selectedDocId}
-                onSelect={setSelectedDocId}
+                onSelect={(id) => { setSelectedDocId(id); setShowAddForm(false); setEditingId(null); }}
                 expanded={expandedFolders.includes(cat)}
                 onToggle={() => handleToggleFolder(cat)}
               />
@@ -141,10 +184,10 @@ const Documentation = () => {
             <form onSubmit={handleAddDoc} className="doc-add-form animate-fade-in">
               <div className="flex-between mb-6">
                 <div className="flex-center gap-3">
-                  <h2 className="text-h2">יצירת פריט תיעוד</h2>
+                  <h2 className="text-h2">{editingId ? 'עריכת פריט תיעוד' : 'יצירת פריט תיעוד'}</h2>
                   <span className="badge badge-indigo">{activeProduct.name}</span>
                 </div>
-                <button type="button" className="btn-icon" onClick={() => setShowAddForm(false)}><X size={18}/></button>
+                <button type="button" className="btn-icon" onClick={cancelEdit}><X size={18}/></button>
               </div>
 
               <div className="type-selector">
@@ -181,7 +224,7 @@ const Documentation = () => {
                     <label className="text-sm text-secondary block mb-1">צירוף קובץ (סימולציה)</label>
                     <div className="file-upload-zone" onClick={() => document.getElementById('sim-upload').click()}>
                       <Upload size={32} className="text-tertiary mb-2 mx-auto"/>
-                      <p className="text-sm text-secondary">{form.fileName ? `קובץ נבחר: ${form.fileName}` : 'לחץ להעלאת קובץ מהמחשב'}</p>
+                      <p className="text-sm text-secondary">{form.file_name ? `קובץ נבחר: ${form.file_name}` : 'לחץ להעלאת קובץ מהמחשב'}</p>
                       <input id="sim-upload" type="file" style={{display:'none'}} onChange={handleFileSimulate}/>
                     </div>
                   </div>
@@ -189,7 +232,12 @@ const Documentation = () => {
                   <div style={{ gridColumn: '1 / -1' }}><label className="text-sm text-secondary block mb-1">תוכן המסמך</label><textarea rows={8} style={{...inputStyle, resize:'vertical'}} value={form.content} onChange={e => setForm({...form,content:e.target.value})} placeholder="כתוב כאן את גוף המסמך ב-Markdown או טקסט חופשי..."/></div>
                 )}
               </div>
-              <div className="mt-8 flex gap-3"><button type="submit" className="btn btn-primary"><Check size={16}/> שמירת תיעוד</button><button type="button" className="btn btn-secondary" onClick={()=>setShowAddForm(false)}>ביטול</button></div>
+              <div className="mt-8 flex gap-3">
+                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                  <Check size={16}/> {isSaving ? 'שומר...' : 'שמירת תיעוד'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={cancelEdit}>ביטול</button>
+              </div>
             </form>
           ) : selectedDoc ? (
             <div className="doc-viewer animate-fade-in">
@@ -203,7 +251,8 @@ const Documentation = () => {
                     <span className="text-xs text-tertiary">עודכן ב-{selectedDoc.updated_at}</span>
                   </div>
                   <div className="flex gap-2">
-                    <button className="btn-icon" title="מחיקה" onClick={() => { if(window.confirm('למחוק מסמך זה?')){ deleteDoc(selectedDoc.id); setSelectedDocId(null); } }}><Trash2 size={16}/></button>
+                    <button className="btn-icon" title="עריכה" onClick={startEdit}><Edit3 size={16}/></button>
+                    <button className="btn-icon text-danger" title="מחיקה" onClick={() => { if(window.confirm('למחוק מסמך זה?')){ deleteDoc(selectedDoc.id); setSelectedDocId(null); } }}><Trash2 size={16}/></button>
                   </div>
                 </div>
                 <h1 className="text-h1 mb-2">{selectedDoc.title}</h1>
@@ -235,8 +284,8 @@ const Documentation = () => {
                 ) : selectedDoc.type === 'File' ? (
                   <div className="file-viewer glass-panel p-8 text-center animate-slide-up">
                     <File size={48} className="text-yellow-500 mb-4 mx-auto"/>
-                    <h3 className="text-h3 mb-2">{selectedDoc.fileName || 'קובץ ללא שם'}</h3>
-                    <p className="text-secondary mb-4">סוג קובץ: {selectedDoc.fileType || 'לא ידוע'}</p>
+                    <h3 className="text-h3 mb-2">{selectedDoc.file_name || 'קובץ ללא שם'}</h3>
+                    <p className="text-secondary mb-4">סוג קובץ: {selectedDoc.file_type || 'לא ידוע'}</p>
                     <button className="btn btn-secondary inline-flex gap-2" onClick={() => alert('הורדת קובץ בגרסת הדמו')}>
                        הורדת קובץ <Upload size={16} className="rotate-180"/>
                     </button>

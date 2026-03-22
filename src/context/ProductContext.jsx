@@ -392,11 +392,18 @@ export const ProductProvider = ({ children }) => {
   const updateFeature = async (id, updates) => {
     try {
       const { product_ids, productIds, group_id, totalScore, ...sanitized } = updates;
+      
+      // If productIds is provided, we use the first one as the primary product_id for this record
+      if (productIds && productIds.length > 0) {
+        sanitized.product_id = productIds[0];
+      }
+
       const { error } = await supabase.from('features').update(sanitized).eq('id', id);
       if (error) throw error;
+      
       setData(prev => ({
         ...prev,
-        features: prev.features.map(f => f.id === id ? { ...f, ...updates } : f)
+        features: prev.features.map(f => f.id === id ? { ...f, ...updates, product_id: sanitized.product_id || f.product_id } : f)
       }));
     } catch (err) {
       console.error('Error updating feature:', err);
@@ -502,6 +509,7 @@ export const ProductProvider = ({ children }) => {
 
   const addDoc = async (doc) => {
     try {
+      console.log('ProductContext: addDoc called', { doc });
       const newDoc = { 
         ...doc, 
         id: doc.id || `doc_${Date.now()}`, 
@@ -509,24 +517,39 @@ export const ProductProvider = ({ children }) => {
         updated_at: new Date().toISOString().split('T')[0],
         category: doc.category || 'General'
       };
+      
       const { data: inserted, error } = await supabase.from('documentation').insert([newDoc]).select();
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error in addDoc:', error);
+        throw error;
+      }
+      
       setData(prev => ({ ...prev, documentation: [...(prev.documentation || []), inserted[0]] }));
+      return { success: true, data: inserted[0] };
     } catch (err) {
       console.error('Error adding doc:', err);
+      return { success: false, error: err.message };
     }
   };
 
   const updateDoc = async (id, updates) => {
     try {
-      const { error } = await supabase.from('documentation').update({ ...updates, updated_at: new Date().toISOString().split('T')[0] }).eq('id', id);
-      if (error) throw error;
+      console.log('ProductContext: updateDoc called', { id, updates });
+      const payload = { ...updates, updated_at: new Date().toISOString().split('T')[0] };
+      const { error } = await supabase.from('documentation').update(payload).eq('id', id);
+      if (error) {
+        console.error('Supabase error in updateDoc:', error);
+        throw error;
+      }
+      
       setData(prev => ({
         ...prev,
-        documentation: (prev.documentation || []).map(d => d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString().split('T')[0] } : d)
+        documentation: (prev.documentation || []).map(d => d.id === id ? { ...d, ...updates, updated_at: payload.updated_at } : d)
       }));
+      return { success: true };
     } catch (err) {
       console.error('Error updating doc:', err);
+      return { success: false, error: err.message };
     }
   };
 
@@ -726,19 +749,45 @@ export const ProductProvider = ({ children }) => {
   const addNote = async (note) => {
     try {
       console.log('ProductContext: addNote called', { note });
+      const now = new Date().toISOString();
       const newNote = {
         ...note,
         id: note.id || `note_${Date.now()}`,
-        product_id: note.product_id || data.activeProductId
+        product_id: note.product_id || data.activeProductId,
+        created_at: now
       };
       const { data: inserted, error } = await supabase.from('notes').insert([newNote]).select();
       if (error) {
         console.error('Supabase error in addNote:', error);
         throw error;
       }
+      if (!inserted || inserted.length === 0) throw new Error('No data returned from insert');
+      
       setData(prev => ({ ...prev, notes: [inserted[0], ...(prev.notes || [])] }));
+      return { success: true, data: inserted[0] };
     } catch (err) {
       console.error('Error adding note:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateNote = async (id, updates) => {
+    try {
+      console.log('ProductContext: updateNote called', { id, updates });
+      const { error } = await supabase.from('notes').update(updates).eq('id', id);
+      if (error) {
+        console.error('Supabase error in updateNote:', error);
+        throw error;
+      }
+      
+      setData(prev => ({
+        ...prev,
+        notes: (prev.notes || []).map(n => n.id === id ? { ...n, ...updates } : n)
+      }));
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating note:', err);
+      return { success: false, error: err.message };
     }
   };
 
@@ -803,20 +852,25 @@ export const ProductProvider = ({ children }) => {
     try {
       console.log('ProductContext: addCustomerNote called', { customerId });
       const customer = data.customers.find(c => c.id === customerId);
-      if (!customer) return;
+      if (!customer) throw new Error('Customer not found');
 
       const newNote = { id: `cn_${Date.now()}`, text: noteText, createdAt: new Date().toISOString() };
       const updatedNotes = [...(customer.notes || []), newNote];
 
       const { error } = await supabase.from('customers').update({ notes: updatedNotes }).eq('id', customerId);
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error in addCustomerNote:', error);
+        throw error;
+      }
 
       setData(prev => ({
         ...prev,
         customers: prev.customers.map(c => c.id === customerId ? { ...c, notes: updatedNotes } : c)
       }));
+      return { success: true };
     } catch (err) {
       console.error('Error adding customer note:', err);
+      return { success: false, error: err.message };
     }
   };
 
@@ -902,17 +956,25 @@ export const ProductProvider = ({ children }) => {
 
   const addProductUserNote = async (userId, text) => {
     try {
+      console.log('ProductContext: addProductUserNote called', { userId });
       const user = data.productUsers.find(u => u.id === userId);
+      if (!user) throw new Error('User not found');
+
       const newNote = { id: Date.now(), text, createdAt: new Date().toISOString() };
       const updatedNotes = [...(user.notes || []), newNote];
       const { error } = await supabase.from('product_users').update({ notes: updatedNotes }).eq('id', userId);
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error in addProductUserNote:', error);
+        throw error;
+      }
       setData(prev => ({
         ...prev,
         productUsers: prev.productUsers.map(u => u.id === userId ? { ...u, notes: updatedNotes } : u)
       }));
+      return { success: true };
     } catch (err) {
       console.error('Error adding user note:', err);
+      return { success: false, error: err.message };
     }
   };
 

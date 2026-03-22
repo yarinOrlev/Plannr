@@ -30,6 +30,8 @@ const Prioritization = () => {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [featureMetrics, setFeatureMetrics] = useState({});
 
+  const [quickEditObjId, setQuickEditObjId] = useState(null);
+
   if (!activeProduct) return null;
 
   const scoringConfig = data.scoringConfig || [];
@@ -91,6 +93,11 @@ const Prioritization = () => {
     setSelectedProducts(f.product_ids || [f.product_id]);
     setEditingId(f.id);
     setShowAddForm(true);
+  };
+
+  const handleQuickObjUpdate = (featureId, objectiveId) => {
+    updateFeature(featureId, { objective_id: objectiveId });
+    setQuickEditObjId(null);
   };
 
   const handleSort = (key) => {
@@ -400,11 +407,32 @@ const Prioritization = () => {
                     </div>
                   </td>
                   <td style={{ minWidth: '180px', maxWidth: '300px' }}>
-                    {f.objective_id ? (
-                      <p className="text-secondary text-xs leading-relaxed rtl text-right" style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}>
-                        {objectives.find(o => o.id === f.objective_id)?.title || '-'}
-                      </p>
-                    ) : <span className="text-xs text-tertiary">-</span>}
+                    {quickEditObjId === f.id ? (
+                      <select 
+                        autoFocus
+                        className="premium-input text-xs"
+                        style={{ padding: '0.2rem', height: '30px' }}
+                        value={f.objective_id || ''}
+                        onChange={e => handleQuickObjUpdate(f.id, e.target.value)}
+                        onBlur={() => setQuickEditObjId(null)}
+                      >
+                         <option value="">ללא יעד</option>
+                         {objectives.filter(obj => (f.product_ids || [f.product_id]).includes(obj.product_id)).map(obj => (
+                           <option key={obj.id} value={obj.id}>{obj.title}</option>
+                         ))}
+                      </select>
+                    ) : (
+                      <div 
+                        className="cursor-pointer hover:bg-white/5 p-1 rounded transition-colors"
+                        onClick={() => setQuickEditObjId(f.id)}
+                      >
+                        {f.objective_id ? (
+                          <p className="text-secondary text-xs leading-relaxed rtl text-right" style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}>
+                            {objectives.find(o => o.id === f.objective_id)?.title || '-'}
+                          </p>
+                        ) : <span className="text-xs text-tertiary">לחץ לקישור...</span>}
+                      </div>
+                    )}
                   </td>
                   {scoringConfig.map(c => (
                     <td key={c.id} className="text-center">{f[c.id] || c.defaultValue}</td>
