@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { StickyNote, Plus, Trash2, Tag } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Tag, X, Pencil } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import './Notes.css';
 
@@ -127,7 +127,7 @@ const Notes = () => {
                   )}
                 </div>
                 <div className="flex gap-1">
-                  <button className="btn-icon" title="עריכה" onClick={() => startEdit(note)}><Plus size={14}/></button>
+                  <button className="btn-icon" title="עריכה" onClick={() => startEdit(note)}><Pencil size={14}/></button>
                   <button className="btn-icon text-danger" title="מחיקה" onClick={() => { if(window.confirm('למחוק הערה זו?')) deleteNote(note.id); }}><Trash2 size={15}/></button>
                 </div>
               </div>

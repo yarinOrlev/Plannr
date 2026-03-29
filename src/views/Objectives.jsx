@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Target, ChevronRight, ChevronDown, ChevronUp, Plus, Calendar, Activity, TrendingUp, TrendingDown, Minus, X, Check, Trash2 } from 'lucide-react';
+import { Target, ChevronRight, ChevronDown, ChevronUp, Plus, Calendar, Activity, TrendingUp, TrendingDown, Minus, X, Check, Trash2, Pencil } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import ProductBadge from '../components/ProductBadge';
 import './Objectives.css';
@@ -60,7 +60,7 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableF
             <div className="progress-value">{objective.progress}%</div>
             <div className="progress-label text-xs text-tertiary">כולל</div>
             <div className="flex-center gap-1 mt-2">
-              <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Plus size={14}/></button>
+              <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Pencil size={14}/></button>
               <button className="btn-icon-xs text-tertiary hover:text-danger" onClick={() => onDelete(objective.id)} title="מחיקה"><Trash2 size={14}/></button>
             </div>
           </div>
@@ -182,7 +182,7 @@ const YEAR_OPTIONS = ['2025', '2026', '2027', '2028'];
 const QUARTERS = ['הכל','Q1 2026','Q2 2026','Q3 2026','Q4 2026','Q1 2027'];
 
 const Objectives = () => {
-  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, data, activeFeatures, searchTerm, selectedProductIds, products } = useProductContext();
+  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, updateFeature, data, activeFeatures, searchTerm, selectedProductIds, products } = useProductContext();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ 
