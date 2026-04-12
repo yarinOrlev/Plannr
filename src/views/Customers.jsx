@@ -473,8 +473,8 @@ const Customers = () => {
         </div>
         <div className="flex gap-2">
           {activeTab !== 'feed' && (
-            <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-              <Plus size={18} /> {showForm ? 'ביטול' : (activeTab === 'customers' ? 'לקוח חדש' : 'משתמש חדש')}
+            <button className={`btn ${showForm ? 'btn-danger-soft' : 'btn-primary'}`} onClick={() => setShowForm(!showForm)}>
+              {showForm ? <X size={18} /> : <Plus size={18} />} {showForm ? 'ביטול' : (activeTab === 'customers' ? 'לקוח חדש' : 'משתמש חדש')}
             </button>
           )}
         </div>

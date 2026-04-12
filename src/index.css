@@ -236,6 +236,25 @@ button { cursor: pointer; border: none; background: none; }
 .btn-ghost { color: var(--text-secondary); }
 .btn-ghost:hover { background: var(--bg-secondary); color: var(--text-primary); }
 
+.btn-danger-soft {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FEE2E2;
+}
+.btn-danger-soft:hover {
+  background: #FEE2E2;
+  border-color: #FCA5A5;
+}
+
+body.dark .btn-danger-soft {
+  background: rgba(220, 38, 38, 0.1);
+  color: #F87171;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+body.dark .btn-danger-soft:hover {
+  background: rgba(220, 38, 38, 0.2);
+}
+
 .btn-icon {
   padding: 0.5rem;
   border-radius: var(--border-radius-sm);

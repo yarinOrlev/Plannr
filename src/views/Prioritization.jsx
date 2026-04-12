@@ -169,8 +169,8 @@ const Prioritization = () => {
           <button className="btn btn-secondary" onClick={() => setShowSettings(true)}>
             <Settings size={18}/> הגדרות ניקוד
           </button>
-          <button className="btn btn-primary" onClick={() => (showAddForm ? resetForm() : setShowAddForm(true))}>
-            <Plus size={18}/> {showAddForm ? 'ביטול' : 'הוספת פיצ\'ר'}
+          <button className={`btn ${showAddForm ? 'btn-danger-soft' : 'btn-primary'}`} onClick={() => (showAddForm ? resetForm() : setShowAddForm(true))}>
+            {showAddForm ? <X size={18}/> : <Plus size={18}/>} {showAddForm ? 'ביטול' : 'הוספת פיצ\'ר'}
           </button>
         </div>
       </header>

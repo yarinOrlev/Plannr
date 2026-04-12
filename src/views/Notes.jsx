@@ -67,8 +67,8 @@ const Notes = () => {
           <h1 className="text-h1 mb-2">הערות</h1>
           <p className="text-secondary text-lg">רעיונות, החלטות ומעקב</p>
         </div>
-        <button className="btn btn-primary" onClick={() => showForm ? cancelEdit() : setShowForm(true)}>
-          <Plus size={18}/> {showForm?'ביטול':'הערה חדשה'}
+        <button className={`btn ${showForm ? 'btn-danger-soft' : 'btn-primary'}`} onClick={() => showForm ? cancelEdit() : setShowForm(true)}>
+          {showForm ? <X size={18}/> : <Plus size={18}/>} {showForm?'ביטול':'הערה חדשה'}
         </button>
       </header>
 

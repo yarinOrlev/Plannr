@@ -125,11 +125,13 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableF
             <div className="flex-between mb-3">
               <h4 className="text-xs font-bold text-tertiary uppercase" style={{ letterSpacing:'0.05em' }}>פיצ'רים קשורים</h4>
               <button 
-                className="btn btn-secondary" 
+                className={isLinking ? "btn btn-danger-soft" : "btn btn-secondary"} 
                 style={{ padding: '0.2rem 0.6rem', fontSize: '10px' }}
                 onClick={() => setIsLinking(!isLinking)}
               >
-                {isLinking ? 'ביטול' : (
+                {isLinking ? (
+                  <><X size={10} className="ml-1" /> ביטול</>
+                ) : (
                   <><Plus size={10} className="ml-1" /> קישור פיצ'ר</>
                 )}
               </button>
@@ -335,8 +337,8 @@ const Objectives = () => {
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-            <Plus size={18}/> {showForm?'ביטול':'יעד חדש'}
+          <button className={`btn ${showForm ? 'btn-danger-soft' : 'btn-primary'}`} onClick={() => setShowForm(!showForm)}>
+            {showForm ? <X size={18}/> : <Plus size={18}/>} {showForm?'ביטול':'יעד חדש'}
           </button>
         </div>
       </header>
