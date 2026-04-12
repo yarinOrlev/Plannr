@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Hexagon, LogIn, Mail, Lock, AlertCircle, CheckCircle, Users, Plus, Rocket } from 'lucide-react';
+import { Hexagon, LogIn, Mail, Lock, AlertCircle, CheckCircle, Users, Plus } from 'lucide-react';
 import './Login.css';
 
 const Login = () => {
@@ -140,23 +140,7 @@ const Login = () => {
             {isSignUp ? 'כבר יש לך חשבון? התחבר' : 'אין לך חשבון עדיין? הירשם'}
           </button>
           
-          <button 
-            type="button"
-            className="mt-4 flex-center gap-2 w-full py-2 px-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all duration-300 cursor-pointer"
-            onClick={async () => {
-              const demoEmail = `test_hod_${Date.now()}@plannr.io`;
-              const demoPass = 'password123';
-              const ok = await signup(demoEmail, demoPass, 'HoD', 'Testing Admin (HoD)');
-              if (ok) {
-                alert(`בוצע! משתמש בדיקה נוצר בחשבון ה-Supabase שלך.\nאימייל: ${demoEmail}\nסיסמה: ${demoPass}\nהזן את הפרטים והתחבר.`);
-                setEmail(demoEmail);
-                setPassword(demoPass);
-                setIsSignUp(false);
-              }
-            }}
-          >
-            <Rocket size={14} /> צור משתמש בדיקה (HoD) ונתוני דמו
-          </button>
+
           
           {!isSignUp && (
             <p className="text-[10px] text-tertiary mt-4 text-center">
