@@ -637,9 +637,10 @@ const Roadmaps = () => {
     if (!activeKanban) return [];
     return allRoadmapItems.filter(it =>
       it.board_id === activeKanban.id &&
-      it.bucket !== 'Timeline'
+      it.bucket !== 'Timeline' &&
+      selectedProductIds.includes(it.product_id)
     );
-  }, [allRoadmapItems, activeKanban]);
+  }, [allRoadmapItems, activeKanban, selectedProductIds]);
 
   const visibleProducts = (products || []).filter(p => selectedProductIds.includes(p.id));
 

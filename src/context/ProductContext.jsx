@@ -69,6 +69,72 @@ export const ProductProvider = ({ children }) => {
     }
   }, [isAuthenticated, user?.id]);
 
+  // Real-time subscriptions
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    logger.info('Initializing real-time subscriptions...');
+    
+    // Create a single channel for all public schema changes
+    const channel = supabase
+      .channel('plannr-app-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          const { table, eventType, new: newRecord, old: oldRecord } = payload;
+          
+          setData(prev => {
+            const tableKeyMap = {
+              products: 'products',
+              features: 'features',
+              roadmaps: 'roadmaps',
+              roadmap_boards: 'roadmapBoards',
+              strategy: 'strategy',
+              objectives: 'objectives',
+              notes: 'notes',
+              reviews: 'reviews',
+              customers: 'customers',
+              documentation: 'documentation',
+              teams: 'teams',
+              team_members: 'teamMembers'
+            };
+
+            const key = tableKeyMap[table];
+            if (!key) return prev;
+
+            let updatedList = [...(prev[key] || [])];
+
+            if (eventType === 'INSERT') {
+              // Avoid duplicates if we already have it (e.g. from local optimistic update)
+              if (!updatedList.some(item => item.id === newRecord.id)) {
+                updatedList = (table === 'notes' || table === 'reviews') 
+                  ? [newRecord, ...updatedList] 
+                  : [...updatedList, newRecord];
+                logger.info(`Real-time INSERT: ${table}`, { newRecord });
+              }
+            } else if (eventType === 'UPDATE') {
+              updatedList = updatedList.map(item => item.id === newRecord.id ? { ...item, ...newRecord } : item);
+              logger.info(`Real-time UPDATE: ${table}`, { id: newRecord.id });
+            } else if (eventType === 'DELETE') {
+              updatedList = updatedList.filter(item => item.id !== oldRecord.id);
+              logger.info(`Real-time DELETE: ${table}`, { id: oldRecord.id });
+            }
+
+            return { ...prev, [key]: updatedList };
+          });
+        }
+      )
+      .subscribe((status) => {
+        logger.info(`Real-time subscription status: ${status}`);
+      });
+
+    return () => {
+      logger.info('Cleaning up real-time subscriptions...');
+      supabase.removeChannel(channel);
+    };
+  }, [isAuthenticated, user?.id]);
+
   const fetchAllData = async () => {
     if (!user) {
       logger.info('fetchAllData: No user available yet, skipping fetch');
@@ -130,16 +196,15 @@ export const ProductProvider = ({ children }) => {
       // 2. Fetch all other data, filtered by allowed products if not HoD
       const getQuery = (table) => {
         let q = supabase.from(table).select('*');
-        if (!isHoD && allowedProductIds.length > 0) {
-          q = q.in('product_id', allowedProductIds);
-        } else if (!isHoD && allowedProductIds.length === 0) {
-          // If no products allowed, don't fetch anything but satisfy promise
-          q = q.eq('product_id', 'none_existing_id');
-        }
-        return q;
-      };
+        if (isHoD) return q;
 
-      logger.info('Performing secondary data fetches...', { allowedProductIds });
+        if (allowedProductIds.length > 0) {
+          const idsString = allowedProductIds.join(',');
+          return q.or(`product_id.in.(${idsString}),product_id.is.null`);
+        } else {
+          return q.is('product_id', null);
+        }
+      };
 
       const fetchTable = async (table, query) => {
         try {
@@ -155,16 +220,22 @@ export const ProductProvider = ({ children }) => {
         }
       };
 
-      const features = await fetchTable('features', getQuery('features'));
-      const strategy = await fetchTable('strategy', getQuery('strategy'));
-      const roadmaps = await fetchTable('roadmaps', getQuery('roadmaps'));
-      const objectives = await fetchTable('objectives', getQuery('objectives'));
-      const notes = await fetchTable('notes', getQuery('notes').order('created_at', { ascending: false }));
-      const reviews = await fetchTable('reviews', getQuery('reviews'));
-      const roadmapBoards = await fetchTable('roadmap_boards', getQuery('roadmap_boards'));
-      const customers = await fetchTable('customers', getQuery('customers'));
-      const productUsers = await fetchTable('product_users', getQuery('product_users'));
-      const documentation = await fetchTable('documentation', getQuery('documentation'));
+      logger.info('Secondary data fetches initiated...');
+      const [
+        features, strategy, roadmaps, objectives, notes, 
+        reviews, roadmapBoards, customers, productUsers, documentation
+      ] = await Promise.all([
+        fetchTable('features', getQuery('features')),
+        fetchTable('strategy', getQuery('strategy')),
+        fetchTable('roadmaps', getQuery('roadmaps')),
+        fetchTable('objectives', getQuery('objectives')),
+        fetchTable('notes', getQuery('notes').order('created_at', { ascending: false })),
+        fetchTable('reviews', getQuery('reviews')),
+        fetchTable('roadmap_boards', getQuery('roadmap_boards')),
+        fetchTable('customers', getQuery('customers')),
+        fetchTable('product_users', getQuery('product_users')),
+        fetchTable('documentation', getQuery('documentation'))
+      ]);
 
       setData(prev => {
         const nextActiveProductId = products?.[0]?.id || prev.activeProductId;
@@ -889,6 +960,30 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  const updateCustomerNote = async (customerId, noteId, newText) => {
+    try {
+      console.log('ProductContext: updateCustomerNote called', { customerId, noteId });
+      const customer = data.customers.find(c => c.id === customerId);
+      if (!customer) return;
+
+      const updatedNotes = (customer.notes || []).map(n => 
+        n.id === noteId ? { ...n, text: newText, updatedAt: new Date().toISOString() } : n
+      );
+
+      const { error } = await supabase.from('customers').update({ notes: updatedNotes }).eq('id', customerId);
+      if (error) throw error;
+
+      setData(prev => ({
+        ...prev,
+        customers: prev.customers.map(c => c.id === customerId ? { ...c, notes: updatedNotes } : c)
+      }));
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating customer note:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
   const deleteCustomerNote = async (customerId, noteId) => {
     try {
       console.log('ProductContext: deleteCustomerNote called', { customerId, noteId });
@@ -974,6 +1069,29 @@ export const ProductProvider = ({ children }) => {
       return { success: true };
     } catch (err) {
       console.error('Error adding user note:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateProductUserNote = async (userId, noteId, newText) => {
+    try {
+      const user = data.productUsers.find(u => u.id === userId);
+      if (!user) return;
+
+      const updatedNotes = (user.notes || []).map(n => 
+        n.id === noteId ? { ...n, text: newText, updatedAt: new Date().toISOString() } : n
+      );
+
+      const { error } = await supabase.from('product_users').update({ notes: updatedNotes }).eq('id', userId);
+      if (error) throw error;
+      
+      setData(prev => ({
+        ...prev,
+        productUsers: prev.productUsers.map(u => u.id === userId ? { ...u, notes: updatedNotes } : u)
+      }));
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating user note:', err);
       return { success: false, error: err.message };
     }
   };
@@ -1149,12 +1267,14 @@ export const ProductProvider = ({ children }) => {
     addCustomer,
     updateCustomer,
     addCustomerNote,
+    updateCustomerNote,
     deleteCustomerNote,
     deleteCustomer,
     addProductUser,
     updateProductUser,
     deleteProductUser,
     addProductUserNote,
+    updateProductUserNote,
     deleteProductUserNote,
     addReview,
     updateReviewStatus,

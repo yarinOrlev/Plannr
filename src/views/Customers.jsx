@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Users, Plus, Trash2, ChevronDown, ChevronUp, MessageSquarePlus, X, Check, User, Building, Search, Calendar, Filter, Heart, AlertCircle, Smile, Activity } from 'lucide-react';
+import { Users, Plus, Trash2, ChevronDown, ChevronUp, MessageSquarePlus, X, Check, User, Building, Search, Calendar, Filter, Heart, AlertCircle, Smile, Activity, Edit2 } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import ProductBadge from '../components/ProductBadge';
 import './Customers.css';
@@ -12,12 +12,14 @@ const HEALTH_STATUS = [
   { key: 'risk', label: 'בסיכון', color: 'danger', icon: <AlertCircle size={14}/> }
 ];
 
-const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate, onDeleteNote }) => {
+const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate, onDeleteNote, onUpdateNote }) => {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ ...user });
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
 
   const customerName = customers.find(c => c.id === user.customer_id)?.name || 'ללא חברה';
 
@@ -35,6 +37,17 @@ const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate,
   const handleUpdate = () => {
     onUpdate(user.id, editForm);
     setIsEditing(false);
+  };
+
+  const handleUpdateNote = async (noteId) => {
+    if (!editingNoteText.trim()) return;
+    const res = await onUpdateNote(user.id, noteId, editingNoteText);
+    if (res?.success || res === undefined) {
+      setEditingNoteId(null);
+      setEditingNoteText('');
+    } else {
+      alert('שגיאה בעדכון ההערה: ' + res.error);
+    }
   };
 
   if (isEditing) {
@@ -120,11 +133,38 @@ const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate,
                 <div key={n.id} className="timeline-item">
                   <div className="timeline-dot" />
                   <div className="timeline-content">
-                    <p className="text-sm">{n.text}</p>
-                    <div className="flex-between mt-1">
-                      <span className="text-xs text-tertiary">{new Date(n.createdAt).toLocaleDateString('he-IL')}</span>
-                      <button className="btn-icon text-danger" style={{ height: '20px', width: '20px' }} onClick={() => onDeleteNote(user.id, n.id)}><Trash2 size={12}/></button>
-                    </div>
+                    {editingNoteId === n.id ? (
+                      <div className="note-edit-row">
+                        <textarea 
+                          rows={2} 
+                          style={{ width:'100%', border:'1.5px solid var(--border-color)', background:'var(--bg-primary)', color:'var(--text-primary)', padding:'0.5rem 0.7rem', borderRadius:'var(--border-radius-sm)', resize:'vertical', direction:'rtl', fontSize:'0.875rem', marginBottom: '0.5rem' }} 
+                          value={editingNoteText} 
+                          onChange={e => setEditingNoteText(e.target.value)} 
+                        />
+                        <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
+                          <button className="btn btn-primary" style={{ padding:'0.3rem 0.7rem', fontSize:'0.78rem' }} onClick={() => handleUpdateNote(n.id)}><Check size={13}/> עדכון</button>
+                          <button className="btn-icon" onClick={() => setEditingNoteId(null)}><X size={14}/></button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm">{n.text}</p>
+                        <div className="flex-between mt-1">
+                          <span className="text-xs text-tertiary">{new Date(n.createdAt).toLocaleDateString('he-IL')}</span>
+                          <div className="flex-center gap-1">
+                            <button 
+                              className="btn-icon" 
+                              style={{ height: '20px', width: '20px' }} 
+                              onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.text); }}
+                              title="עריכה"
+                            >
+                              <Edit2 size={12}/>
+                            </button>
+                            <button className="btn-icon text-danger" style={{ height: '20px', width: '20px' }} onClick={() => onDeleteNote(user.id, n.id)} title="מחיקה"><Trash2 size={12}/></button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -190,12 +230,14 @@ const FeedbackTimeline = ({ customers, productUsers, selectedProductIds, product
   );
 };
 
-const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, onDeleteNote }) => {
+const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, onDeleteNote, onUpdateNote }) => {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ ...customer });
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
 
   const handleSaveNote = async () => {
     if (!noteText.trim()) return;
@@ -211,6 +253,17 @@ const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, on
   const handleUpdate = () => {
     onUpdate(customer.id, editForm);
     setIsEditing(false);
+  };
+
+  const handleUpdateNote = async (noteId) => {
+    if (!editingNoteText.trim()) return;
+    const res = await onUpdateNote(customer.id, noteId, editingNoteText);
+    if (res?.success || res === undefined) {
+      setEditingNoteId(null);
+      setEditingNoteText('');
+    } else {
+      alert('שגיאה בעדכון ההערה: ' + res.error);
+    }
   };
 
   if (isEditing) {
@@ -312,18 +365,45 @@ const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, on
                 <div key={n.id} className="timeline-item">
                   <div className="timeline-dot" />
                   <div className="timeline-content" style={{ position: 'relative' }}>
-                    <p className="text-sm">{n.text}</p>
-                    <div className="flex-between mt-1">
-                      <span className="text-xs text-tertiary">{new Date(n.createdAt).toLocaleDateString('he-IL')}</span>
-                      <button 
-                        className="btn-icon text-danger" 
-                        style={{ height: '20px', width: '20px' }} 
-                        onClick={() => onDeleteNote(customer.id, n.id)}
-                        title="מחיקת הערה"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
+                    {editingNoteId === n.id ? (
+                      <div className="note-edit-row">
+                        <textarea 
+                          rows={2} 
+                          style={{ width:'100%', border:'1.5px solid var(--border-color)', background:'var(--bg-primary)', color:'var(--text-primary)', padding:'0.5rem 0.7rem', borderRadius:'var(--border-radius-sm)', fontFamily:'var(--font-family)', resize:'vertical', direction:'rtl', fontSize:'0.875rem', marginBottom:'0.5rem' }} 
+                          value={editingNoteText} 
+                          onChange={e => setEditingNoteText(e.target.value)} 
+                        />
+                        <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
+                          <button className="btn btn-primary" style={{ padding:'0.3rem 0.7rem', fontSize:'0.78rem' }} onClick={() => handleUpdateNote(n.id)}><Check size={13}/> עדכון</button>
+                          <button className="btn-icon" onClick={() => setEditingNoteId(null)}><X size={14}/></button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm">{n.text}</p>
+                        <div className="flex-between mt-1">
+                          <span className="text-xs text-tertiary">{new Date(n.createdAt).toLocaleDateString('he-IL')}</span>
+                          <div className="flex-center gap-1">
+                            <button 
+                              className="btn-icon" 
+                              style={{ height: '20px', width: '20px' }} 
+                              onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.text); }}
+                              title="עריכה"
+                            >
+                              <Edit2 size={12}/>
+                            </button>
+                            <button 
+                              className="btn-icon text-danger" 
+                              style={{ height: '20px', width: '20px' }} 
+                              onClick={() => onDeleteNote(customer.id, n.id)}
+                              title="מחיקת הערה"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -345,8 +425,8 @@ const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, on
 const Customers = () => {
   const { 
     activeProduct, activeCustomers, activeProductUsers, data, 
-    addCustomer, addCustomerNote, deleteCustomer, updateCustomer, deleteCustomerNote,
-    addProductUser, updateProductUser, deleteProductUser, addProductUserNote, deleteProductUserNote,
+    addCustomer, addCustomerNote, deleteCustomer, updateCustomer, deleteCustomerNote, updateCustomerNote,
+    addProductUser, updateProductUser, deleteProductUser, addProductUserNote, deleteProductUserNote, updateProductUserNote,
     selectedProductIds, products 
   } = useProductContext();
 
@@ -516,6 +596,7 @@ const Customers = () => {
                   onAddNote={addCustomerNote} 
                   onUpdate={updateCustomer} 
                   onDeleteNote={deleteCustomerNote}
+                  onUpdateNote={updateCustomerNote}
                 />
               ))}
             </div>
@@ -537,6 +618,7 @@ const Customers = () => {
                   onAddNote={addProductUserNote}
                   onUpdate={updateProductUser}
                   onDeleteNote={deleteProductUserNote}
+                  onUpdateNote={updateProductUserNote}
                 />
               ))}
             </div>

@@ -81,7 +81,6 @@ const Header = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <div className="search-icon"><Search size={16} /></div>
           </div>
           <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? 'מצב יום' : 'מצב לילה'}>
             {darkMode ? <Sun size={18} /> : <Moon size={18} />}
