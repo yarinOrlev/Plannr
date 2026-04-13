@@ -141,50 +141,62 @@ export const ProductProvider = ({ children }) => {
       setLoading(false);
       return;
     }
+    
     if (isFetching.current) {
-      logger.info('fetchAllData: Fetch already in progress, skipping');
+      logger.info('fetchAllData: Fetch already in progress, skipping and ensuring loading is true');
+      // If we are already fetching, we don't want to set loading to false yet, 
+      // but we also don't want to start a new one. 
+      // The first one will call setLoading(false) when done.
       return;
     }
     
     isFetching.current = true;
     setLoading(true);
     setFetchError(null);
-    logger.info('Fetching compartmentalized data from Supabase...', { userId: user.id });
+    logger.info('Fetching compartmentalized data from Supabase...', { userId: user.id, isHoD });
+    
     try {
       let products = [];
       let teams = [];
       let teamMembers = [];
 
       if (isHoD) {
-        const { data: allTeams } = await supabase.from('teams').select('*').order('name');
-        const { data: allMembers } = await supabase.from('team_members').select('*');
-        const { data: allProducts } = await supabase.from('products').select('*').order('created_at', { ascending: true });
+        logger.info('HoD Path: Fetching all teams, members, and products');
+        const [tRes, tmRes, pRes] = await Promise.all([
+          supabase.from('teams').select('*').order('name'),
+          supabase.from('team_members').select('*'),
+          supabase.from('products').select('*').order('created_at', { ascending: true })
+        ]);
         
-        teams = allTeams || [];
-        teamMembers = allMembers || [];
-        products = allProducts || [];
+        teams = tRes.data || [];
+        teamMembers = tmRes.data || [];
+        products = pRes.data || [];
       } else {
+        logger.info('Standard Path: Fetching user-specific teams and products');
         // 1. Fetch teams I belong to
         const { data: myMemberships } = await supabase.from('team_members').select('team_id').eq('user_id', user.id);
         const teamIds = (myMemberships || []).map(m => m.team_id);
         
-        // Also include teams I own (in case I am not explicitly listed as a member yet)
+        // Also include teams I own
         const { data: ownedTeams } = await supabase.from('teams').select('id').eq('owner_id', user.id);
         const ownedTeamIds = (ownedTeams || []).map(t => t.id);
         
         const allMyTeamIds = [...new Set([...teamIds, ...ownedTeamIds])];
+        logger.info('User teams identified', { count: allMyTeamIds.length });
 
         if (allMyTeamIds.length > 0) {
-          const { data: myTeams } = await supabase.from('teams').select('*').in('id', allMyTeamIds).order('name');
-          const { data: members } = await supabase.from('team_members').select('*').in('team_id', allMyTeamIds);
-          const { data: teamProds } = await supabase.from('products').select('*').in('team_id', allMyTeamIds).order('created_at', { ascending: true });
+          const [mtRes, mRes, tpRes] = await Promise.all([
+            supabase.from('teams').select('*').in('id', allMyTeamIds).order('name'),
+            supabase.from('team_members').select('*').in('team_id', allMyTeamIds),
+            supabase.from('products').select('*').in('team_id', allMyTeamIds).order('created_at', { ascending: true })
+          ]);
           
-          teams = myTeams || [];
-          teamMembers = members || [];
-          products = teamProds || [];
+          teams = mtRes.data || [];
+          teamMembers = mRes.data || [];
+          products = tpRes.data || [];
         }
 
-        // 2. Legacy/Fallback: Fetch products I own directly but aren't in a team yet (should be few after migration)
+        // 2. Fetch products owned directly
         const { data: ownedDirectly } = await supabase.from('products').select('*').eq('owner_id', user.id).is('team_id', null);
         if (ownedDirectly && ownedDirectly.length > 0) {
           products = [...products, ...ownedDirectly];
@@ -192,8 +204,9 @@ export const ProductProvider = ({ children }) => {
       }
 
       const allowedProductIds = products.map(p => p.id);
+      logger.info('Allowed products identified', { count: allowedProductIds.length });
 
-      // 2. Fetch all other data, filtered by allowed products if not HoD
+      // 2. Fetch all other data
       const getQuery = (table) => {
         let q = supabase.from(table).select('*');
         if (isHoD) return q;
@@ -208,6 +221,7 @@ export const ProductProvider = ({ children }) => {
 
       const fetchTable = async (table, query) => {
         try {
+          logger.info(`Fetching table: ${table}...`);
           const { data, error } = await query;
           if (error) {
             logger.error(`Error fetching ${table}:`, error);
@@ -220,7 +234,7 @@ export const ProductProvider = ({ children }) => {
         }
       };
 
-      logger.info('Secondary data fetches initiated...');
+      logger.info('Initiating parallel secondary data fetches...');
       const [
         features, strategy, roadmaps, objectives, notes, 
         reviews, roadmapBoards, customers, productUsers, documentation
@@ -261,17 +275,13 @@ export const ProductProvider = ({ children }) => {
           activeRoadmapBoardId: nextActiveBoardId
         };
       });
-      logger.info('Data fetch successful', { productsCount: products?.length, teamsCount: teams?.length });
+      logger.info('Data fetch successful and state updated', { productsCount: products?.length });
 
-      // Auto-seeding removed to prevent infinite loops. Users can add products manually.
-      if ((!products || products.length === 0) && isAuthenticated && !isHoD) {
-        logger.info('No products found for user, but skipping auto-seed to prevent loops.');
-      }
     } catch (error) {
-      logger.error('Error fetching data from Supabase:', error);
+      logger.error('Critical error in fetchAllData:', error);
       setFetchError(error.message || 'שגיאת תקשורת עם בסיס הנתונים');
-      setLoading(false);
     } finally {
+      logger.info('fetchAllData finished, clearing loading state');
       setLoading(false);
       isFetching.current = false;
     }

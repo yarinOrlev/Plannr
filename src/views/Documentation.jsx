@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../supabaseClient';
 import { useProductContext } from '../context/ProductContext';
 import { 
   BookOpen, FileText, Database, Plus, Search, X, Check, 
@@ -51,6 +52,7 @@ const Documentation = () => {
   const [editingId, setEditingId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState(['General']);
+  const [fileToUpload, setFileToUpload] = useState(null);
   
   const [form, setForm] = useState({ 
     title:'', 
@@ -83,15 +85,32 @@ const Documentation = () => {
     
     setIsSaving(true);
     try {
+      let currentForm = { ...form };
+
+      // Handle real file upload if needed
+      if (form.type === 'File' && fileToUpload) {
+        const fileExt = fileToUpload.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${activeProduct.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('documentation')
+          .upload(filePath, fileToUpload);
+
+        if (uploadError) throw uploadError;
+        currentForm.url = filePath;
+      }
+
       let res;
       if (editingId) {
-        res = await updateDoc(editingId, form);
+        res = await updateDoc(editingId, currentForm);
       } else {
-        res = await addDoc({ ...form, product_id: activeProduct.id });
+        res = await addDoc({ ...currentForm, product_id: activeProduct.id });
       }
 
       if (res.success) {
         setForm({ title:'', type:'Doc', content:'', category:'General', url:'', file_name:'', file_type:'' });
+        setFileToUpload(null);
         setShowAddForm(false);
         setEditingId(null);
         if (res.data) setSelectedDocId(res.data.id);
@@ -134,10 +153,36 @@ const Documentation = () => {
     }
   };
 
-  const handleFileSimulate = (e) => {
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setFileToUpload(file);
       setForm({ ...form, file_name: file.name, file_type: file.type });
+    }
+  };
+
+  const handleDownload = async (doc) => {
+    if (!doc.url) return;
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from('documentation')
+        .download(doc.url);
+
+      if (error) throw error;
+
+      // Create a link and trigger browser download
+      const url = window.URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', doc.file_name || 'download');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading file:', err);
+      alert('שגיאה בהורדת הקובץ מאחסון הענן');
     }
   };
 
@@ -221,11 +266,11 @@ const Documentation = () => {
                   </div>
                 ) : form.type === 'File' ? (
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <label className="text-sm text-secondary block mb-1">צירוף קובץ (סימולציה)</label>
-                    <div className="file-upload-zone" onClick={() => document.getElementById('sim-upload').click()}>
+                    <label className="text-sm text-secondary block mb-1">צירוף קובץ</label>
+                    <div className="file-upload-zone" onClick={() => document.getElementById('real-upload').click()}>
                       <Upload size={32} className="text-tertiary mb-2 mx-auto"/>
                       <p className="text-sm text-secondary">{form.file_name ? `קובץ נבחר: ${form.file_name}` : 'לחץ להעלאת קובץ מהמחשב'}</p>
-                      <input id="sim-upload" type="file" style={{display:'none'}} onChange={handleFileSimulate}/>
+                      <input id="real-upload" type="file" style={{display:'none'}} onChange={handleFileSelect}/>
                     </div>
                   </div>
                 ) : (
@@ -286,7 +331,7 @@ const Documentation = () => {
                     <File size={48} className="text-yellow-500 mb-4 mx-auto"/>
                     <h3 className="text-h3 mb-2">{selectedDoc.file_name || 'קובץ ללא שם'}</h3>
                     <p className="text-secondary mb-4">סוג קובץ: {selectedDoc.file_type || 'לא ידוע'}</p>
-                    <button className="btn btn-secondary inline-flex gap-2" onClick={() => alert('הורדת קובץ בגרסת הדמו')}>
+                    <button className="btn btn-secondary inline-flex gap-2" onClick={() => handleDownload(selectedDoc)}>
                        הורדת קובץ <Upload size={16} className="rotate-180"/>
                     </button>
                   </div>
