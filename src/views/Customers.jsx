@@ -435,8 +435,8 @@ const Customers = () => {
   const [filterSeg, setFilterSeg] = useState('כלל הלקוחות');
   const [searchTermLocal, setSearchTermLocal] = useState('');
   
-  const [customerForm, setCustomerForm] = useState({ name:'', company:'', email:'', segment:'Enterprise', wants:'', description:'', health:'neutral' });
-  const [userForm, setUserForm] = useState({ name:'', customer_id:'', role:'', email:'', needs:'' });
+  const [customerForm, setCustomerForm] = useState({ name:'', company:'', email:'', segment:'Enterprise', wants:'', description:'', health:'neutral', product_id: activeProduct.id });
+  const [userForm, setUserForm] = useState({ name:'', customer_id:'', role:'', email:'', needs:'', product_id: activeProduct.id });
 
   if (!activeProduct) return null;
 
@@ -449,16 +449,16 @@ const Customers = () => {
   const handleAddCustomer = (e) => {
     e.preventDefault();
     if (!customerForm.name.trim()) return;
-    addCustomer({ ...customerForm, product_id: activeProduct.id });
-    setCustomerForm({ name:'', company:'', email:'', segment:'Enterprise', wants:'', description:'', health:'neutral' });
+    addCustomer(customerForm);
+    setCustomerForm({ name:'', company:'', email:'', segment:'Enterprise', wants:'', description:'', health:'neutral', product_id: activeProduct.id });
     setShowForm(false);
   };
 
   const handleAddUser = (e) => {
     e.preventDefault();
     if (!userForm.name.trim()) return;
-    addProductUser({ ...userForm, product_id: activeProduct.id });
-    setUserForm({ name:'', customer_id:'', role:'', email:'', needs:'' });
+    addProductUser(userForm);
+    setUserForm({ name:'', customer_id:'', role:'', email:'', needs:'', product_id: activeProduct.id });
     setShowForm(false);
   };
 
@@ -540,6 +540,11 @@ const Customers = () => {
                 {HEALTH_STATUS.map(h => <option key={h.key} value={h.key}>{h.label}</option>)}
               </select>
             </div>
+            <div><label className="text-sm text-secondary block mb-1">מוצר משויך *</label>
+              <select required style={inputStyle} value={customerForm.product_id} onChange={e => setCustomerForm({...customerForm, product_id: e.target.value})}>
+                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
             <div style={{ gridColumn:'1 / -1' }}>
               <label className="text-sm text-secondary block mb-1">צרכים ורצונות עיקריים</label>
               <textarea rows={3} style={{...inputStyle, resize:'vertical'}} value={customerForm.wants} onChange={e => setCustomerForm({...customerForm,wants:e.target.value})} placeholder="מה הם הכאבים הכי גדולים שלהם?"/>
@@ -562,6 +567,11 @@ const Customers = () => {
             </div>
             <div><label className="text-sm text-secondary block mb-1">תפקיד</label><input type="text" style={inputStyle} value={userForm.role} onChange={e => setUserForm({...userForm, role: e.target.value})} placeholder="למשל: CTO"/></div>
             <div><label className="text-sm text-secondary block mb-1">אימייל</label><input type="email" style={inputStyle} value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} placeholder="email@user.com"/></div>
+            <div><label className="text-sm text-secondary block mb-1">מוצר משויך *</label>
+              <select required style={inputStyle} value={userForm.product_id} onChange={e => setUserForm({...userForm, product_id: e.target.value})}>
+                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
             <div style={{ gridColumn:'1 / -1' }}>
               <label className="text-sm text-secondary block mb-1">ביקשות / צרכים אישיים</label>
               <textarea rows={2} style={{...inputStyle, resize:'vertical'}} value={userForm.needs} onChange={e => setUserForm({...userForm, needs: e.target.value})} placeholder="מה המשתמש הזה ספציפית צריך?"/>
