@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, RefreshCcw, Briefcase, LogOut, Database, Gauge, CalendarRange } from 'lucide-react';
+import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, RefreshCcw, Briefcase, LogOut, Database, Gauge, CalendarRange, BarChart3 } from 'lucide-react';
 import './Sidebar.css';
 import { useProductContext } from '../context/ProductContext';
 
@@ -26,6 +26,7 @@ const Sidebar = () => {
     { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green' },
     { path: '/team/capacity', icon: <Gauge size={18} />, label: 'צוות וקיבולת', color: 'teal', roles: ['TeamLead', 'HoD'] },
     { path: '/team/sprints', icon: <CalendarRange size={18} />, label: 'תכנון ספרינטים', color: 'blue', roles: ['TeamLead', 'HoD'] },
+    { path: '/team/planning', icon: <BarChart3 size={18} />, label: 'תכנון רבעוני', color: 'indigo', roles: ['TeamLead', 'HoD'] },
     { path: '/department', icon: <Briefcase size={18} />, label: 'מבט מחלקתי', color: 'indigo', roles: ['HoD'] },
     { path: '/settings', icon: <Settings size={18} />, label: 'הגדרות', color: 'gray' },
   ];
