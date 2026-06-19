@@ -5,6 +5,12 @@ import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, Sli
 import './Sidebar.css';
 import { useProductContext } from '../context/ProductContext';
 
+const ROLE_LABELS = {
+  HoD: 'ראש מחלקה',
+  TeamLead: 'ראש צוות',
+  PM: 'מנהל מוצר',
+};
+
 const Sidebar = () => {
   const { user, logout, isHoD, userProfile } = useAuth();
   const { seedInitialData } = useProductContext();
@@ -64,7 +70,7 @@ const Sidebar = () => {
           <div className="user-avatar">{userProfile?.avatar || 'U'}</div>
           <div className="user-info">
             <span className="user-name">{userProfile?.name || 'משתמש'}</span>
-            <span className="user-role">{userProfile?.role === 'HoD' ? 'ראש מחלקה' : 'מנהל מוצר'}</span>
+            <span className="user-role">{ROLE_LABELS[userProfile?.role] || 'מנהל מוצר'}</span>
           </div>
           <button className="logout-btn" onClick={logout} title="התנתקות">
             <LogOut size={16} />

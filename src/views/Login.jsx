@@ -105,16 +105,23 @@ const Login = () => {
           {isSignUp && (
             <div className="form-group mb-6">
               <label className="text-xs font-bold text-tertiary mb-2 block">תפקיד במערכת</label>
-              <div className="flex-center gap-4">
-                <button 
-                  type="button" 
+              <div className="flex-center gap-2">
+                <button
+                  type="button"
                   className={`btn flex-1 text-xs py-2 ${role === 'PM' ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setRole('PM')}
                 >
                   מנהל מוצר (PM)
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
+                  className={`btn flex-1 text-xs py-2 ${role === 'TeamLead' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setRole('TeamLead')}
+                >
+                  ראש צוות (TL)
+                </button>
+                <button
+                  type="button"
                   className={`btn flex-1 text-xs py-2 ${role === 'HoD' ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setRole('HoD')}
                 >
