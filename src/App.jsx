@@ -13,6 +13,7 @@ import Notes from './views/Notes';
 import Customers from './views/Customers';
 import DepartmentOverview from './views/DepartmentOverview';
 import TeamCapacity from './views/TeamCapacity';
+import SprintBoard from './views/SprintBoard';
 import SettingsView from './views/Settings';
 import FloatingNoteBubble from './components/FloatingNoteBubble';
 import Login from './views/Login';
@@ -91,6 +92,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
                 <TeamCapacity />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/team/sprints"
+            element={
+              <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
+                <SprintBoard />
               </ProtectedRoute>
             }
           />
