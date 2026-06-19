@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import {
   CalendarRange, Plus, Trash2, Check, X, Pencil, Users, ChevronDown, ChevronRight,
+  Layers, GitBranch,
 } from 'lucide-react';
 import './SprintBoard.css';
 
@@ -56,6 +57,7 @@ const SprintBoard = () => {
     addSprint, deleteSprint,
     addTask, updateTask, deleteTask,
     setMemberAvailability, getMemberAvailableDays, getSprintLoad, getSprintCapacity,
+    teamProducts, teamRoadmapItems, getRoadmapItemProgress, createTasksFromRoadmapItem,
   } = useProductContext();
 
   const [selectedSprintId, setSelectedSprintId] = useState(null);
@@ -67,6 +69,10 @@ const SprintBoard = () => {
   const [taskDraft, setTaskDraft] = useState({ title: '', estimate_days: 1, assignee_member_id: '' });
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [taskEdit, setTaskEdit] = useState({ title: '', estimate_days: 1 });
+
+  const [showRequirements, setShowRequirements] = useState(true);
+  const [breakingItemId, setBreakingItemId] = useState(null);
+  const [breakdownDrafts, setBreakdownDrafts] = useState([]);
 
   // Default the selected sprint to the latest one once data is available.
   const activeSprint = useMemo(() => {
@@ -142,6 +148,31 @@ const SprintBoard = () => {
     sprintTasks
       .filter(t => t.assignee_member_id === memberId)
       .reduce((sum, t) => sum + (Number(t.estimate_days) || 0), 0);
+
+  const productName = (id) => teamProducts.find(p => p.id === id)?.name || '';
+
+  // ── Breaking a PM roadmap item into tasks ──
+  const startBreakdown = (itemId) => {
+    setBreakingItemId(itemId);
+    setBreakdownDrafts([{ title: '', estimate_days: 1, assignee_member_id: '' }]);
+  };
+  const updateDraft = (i, patch) =>
+    setBreakdownDrafts(drafts => drafts.map((d, idx) => idx === i ? { ...d, ...patch } : d));
+  const addDraftRow = () =>
+    setBreakdownDrafts(drafts => [...drafts, { title: '', estimate_days: 1, assignee_member_id: '' }]);
+  const removeDraftRow = (i) =>
+    setBreakdownDrafts(drafts => drafts.filter((_, idx) => idx !== i));
+  const confirmBreakdown = async () => {
+    const valid = breakdownDrafts.filter(d => d.title.trim());
+    if (!valid.length) return;
+    await createTasksFromRoadmapItem(
+      breakingItemId,
+      activeTeamId,
+      valid.map(d => ({ ...d, estimate_days: Number(d.estimate_days) || 1, sprint_id: activeSprint.id })),
+    );
+    setBreakingItemId(null);
+    setBreakdownDrafts([]);
+  };
 
   return (
     <div className="content-area animate-fade-in sprint-board-layout">
@@ -250,6 +281,80 @@ const SprintBoard = () => {
                           defaultValue={available}
                           onBlur={e => setMemberAvailability(activeSprint.id, m.id, Number(e.target.value) || 0)} />
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* PM requirements rail — break roadmap items into sprint tasks */}
+          <div className="glass-panel requirements-panel" style={{ direction: 'rtl' }}>
+            <button className="requirements-head" onClick={() => setShowRequirements(v => !v)}>
+              <span className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
+                <span className="icon-badge bg-indigo"><Layers size={18} /></span>
+                <span className="text-h3">דרישות מוצר (PM)</span>
+                <span className="badge badge-gray">{teamRoadmapItems.length}</span>
+              </span>
+              {showRequirements ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+
+            {showRequirements && (
+              <div className="requirements-list">
+                {teamRoadmapItems.length === 0 && (
+                  <p className="text-tertiary text-sm" style={{ padding: '0.5rem 0', fontStyle: 'italic' }}>
+                    אין דרישות. פריטי מפת הדרכים של מוצרי הצוות יופיעו כאן.
+                  </p>
+                )}
+                {teamRoadmapItems.map(item => {
+                  const prog = getRoadmapItemProgress(item.id);
+                  const isBreaking = breakingItemId === item.id;
+                  return (
+                    <div key={item.id} className="requirement-row">
+                      <div className="requirement-main">
+                        <span className="requirement-title">{item.title}</span>
+                        <span className="requirement-product">{productName(item.product_id)}</span>
+                      </div>
+                      <div className="flex-center gap-2">
+                        {prog.total > 0 && (
+                          <span className="badge badge-blue">{prog.done}/{prog.total} · {prog.days}ד</span>
+                        )}
+                        <button className="btn btn-secondary btn-sm" onClick={() => isBreaking ? setBreakingItemId(null) : startBreakdown(item.id)}>
+                          <GitBranch size={14} /> פרק למשימות
+                        </button>
+                      </div>
+
+                      {isBreaking && (
+                        <div className="breakdown-form">
+                          {breakdownDrafts.map((d, i) => (
+                            <div key={i} className="breakdown-row">
+                              <input className="modal-input" placeholder="כותרת המשימה..." value={d.title} autoFocus={i === 0}
+                                onChange={e => updateDraft(i, { title: e.target.value })} />
+                              <select className="modal-input" style={{ width: 110, height: 36 }} value={d.estimate_days}
+                                onChange={e => updateDraft(i, { estimate_days: parseFloat(e.target.value) })}>
+                                {ESTIMATE_OPTIONS.map(v => <option key={v} value={v}>{v} ימים</option>)}
+                              </select>
+                              <select className="modal-input" style={{ width: 130, height: 36 }} value={d.assignee_member_id}
+                                onChange={e => updateDraft(i, { assignee_member_id: e.target.value })}>
+                                <option value="">ללא שיוך</option>
+                                {activeRoster.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                              </select>
+                              <button className="btn-icon" onClick={() => removeDraftRow(i)} title="הסר"
+                                disabled={breakdownDrafts.length === 1} style={{ opacity: breakdownDrafts.length === 1 ? 0.3 : 1 }}>
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                          <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
+                            <button className="btn btn-ghost btn-sm" onClick={addDraftRow}><Plus size={14} /> עוד משימה</button>
+                            <div style={{ flex: 1 }} />
+                            <button className="btn btn-primary btn-sm" onClick={confirmBreakdown}>
+                              <Check size={14} /> צור בספרינט "{activeSprint.name}"
+                            </button>
+                            <button className="btn-icon" onClick={() => setBreakingItemId(null)}><X size={16} /></button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
