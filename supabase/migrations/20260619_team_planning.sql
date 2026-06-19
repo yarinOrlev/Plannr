@@ -13,9 +13,12 @@
 --   tasks                   — breakdown of PM requirements into person-day work
 --
 -- Conventions match the rest of the app:
---   * ids are text, generated client-side as `prefix_${Date.now()}`
+--   * each table's own id is text, generated client-side as `prefix_${Date.now()}`
 --   * snake_case columns
 --   * JSON where the app already uses JSON
+-- NOTE: `team_id` is uuid because the existing `teams.id` is a db-generated uuid
+-- (teams are inserted without a client id). Soft links to text-id rows
+-- (roadmap_item_id, feature_id, product_id) are plain text with no FK.
 --
 -- HOW TO RUN: paste this whole file into the Supabase SQL editor (or apply via
 -- the Supabase CLI). It is idempotent (IF NOT EXISTS / drop-and-recreate
@@ -25,7 +28,7 @@
 -- ── members ────────────────────────────────────────────────────────────────
 create table if not exists public.members (
   id              text primary key,
-  team_id         text not null references public.teams(id) on delete cascade,
+  team_id         uuid not null references public.teams(id) on delete cascade,
   user_id         uuid references auth.users(id) on delete set null,
   name            text not null,
   role_title      text,
@@ -38,7 +41,7 @@ create index if not exists members_team_id_idx on public.members(team_id);
 -- ── sprints ──────────────────────────────────────────────────────────────--
 create table if not exists public.sprints (
   id            text primary key,
-  team_id       text not null references public.teams(id) on delete cascade,
+  team_id       uuid not null references public.teams(id) on delete cascade,
   name          text not null,
   start_date    date,
   end_date      date,
@@ -71,7 +74,7 @@ create index if not exists msc_member_id_idx on public.member_sprint_capacity(me
 -- item and/or feature so the PM roadmap stays the single source of truth.
 create table if not exists public.tasks (
   id                 text primary key,
-  team_id            text not null references public.teams(id) on delete cascade,
+  team_id            uuid not null references public.teams(id) on delete cascade,
   sprint_id          text references public.sprints(id) on delete set null, -- null = backlog
   roadmap_item_id    text,                 -- soft link to roadmaps.id (PM requirement)
   feature_id         text,                 -- soft link to features.id
