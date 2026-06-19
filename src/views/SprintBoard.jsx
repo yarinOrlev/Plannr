@@ -91,8 +91,8 @@ const SprintBoard = () => {
             <p className="text-secondary text-lg">חלוקת עבודה לפי קיבולת הצוות</p>
           </div>
         </header>
-        <div className="glass-panel p-10 text-center" style={{ direction: 'rtl' }}>
-          <Users size={48} className="text-tertiary mx-auto mb-4" />
+        <div className="empty-state" style={{ direction: 'rtl' }}>
+          <Users size={48} className="text-tertiary mb-4" />
           <h3 className="text-h3 mb-2">אין צוות עדיין</h3>
           <p className="text-secondary">צור צוות והוסף אנשים במסך "צוות וקיבולת" כדי להתחיל לתכנן ספרינטים.</p>
         </div>
@@ -147,7 +147,7 @@ const SprintBoard = () => {
     <div className="content-area animate-fade-in sprint-board-layout">
       <header className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <h1 className="text-h1 mb-1">תכנון ספרינטים</h1>
+          <h1 className="text-h1 mb-2">תכנון ספרינטים</h1>
           <p className="text-secondary text-sm">חלוקת עבודה לפי קיבולת הצוות</p>
         </div>
         <div className="flex-center gap-2" style={{ flexWrap: 'wrap' }}>
@@ -185,7 +185,7 @@ const SprintBoard = () => {
             <input className="modal-input" value={sprintDraft.goal}
               onChange={e => setSprintDraft({ ...sprintDraft, goal: e.target.value })} placeholder="מה רוצים להשיג?" />
           </div>
-          <div className="flex gap-2">
+          <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
             <button className="btn btn-primary" onClick={handleCreateSprint}><Check size={16} /> צור</button>
             <button className="btn-icon" onClick={() => { setCreatingSprint(false); setSprintDraft(EMPTY_SPRINT); }}><X size={18} /></button>
           </div>
@@ -193,10 +193,13 @@ const SprintBoard = () => {
       )}
 
       {!activeSprint ? (
-        <div className="glass-panel p-10 text-center" style={{ direction: 'rtl' }}>
-          <CalendarRange size={48} className="text-tertiary mx-auto mb-4" />
+        <div className="empty-state" style={{ direction: 'rtl' }}>
+          <CalendarRange size={48} className="text-tertiary mb-4" />
           <h3 className="text-h3 mb-2">אין ספרינטים</h3>
-          <p className="text-secondary">צור ספרינט ראשון כדי להתחיל לתכנן.</p>
+          <p className="text-secondary mb-4">צור ספרינט ראשון כדי להתחיל לתכנן את עבודת הצוות.</p>
+          <button className="btn btn-primary" onClick={() => setCreatingSprint(true)}>
+            <Plus size={16} /> צור ספרינט
+          </button>
         </div>
       ) : (
         <>
@@ -205,8 +208,8 @@ const SprintBoard = () => {
             <div className="sprint-summary-head">
               <div>
                 <h3 className="text-h3">{activeSprint.name}</h3>
-                {activeSprint.goal && <p className="text-secondary text-sm mt-1">{activeSprint.goal}</p>}
-                <p className="text-tertiary text-xs mt-1">
+                {activeSprint.goal && <p className="text-secondary text-sm mt-2">{activeSprint.goal}</p>}
+                <p className="text-tertiary text-xs mt-2">
                   {activeSprint.start_date || '—'} → {activeSprint.end_date || '—'} · {activeSprint.working_days} ימי עבודה
                 </p>
               </div>
@@ -276,7 +279,7 @@ const SprintBoard = () => {
                           <input className="modal-input" value={taskEdit.title} autoFocus
                             onChange={e => setTaskEdit({ ...taskEdit, title: e.target.value })}
                             onKeyDown={e => { if (e.key === 'Enter') saveTaskEdit(); if (e.key === 'Escape') setEditingTaskId(null); }} />
-                          <div className="flex gap-2 mt-2 items-center">
+                          <div className="flex-center gap-2 mt-2" style={{ justifyContent: 'flex-start' }}>
                             <select className="modal-input" style={{ height: 32 }} value={taskEdit.estimate_days}
                               onChange={e => setTaskEdit({ ...taskEdit, estimate_days: parseFloat(e.target.value) })}>
                               {ESTIMATE_OPTIONS.map(v => <option key={v} value={v}>{v} ימים</option>)}
@@ -324,7 +327,7 @@ const SprintBoard = () => {
                         <input className="modal-input" placeholder="כותרת המשימה..." value={taskDraft.title} autoFocus
                           onChange={e => setTaskDraft({ ...taskDraft, title: e.target.value })}
                           onKeyDown={e => { if (e.key === 'Enter') handleAddTask(col.key); if (e.key === 'Escape') setAddingCol(null); }} />
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex-center gap-2 mt-2">
                           <select className="modal-input" style={{ height: 32 }} value={taskDraft.estimate_days}
                             onChange={e => setTaskDraft({ ...taskDraft, estimate_days: parseFloat(e.target.value) })}>
                             {ESTIMATE_OPTIONS.map(v => <option key={v} value={v}>{v} ימים</option>)}
@@ -335,7 +338,7 @@ const SprintBoard = () => {
                             {activeRoster.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                           </select>
                         </div>
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex-center gap-2 mt-2">
                           <button className="btn btn-primary" style={{ flex: 1, height: 32 }} onClick={() => handleAddTask(col.key)}><Check size={14} /> הוספה</button>
                           <button className="btn-icon" onClick={() => setAddingCol(null)}><X size={16} /></button>
                         </div>
