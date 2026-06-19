@@ -40,7 +40,7 @@ const MemberFormFields = ({ value, onChange, onSave, onCancel, submitLabel }) =>
         {CAPACITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
-    <div className="flex gap-2">
+    <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
       <button className="btn btn-primary" onClick={onSave}><Check size={16} /> {submitLabel}</button>
       <button className="btn-icon" onClick={onCancel} title="ביטול"><X size={18} /></button>
     </div>
@@ -71,11 +71,11 @@ const TeamCapacity = () => {
             <p className="text-secondary text-lg">ניהול אנשי הצוות והזמינות שלהם</p>
           </div>
         </header>
-        <div className="glass-panel p-10 text-center" style={{ direction: 'rtl' }}>
-          <Users size={48} className="text-tertiary mx-auto mb-4" />
+        <div className="empty-state" style={{ direction: 'rtl' }}>
+          <Users size={48} className="text-tertiary mb-4" />
           <h3 className="text-h3 mb-2">עדיין אין צוות</h3>
           <p className="text-secondary mb-4">צור צוות כדי להתחיל לנהל אנשים וקיבולת</p>
-          <div className="add-input-group" style={{ justifyContent: 'center' }}>
+          <div className="add-input-group">
             <input className="modal-input" style={{ width: 240 }} value={newTeamName}
               onChange={e => setNewTeamName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newTeamName.trim()) createTeam(newTeamName.trim()); }}
@@ -119,7 +119,7 @@ const TeamCapacity = () => {
     <div className="content-area animate-fade-in team-capacity-layout">
       <header className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <h1 className="text-h1 mb-1">צוות וקיבולת</h1>
+          <h1 className="text-h1 mb-2">צוות וקיבולת</h1>
           <p className="text-secondary text-sm">ניהול אנשי הצוות והזמינות שלהם</p>
         </div>
         {visibleTeams.length > 1 && (
@@ -164,7 +164,7 @@ const TeamCapacity = () => {
 
         <div className="roster-list">
           {teamRoster.length === 0 && !adding && (
-            <p className="text-tertiary text-center py-4 text-sm italic">טרם נוספו אנשי צוות</p>
+            <p className="text-tertiary text-sm" style={{ textAlign: 'center', padding: '1rem 0', fontStyle: 'italic' }}>טרם נוספו אנשי צוות</p>
           )}
 
           {teamRoster.map(m => (
