@@ -507,7 +507,7 @@ const KanbanView = ({
                             if (!prog || prog.total === 0) return null;
                             return (
                               <span className="badge badge-blue mb-2" style={{ fontSize: '0.65rem' }}>
-                                {prog.done}/{prog.total} משימות · {prog.days}ד
+                                {prog.total} משימות · {prog.days}ד מתוכננים
                               </span>
                             );
                           })()}
