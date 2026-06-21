@@ -31,3 +31,4 @@ Realtime is on for them (**Database → Replication → `supabase_realtime`**).
 | File | Adds |
 |------|------|
 | `20260619_team_planning.sql` | `members`, `sprints`, `member_sprint_capacity`, `tasks` for the team-lead planning module (+ Realtime publication + RLS). |
+| `20260621_tasks_start_date.sql` | `tasks.start_date` — task position in time for the per-member quarter Gantt. |

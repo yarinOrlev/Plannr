@@ -1379,6 +1379,7 @@ export const ProductProvider = ({ children }) => {
     estimate_days: task.estimate_days ?? 1,
     assignee_member_id: task.assignee_member_id || null,
     status: task.status || 'Todo',
+    start_date: task.start_date || null,
     order: task.order ?? 0
   });
 
