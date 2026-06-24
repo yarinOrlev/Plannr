@@ -181,17 +181,16 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableF
 
 const QUARTER_OPTIONS = ['Q1', 'Q2', 'Q3', 'Q4'];
 const YEAR_OPTIONS = ['2025', '2026', '2027', '2028'];
-const QUARTERS = ['הכל','Q1 2026','Q2 2026','Q3 2026','Q4 2026','Q1 2027'];
 
 const Objectives = () => {
-  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, updateFeature, data, activeFeatures, searchTerm, selectedProductIds, products } = useProductContext();
+  const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, updateFeature, data, activeFeatures, searchTerm, selectedProductIds, products, activeQuarter } = useProductContext();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ 
     title: '', 
-    progress: 0, 
-    quarter: 'Q3',
-    year: '2026', 
+    progress: 0,
+    quarter: activeQuarter.quarter,
+    year: activeQuarter.year,
     product_id: data?.activeProductId || '',
     keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }],
     businessValue: '',
@@ -201,7 +200,8 @@ const Objectives = () => {
     progressMode: 'auto',
     manualProgress: 0
   });
-  const [selectedQuarter, setSelectedQuarter] = useState('הכל');
+  // Driven by the global quarter selector in the Header.
+  const selectedQuarter = `${activeQuarter.quarter} ${activeQuarter.year}`;
   const [selectedTeams, setSelectedTeams] = useState([]);
 
   if (!activeProduct) return null;
@@ -240,7 +240,8 @@ const Objectives = () => {
     updatedKRs[index] = { ...updatedKRs[index], [field]: value };
     setForm(prev => ({ ...prev, keyResults: updatedKRs }));
   };
-  const filtered = (selectedQuarter === 'הכל' ? activeObjectives : activeObjectives.filter(o => o.quarter === selectedQuarter))
+  const filtered = activeObjectives
+    .filter(o => (o.quarter || `${activeQuarter.quarter} ${activeQuarter.year}`) === selectedQuarter)
     .filter(o => o.title.toLowerCase().includes(searchTerm.toLowerCase()) || o.description?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleEdit = (obj) => {
@@ -330,13 +331,9 @@ const Objectives = () => {
           <p className="text-secondary text-lg">תכנון ומדידת יעדים רבעוניים</p>
         </div>
         <div className="header-actions">
-          <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap' }}>
-            {QUARTERS.map(q => (
-              <button key={q} className={`btn ${selectedQuarter===q?'btn-primary':'btn-secondary'}`} style={{ padding:'0.3rem 0.65rem', fontSize:'0.78rem' }} onClick={() => setSelectedQuarter(q)}>
-                <Calendar size={13}/> {q}
-              </button>
-            ))}
-          </div>
+          <span className="badge badge-gray" style={{ alignSelf: 'center' }}>
+            <Calendar size={13} /> {selectedQuarter}
+          </span>
           <button className={`btn ${showForm ? 'btn-danger-soft' : 'btn-primary'}`} onClick={() => setShowForm(!showForm)}>
             {showForm ? <X size={18}/> : <Plus size={18}/>} {showForm?'ביטול':'יעד חדש'}
           </button>
@@ -534,7 +531,7 @@ const Objectives = () => {
 
       <div className="objectives-section">
         <h2 className="text-base font-semibold text-secondary uppercase mb-4" style={{ letterSpacing:'0.07em' }}>
-          {selectedQuarter === 'הכל' ? 'כל היעדים' : `יעדים — ${selectedQuarter}`}
+          {`יעדים — ${selectedQuarter}`}
         </h2>
         <div className="objectives-list">
           {filtered.map(obj => (
@@ -553,7 +550,7 @@ const Objectives = () => {
             <div className="empty-state">
               <Target size={48} className="text-tertiary mb-4"/>
               <h3 className="text-h3 mb-2">אין יעדים</h3>
-              <p className="text-secondary mb-4">{selectedQuarter==='הכל'?'לא הוגדרו יעדים עדיין.':`אין יעדים עבור ${selectedQuarter}.`}</p>
+              <p className="text-secondary mb-4">{`אין יעדים עבור ${selectedQuarter}.`}</p>
               <button className="btn btn-primary" onClick={()=>setShowForm(true)}>צור יעד ראשון</button>
             </div>
           )}

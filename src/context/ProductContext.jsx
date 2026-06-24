@@ -56,6 +56,21 @@ export const ProductProvider = ({ children }) => {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('plannr_dark_mode') === 'true');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Global quarter context — one selected quarter shared across Goals, Features,
+  // Roadmaps and Sprint planning, persisted so it survives navigation/reloads.
+  const [activeQuarter, setActiveQuarterState] = useState(() => {
+    const saved = localStorage.getItem('plannr_active_quarter');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { /* fall through */ }
+    }
+    const d = new Date();
+    return { quarter: `Q${Math.floor(d.getMonth() / 3) + 1}`, year: String(d.getFullYear()) };
+  });
+  const setActiveQuarter = (q) => {
+    setActiveQuarterState(q);
+    localStorage.setItem('plannr_active_quarter', JSON.stringify(q));
+  };
+
   useEffect(() => {
     if (darkMode) {
       document.body.classList.add('dark');
@@ -1519,9 +1534,32 @@ export const ProductProvider = ({ children }) => {
     (rm.board_id === activeRoadmapBoard.id || (!rm.board_id && activeRoadmapBoard.id === 'board_default'))
   );
 
+  // Quarters offered in the global selector: a rolling window (current + next
+  // year) unioned with any quarter already present in the data, so nothing the
+  // user already created is ever hidden.
+  const QUARTER_RANK = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
+  const availableQuarters = (() => {
+    const map = new Map();
+    const add = (quarter, year) => {
+      if (!quarter || !year) return;
+      map.set(`${year}-${quarter}`, { quarter, year: String(year) });
+    };
+    const cy = new Date().getFullYear();
+    [cy, cy + 1].forEach(y => ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => add(q, y)));
+    (data.objectives || []).forEach(o => { if (o.quarter) { const [q, y] = String(o.quarter).split(' '); add(q, y); } });
+    (data.sprints || []).forEach(s => add(s.quarter, s.year));
+    (data.roadmapBoards || []).forEach(b => add(b.quarter, b.year));
+    add(activeQuarter.quarter, activeQuarter.year);
+    return [...map.values()].sort((a, b) =>
+      (Number(a.year) || 0) - (Number(b.year) || 0) || (QUARTER_RANK[a.quarter] || 9) - (QUARTER_RANK[b.quarter] || 9));
+  })();
+
   const contextValue = {
     data,
     setData,
+    activeQuarter,
+    setActiveQuarter,
+    availableQuarters,
     setActiveProduct,
     addProduct,
     addFeature,
