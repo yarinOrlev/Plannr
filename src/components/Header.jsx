@@ -7,7 +7,7 @@ import SharingModal from './SharingModal';
 import './Header.css';
 
 const Header = () => {
-  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode, searchTerm, setSearchTerm, activeQuarter, setActiveQuarter, availableQuarters } = useProductContext();
+  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode, searchTerm, setSearchTerm, activeQuarter, setActiveQuarter, availableYears } = useProductContext();
   const { logout, userProfile, isHoD } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -77,16 +77,20 @@ const Header = () => {
             <Calendar size={15} className="text-tertiary" />
             <select
               className="quarter-select"
-              value={`${activeQuarter.year}-${activeQuarter.quarter}`}
-              onChange={(e) => {
-                const [year, quarter] = e.target.value.split('-');
-                setActiveQuarter({ quarter, year });
-              }}
+              value={activeQuarter.quarter}
+              onChange={(e) => setActiveQuarter({ ...activeQuarter, quarter: e.target.value })}
             >
-              {availableQuarters.map((q) => (
-                <option key={`${q.year}-${q.quarter}`} value={`${q.year}-${q.quarter}`}>
-                  {q.quarter} {q.year}
-                </option>
+              {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
+                <option key={q} value={q}>{q}</option>
+              ))}
+            </select>
+            <select
+              className="quarter-select"
+              value={activeQuarter.year}
+              onChange={(e) => setActiveQuarter({ ...activeQuarter, year: e.target.value })}
+            >
+              {availableYears.map((y) => (
+                <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>

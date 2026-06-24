@@ -1553,6 +1553,8 @@ export const ProductProvider = ({ children }) => {
     return [...map.values()].sort((a, b) =>
       (Number(a.year) || 0) - (Number(b.year) || 0) || (QUARTER_RANK[a.quarter] || 9) - (QUARTER_RANK[b.quarter] || 9));
   })();
+  // Distinct years for the split year/quarter selector.
+  const availableYears = [...new Set(availableQuarters.map(q => q.year))].sort((a, b) => Number(a) - Number(b));
 
   const contextValue = {
     data,
@@ -1560,6 +1562,7 @@ export const ProductProvider = ({ children }) => {
     activeQuarter,
     setActiveQuarter,
     availableQuarters,
+    availableYears,
     setActiveProduct,
     addProduct,
     addFeature,
