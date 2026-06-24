@@ -200,3 +200,17 @@
   z-index: 3;
 }
 .gantt-add-inline:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
+
+.gantt-row-backlog {
+  background: var(--bg-secondary);
+  border-top: 2px dashed var(--border-color);
+}
+.gantt-row-backlog .gantt-member-name { color: var(--text-secondary); }
+
+.gantt-backlog-empty {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  font-style: italic;
+}

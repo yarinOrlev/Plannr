@@ -158,6 +158,26 @@ const SprintBoard = () => {
     setEditor(null);
   };
 
+  // Shared Gantt renderers (used by member rows and the unassigned backlog row).
+  const renderGridlines = () => quarterSprints.map(s => {
+    const x = pctBetween(toDate(s.end_date) || range.end, range.start, range.end);
+    return <div key={s.id} className="gantt-gridline" style={{ right: `${x}%` }} />;
+  });
+  const renderBlock = (t) => {
+    const d = effectiveStart(t);
+    const left = pctBetween(d, range.start, range.end);
+    const widthPct = Math.max(3, ((Number(t.estimate_days) || 1) * 86400000) / (range.end - range.start) * 100);
+    const color = milestoneColor[t.roadmap_item_id] || '#64748B';
+    return (
+      <button key={t.id} className="gantt-block" title={`${t.title} · ${t.estimate_days}ד`}
+        style={{ right: `${left}%`, width: `${Math.min(widthPct, 100 - left)}%`, background: color }}
+        onClick={() => setEditor({ ...t, start_date: fmtDate(d), estimate_days: Number(t.estimate_days) || 1, roadmap_item_id: t.roadmap_item_id || '', assignee_member_id: t.assignee_member_id || '' })}>
+        <span className="gantt-block-title">{t.title}</span>
+      </button>
+    );
+  };
+  const backlogTasks = quarterTasks.filter(t => !t.assignee_member_id);
+
   return (
     <div className="content-area animate-fade-in sprint-board-layout">
       <header className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -326,11 +346,7 @@ const SprintBoard = () => {
                       <span className={`gantt-member-cap ${over ? 'is-over' : ''}`}>{load}/{cap}ד</span>
                     </div>
                     <div className="gantt-track gantt-row-track">
-                      {/* sprint gridlines */}
-                      {quarterSprints.map(s => {
-                        const x = pctBetween(toDate(s.end_date) || range.end, range.start, range.end);
-                        return <div key={s.id} className="gantt-gridline" style={{ right: `${x}%` }} />;
-                      })}
+                      {renderGridlines()}
                       {/* per-sprint overload tint */}
                       {quarterSprints.map(s => {
                         const a = pctBetween(toDate(s.start_date) || range.start, range.start, range.end);
@@ -340,20 +356,7 @@ const SprintBoard = () => {
                         if (!av || ml <= av) return null;
                         return <div key={s.id} className="gantt-overload" style={{ right: `${a}%`, width: `${Math.max(2, b - a)}%` }} title={`עומס יתר: ${ml}/${av} ימים`} />;
                       })}
-                      {/* task blocks */}
-                      {tasks.map(t => {
-                        const d = effectiveStart(t);
-                        const left = pctBetween(d, range.start, range.end);
-                        const widthPct = Math.max(3, ((Number(t.estimate_days) || 1) * 86400000) / (range.end - range.start) * 100);
-                        const color = milestoneColor[t.roadmap_item_id] || '#64748B';
-                        return (
-                          <button key={t.id} className="gantt-block" title={`${t.title} · ${t.estimate_days}ד`}
-                            style={{ right: `${left}%`, width: `${Math.min(widthPct, 100 - left)}%`, background: color }}
-                            onClick={() => setEditor({ ...t, start_date: fmtDate(d), estimate_days: Number(t.estimate_days) || 1, roadmap_item_id: t.roadmap_item_id || '', assignee_member_id: t.assignee_member_id || '' })}>
-                            <span className="gantt-block-title">{t.title}</span>
-                          </button>
-                        );
-                      })}
+                      {tasks.map(renderBlock)}
                       <button className="gantt-add-inline" title="הוסף משימה"
                         onClick={() => setEditor(newTaskTemplate(member.id, fmtDate(quarterSprints[0]?.start_date || range.start)))}>
                         <Plus size={13} />
@@ -362,6 +365,25 @@ const SprintBoard = () => {
                   </div>
                 );
               })}
+
+              {/* Unassigned backlog — tasks with no assignee, editable here */}
+              <div className="gantt-row gantt-row-backlog">
+                <div className="gantt-label-col">
+                  <span className="gantt-member-name">ללא שיוך</span>
+                  <span className="gantt-member-cap">{backlogTasks.length} · {backlogTasks.reduce((s, t) => s + (Number(t.estimate_days) || 0), 0)}ד</span>
+                </div>
+                <div className="gantt-track gantt-row-track">
+                  {renderGridlines()}
+                  {backlogTasks.map(renderBlock)}
+                  <button className="gantt-add-inline" title="הוסף משימה ללא שיוך"
+                    onClick={() => setEditor(newTaskTemplate('', fmtDate(quarterSprints[0]?.start_date || range.start)))}>
+                    <Plus size={13} />
+                  </button>
+                  {backlogTasks.length === 0 && (
+                    <span className="gantt-backlog-empty text-tertiary text-xs">אין משימות ללא שיוך</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </>
