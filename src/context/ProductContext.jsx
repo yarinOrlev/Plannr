@@ -1489,6 +1489,19 @@ export const ProductProvider = ({ children }) => {
   const teamSprints = (data.sprints || []).filter(s => s.team_id === activeTeamId);
   const teamTasks = (data.tasks || []).filter(t => t.team_id === activeTeamId);
 
+  // PM requirements for the active team = roadmap items of the team's products.
+  const teamProducts = (data.products || []).filter(p => p.team_id === activeTeamId);
+  const teamProductIds = teamProducts.map(p => p.id);
+  const teamRoadmapItems = (data.roadmaps || []).filter(r => teamProductIds.includes(r.product_id));
+
+  // Task breakdown progress for a roadmap item (used by the sprint rail and roadmap chips).
+  const getRoadmapItemProgress = (roadmapItemId) => {
+    const items = (data.tasks || []).filter(t => t.roadmap_item_id === roadmapItemId);
+    const done = items.filter(t => (t.status || '') === 'Done').length;
+    const days = items.reduce((s, t) => s + (Number(t.estimate_days) || 0), 0);
+    return { total: items.length, done, days };
+  };
+
   const allRoadmapBoards = data.roadmapBoards || [];
   const activeRoadmapBoards = allRoadmapBoards.filter(b =>
     // Include kanban boards for selected products AND all timeline boards (team-wide, null product_id)
@@ -1554,6 +1567,9 @@ export const ProductProvider = ({ children }) => {
     teamRoster,
     teamSprints,
     teamTasks,
+    teamProducts,
+    teamRoadmapItems,
+    getRoadmapItemProgress,
     memberSprintCapacity: data.memberSprintCapacity || [],
     addMember,
     updateMember,

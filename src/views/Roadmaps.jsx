@@ -307,6 +307,7 @@ const KanbanView = ({
   deleteRoadmapItem,
   updateReviewStatus,
   searchTerm,
+  getRoadmapItemProgress,
 }) => {
   const [addingTo, setAddingTo] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', teams: [], product_id: data.activeProductId });
@@ -501,6 +502,15 @@ const KanbanView = ({
                             {item.status === 'Failed' && <AlertCircle size={14} className="text-red-400" />}
                             <h4 className="card-title font-medium">{item.title}</h4>
                           </div>
+                          {(() => {
+                            const prog = getRoadmapItemProgress?.(item.id);
+                            if (!prog || prog.total === 0) return null;
+                            return (
+                              <span className="badge badge-blue mb-2" style={{ fontSize: '0.65rem' }}>
+                                {prog.done}/{prog.total} משימות · {prog.days}ד
+                              </span>
+                            );
+                          })()}
                           {item.teams?.length > 0 && (
                             <div className="flex gap-1 mb-2 flex-wrap">
                               {item.teams.map(t => <span key={t} className="badge" style={{ fontSize: '0.65rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', padding: '0.15rem 0.45rem' }}>{t}</span>)}
@@ -590,6 +600,7 @@ const Roadmaps = () => {
     updateReviewStatus,
     loading,
     searchTerm,
+    getRoadmapItemProgress,
   } = useProductContext();
 
   // Mode: 'timeline' | 'kanban'
@@ -751,6 +762,7 @@ const Roadmaps = () => {
             deleteRoadmapItem={deleteRoadmapItem}
             updateReviewStatus={updateReviewStatus}
             searchTerm={searchTerm || ''}
+            getRoadmapItemProgress={getRoadmapItemProgress}
           />
         ) : (
           <div className="glass-panel p-10 text-center animate-fade-in" style={{ direction: 'rtl' }}>
