@@ -1,0 +1,65 @@
+.team-planning-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Year summary ── */
+.year-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.year-summary-card {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.year-summary-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.year-summary-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+/* ── Quarter grid ── */
+.quarter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.quarter-card {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.quarter-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quarter-sprint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.quarter-sprint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-sm);
+}

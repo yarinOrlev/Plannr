@@ -12,7 +12,7 @@ const QUARTERS = {
 };
 
 const DepartmentOverview = () => {
-  const { data, addReview, updateReviewStatus, setActiveProduct } = useProductContext();
+  const { data, addReview, updateReviewStatus, setActiveProduct, getSprintCapacity, getSprintLoad } = useProductContext();
   const navigate = useNavigate();
   
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -172,6 +172,36 @@ const DepartmentOverview = () => {
               </div>
             </div>
           </div>
+
+          {(data.sprints || []).length > 0 && (
+            <section className="dept-capacity-section mb-6">
+              <h3 className="text-h3 mb-4">קיבולת צוותים</h3>
+              <div className="dept-capacity-grid">
+                {teams.map(team => {
+                  const teamSprints = (data.sprints || []).filter(s => s.team_id === team.id);
+                  if (!teamSprints.length) return null;
+                  const sprint = [...teamSprints].sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')).pop();
+                  const load = getSprintLoad(sprint.id);
+                  const capacity = getSprintCapacity(sprint.id);
+                  const ratio = capacity ? load / capacity : 0;
+                  const color = !capacity ? 'gray' : ratio > 1 ? 'red' : ratio > 0.9 ? 'amber' : 'green';
+                  const pct = capacity ? Math.min(100, ratio * 100) : 0;
+                  return (
+                    <div key={team.id} className="glass-panel dept-capacity-card">
+                      <div className="flex-between mb-2">
+                        <span className="font-semibold">{team.name}</span>
+                        <span className={`text-sm font-bold text-${color}`}>{load}/{capacity}ד</span>
+                      </div>
+                      <div className="capacity-meter-track">
+                        <div className={`capacity-meter-fill fill-${color}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-xs text-tertiary mt-2">{sprint.name}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <div className="products-grid">
             {products.map(product => {

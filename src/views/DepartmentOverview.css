@@ -313,3 +313,14 @@
   height: 10px;
   border-radius: 2px;
 }
+
+/* ── Team capacity section (HoD) ── */
+.dept-capacity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.dept-capacity-card {
+  padding: 1rem 1.25rem;
+}

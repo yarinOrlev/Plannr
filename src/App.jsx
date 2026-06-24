@@ -14,6 +14,7 @@ import Customers from './views/Customers';
 import DepartmentOverview from './views/DepartmentOverview';
 import TeamCapacity from './views/TeamCapacity';
 import SprintBoard from './views/SprintBoard';
+import TeamPlanning from './views/TeamPlanning';
 import SettingsView from './views/Settings';
 import FloatingNoteBubble from './components/FloatingNoteBubble';
 import Login from './views/Login';
@@ -100,6 +101,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
                 <SprintBoard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/team/planning"
+            element={
+              <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
+                <TeamPlanning />
               </ProtectedRoute>
             }
           />
