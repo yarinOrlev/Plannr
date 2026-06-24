@@ -302,11 +302,11 @@ const Objectives = () => {
       addObjective(objectiveData);
     }
 
-    setForm({ 
-      title: '', 
-      progress: 0, 
-      quarter: 'Q3', 
-      year: '2026',
+    setForm({
+      title: '',
+      progress: 0,
+      quarter: activeQuarter.quarter,
+      year: activeQuarter.year,
       product_id: activeProduct.id,
       keyResults: [{ title: '', progress: 0 }, { title: '', progress: 0 }],
       businessValue: '',

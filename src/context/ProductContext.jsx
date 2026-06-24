@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from './AuthContext';
 import logger from '../utils/logger';
@@ -38,6 +38,8 @@ const defaultData = {
     { id: 'effort', label: 'מאמץ (Effort)', weight: 1, type: 'divider', defaultValue: 1, info: 'כמה זמן זה ייקח?' }
   ]
 };
+
+const QUARTER_RANK = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 
 export const ProductProvider = ({ children }) => {
   const { user, isAuthenticated, isHoD } = useAuth();
@@ -1430,28 +1432,6 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Break a PM roadmap item into several estimated tasks in one shot.
-  const createTasksFromRoadmapItem = async (roadmapItemId, teamId, drafts = []) => {
-    try {
-      const item = (data.roadmaps || []).find(r => r.id === roadmapItemId);
-      const rows = drafts.map((d, i) => buildTask({
-        ...d,
-        team_id: teamId,
-        roadmap_item_id: roadmapItemId,
-        product_id: d.product_id || item?.product_id || null,
-        order: d.order ?? i
-      }));
-      if (rows.length === 0) return { success: true, data: [] };
-      const { data: inserted, error } = await supabase.from('tasks').insert(rows).select();
-      if (error) throw error;
-      setData(prev => ({ ...prev, tasks: [...(prev.tasks || []), ...inserted] }));
-      return { success: true, data: inserted };
-    } catch (err) {
-      logger.error('Error creating tasks from roadmap item:', err);
-      return { success: false, error: err.message };
-    }
-  };
-
   const setActiveTeam = (id) => setData(prev => ({ ...prev, activeTeamId: id }));
 
   // ── Capacity math (person-days) ───────────────────────────────────────────
@@ -1510,12 +1490,12 @@ export const ProductProvider = ({ children }) => {
   const teamProductIds = teamProducts.map(p => p.id);
   const teamRoadmapItems = (data.roadmaps || []).filter(r => teamProductIds.includes(r.product_id));
 
-  // Task breakdown progress for a roadmap item (used by the sprint rail and roadmap chips).
+  // Task breakdown summary for a roadmap item (count + planned days); used by the
+  // sprint rail and the Roadmaps progress chip.
   const getRoadmapItemProgress = (roadmapItemId) => {
     const items = (data.tasks || []).filter(t => t.roadmap_item_id === roadmapItemId);
-    const done = items.filter(t => (t.status || '') === 'Done').length;
     const days = items.reduce((s, t) => s + (Number(t.estimate_days) || 0), 0);
-    return { total: items.length, done, days };
+    return { total: items.length, days };
   };
 
   const allRoadmapBoards = data.roadmapBoards || [];
@@ -1537,8 +1517,7 @@ export const ProductProvider = ({ children }) => {
   // Quarters offered in the global selector: a rolling window (current + next
   // year) unioned with any quarter already present in the data, so nothing the
   // user already created is ever hidden.
-  const QUARTER_RANK = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
-  const availableQuarters = (() => {
+  const availableQuarters = useMemo(() => {
     const map = new Map();
     const add = (quarter, year) => {
       if (!quarter || !year) return;
@@ -1552,9 +1531,11 @@ export const ProductProvider = ({ children }) => {
     add(activeQuarter.quarter, activeQuarter.year);
     return [...map.values()].sort((a, b) =>
       (Number(a.year) || 0) - (Number(b.year) || 0) || (QUARTER_RANK[a.quarter] || 9) - (QUARTER_RANK[b.quarter] || 9));
-  })();
+  }, [data.objectives, data.sprints, data.roadmapBoards, activeQuarter.quarter, activeQuarter.year]);
   // Distinct years for the split year/quarter selector.
-  const availableYears = [...new Set(availableQuarters.map(q => q.year))].sort((a, b) => Number(a) - Number(b));
+  const availableYears = useMemo(
+    () => [...new Set(availableQuarters.map(q => q.year))].sort((a, b) => Number(a) - Number(b)),
+    [availableQuarters]);
 
   const contextValue = {
     data,
@@ -1623,7 +1604,6 @@ export const ProductProvider = ({ children }) => {
     addTask,
     updateTask,
     deleteTask,
-    createTasksFromRoadmapItem,
     getMemberAvailableDays,
     getSprintLoad,
     getSprintCapacity,

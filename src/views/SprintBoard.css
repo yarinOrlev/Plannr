@@ -27,21 +27,8 @@
   font-weight: 700;
 }
 
-/* ── Shared capacity meter (also used by Quarter Planning + HoD tile) ────── */
-.capacity-meter { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; }
-.capacity-meter-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.capacity-meter-label { font-size: 0.8rem; color: var(--text-secondary); }
-.capacity-meter-value { font-size: 0.8rem; font-weight: 700; }
-.capacity-meter-track { height: 8px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden; }
-.capacity-meter-fill { height: 100%; border-radius: 999px; transition: width var(--transition-fast); }
-.fill-green { background: #16a34a; }
-.fill-amber { background: #d97706; }
-.fill-red   { background: #dc2626; }
-.fill-gray  { background: #9ca3af; }
-.text-green { color: #16a34a; }
-.text-amber { color: #d97706; }
-.text-red   { color: #dc2626; }
-.text-gray  { color: var(--text-tertiary); }
+/* Capacity-meter + status-color classes are shared design-system utilities
+   (defined in index.css) — used here and by Quarter Planning + the HoD tile. */
 
 /* ── Committed milestones rail ──────────────────────────────────────────── */
 .requirements-panel { padding: 1rem 1.25rem; }

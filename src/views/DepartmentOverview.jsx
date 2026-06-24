@@ -176,14 +176,15 @@ const DepartmentOverview = () => {
 
           {(data.sprints || []).length > 0 && (
             <section className="dept-capacity-section mb-6">
-              <h3 className="text-h3 mb-4">קיבולת צוותים</h3>
+              <h3 className="text-h3 mb-4">קיבולת צוותים — {activeQuarter.quarter} {activeQuarter.year}</h3>
               <div className="dept-capacity-grid">
                 {teams.map(team => {
-                  const teamSprints = (data.sprints || []).filter(s => s.team_id === team.id);
-                  if (!teamSprints.length) return null;
-                  const sprint = [...teamSprints].sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')).pop();
-                  const load = getSprintLoad(sprint.id);
-                  const capacity = getSprintCapacity(sprint.id);
+                  // Sum the team's sprints in the globally-selected quarter.
+                  const quarterSprints = (data.sprints || []).filter(s =>
+                    s.team_id === team.id && s.quarter === activeQuarter.quarter && s.year === activeQuarter.year);
+                  if (!quarterSprints.length) return null;
+                  const load = quarterSprints.reduce((sum, s) => sum + getSprintLoad(s.id), 0);
+                  const capacity = quarterSprints.reduce((sum, s) => sum + getSprintCapacity(s.id), 0);
                   const ratio = capacity ? load / capacity : 0;
                   const color = !capacity ? 'gray' : ratio > 1 ? 'red' : ratio > 0.9 ? 'amber' : 'green';
                   const pct = capacity ? Math.min(100, ratio * 100) : 0;
@@ -196,7 +197,7 @@ const DepartmentOverview = () => {
                       <div className="capacity-meter-track">
                         <div className={`capacity-meter-fill fill-${color}`} style={{ width: `${pct}%` }} />
                       </div>
-                      <p className="text-xs text-tertiary mt-2">{sprint.name}</p>
+                      <p className="text-xs text-tertiary mt-2">{quarterSprints.length} ספרינטים</p>
                     </div>
                   );
                 })}

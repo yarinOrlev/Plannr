@@ -612,17 +612,6 @@ const Roadmaps = () => {
   const timelineBoards = allBoards.filter(b => b.view_type === 'timeline');
   const kanbanBoards = allBoards.filter(b => b.view_type === 'kanban');
 
-  // Unique timeframes for timeline (Q+Year combos), deduplicated
-  const timeframes = Array.from(
-    new Map(
-      timelineBoards.map(b => [`${b.quarter}-${b.year}`, b])
-    ).values()
-  ).sort((a, b) => {
-    const qa = parseInt(a.quarter?.replace('Q', '') || '1');
-    const qb = parseInt(b.quarter?.replace('Q', '') || '1');
-    return (parseInt(a.year || '2026') * 10 + qa) - (parseInt(b.year || '2026') * 10 + qb);
-  });
-
   // Timeline is driven by the global quarter selector (Header). Use a matching
   // board if one exists, else a synthetic timeframe for the selected quarter.
   const activeTimeline = useMemo(() =>
@@ -663,7 +652,7 @@ const Roadmaps = () => {
   // Early return AFTER all hooks
   if (!activeProduct) return null;
 
-  logger.debug('Roadmaps render', { mode, timeframes: timeframes.length, timelineItems: timelineItems.length, kanbanItems: kanbanItems.length });
+  logger.debug('Roadmaps render', { mode, timelineItems: timelineItems.length, kanbanItems: kanbanItems.length });
 
   return (
     <div className="content-area animate-fade-in roadmaps-layout">
