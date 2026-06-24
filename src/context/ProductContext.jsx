@@ -25,6 +25,12 @@ const defaultData = {
   reviews: [],
   teams: [],
   teamMembers: [],
+  // Team-lead planning module (keyed off the real `teams` table)
+  members: [],               // roster of people on a team
+  sprints: [],               // time-boxed iterations
+  tasks: [],                 // PM-requirement breakdown in person-days
+  memberSprintCapacity: [],  // per-person availability overrides (PTO)
+  activeTeamId: '',          // currently selected team for planning views
   scoringConfig: [
     { id: 'reach', label: 'טווח (Reach)', weight: 1, type: 'multiplier', defaultValue: 1, info: 'כמה משתמשים יושפעו?' },
     { id: 'impact', label: 'השפעה (Impact)', weight: 1, type: 'multiplier', defaultValue: 1, info: 'כמה זה יתרום למטרה?' },
@@ -97,7 +103,11 @@ export const ProductProvider = ({ children }) => {
               customers: 'customers',
               documentation: 'documentation',
               teams: 'teams',
-              team_members: 'teamMembers'
+              team_members: 'teamMembers',
+              members: 'members',
+              sprints: 'sprints',
+              tasks: 'tasks',
+              member_sprint_capacity: 'memberSprintCapacity'
             };
 
             const key = tableKeyMap[table];
@@ -206,6 +216,15 @@ export const ProductProvider = ({ children }) => {
       const allowedProductIds = products.map(p => p.id);
       logger.info('Allowed products identified', { count: allowedProductIds.length });
 
+      // Team-lead planning tables are scoped by team_id (HoD sees all).
+      const allowedTeamIds = (teams || []).map(t => t.id);
+      const getTeamQuery = (table) => {
+        const q = supabase.from(table).select('*');
+        if (isHoD) return q;
+        if (allowedTeamIds.length > 0) return q.in('team_id', allowedTeamIds);
+        return q.in('team_id', ['__none__']); // no teams -> match nothing
+      };
+
       // 2. Fetch all other data
       const getQuery = (table) => {
         let q = supabase.from(table).select('*');
@@ -236,8 +255,9 @@ export const ProductProvider = ({ children }) => {
 
       logger.info('Initiating parallel secondary data fetches...');
       const [
-        features, strategy, roadmaps, objectives, notes, 
-        reviews, roadmapBoards, customers, productUsers, documentation
+        features, strategy, roadmaps, objectives, notes,
+        reviews, roadmapBoards, customers, productUsers, documentation,
+        members, sprints, tasks, memberSprintCapacity
       ] = await Promise.all([
         fetchTable('features', getQuery('features')),
         fetchTable('strategy', getQuery('strategy')),
@@ -248,7 +268,12 @@ export const ProductProvider = ({ children }) => {
         fetchTable('roadmap_boards', getQuery('roadmap_boards')),
         fetchTable('customers', getQuery('customers')),
         fetchTable('product_users', getQuery('product_users')),
-        fetchTable('documentation', getQuery('documentation'))
+        fetchTable('documentation', getQuery('documentation')),
+        fetchTable('members', getTeamQuery('members')),
+        fetchTable('sprints', getTeamQuery('sprints').order('start_date', { ascending: true })),
+        fetchTable('tasks', getTeamQuery('tasks')),
+        // capacity rows have no team_id; scoped client-side via selectors
+        fetchTable('member_sprint_capacity', supabase.from('member_sprint_capacity').select('*'))
       ]);
 
       setData(prev => {
@@ -270,6 +295,10 @@ export const ProductProvider = ({ children }) => {
           customers,
           productUsers,
           documentation: documentation || [],
+          members: members || [],
+          sprints: sprints || [],
+          tasks: tasks || [],
+          memberSprintCapacity: memberSprintCapacity || [],
           activeProductId: nextActiveProductId,
           selectedProductIds: products.map(p => p.id),
           activeRoadmapBoardId: nextActiveBoardId
@@ -1220,6 +1249,221 @@ export const ProductProvider = ({ children }) => {
 
 
 
+  // ── Team-lead planning: roster (members) ──────────────────────────────────
+  const addMember = async (member) => {
+    try {
+      const newMember = {
+        id: member.id || crypto.randomUUID(),
+        team_id: member.team_id,
+        user_id: member.user_id || null,
+        name: member.name,
+        role_title: member.role_title || '',
+        capacity_factor: member.capacity_factor ?? 1,
+        active: member.active ?? true
+      };
+      const { data: inserted, error } = await supabase.from('members').insert([newMember]).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, members: [...(prev.members || []), inserted[0]] }));
+      return { success: true, data: inserted[0] };
+    } catch (err) {
+      logger.error('Error adding member:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateMember = async (id, updates) => {
+    try {
+      const { error } = await supabase.from('members').update(updates).eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, members: (prev.members || []).map(m => m.id === id ? { ...m, ...updates } : m) }));
+    } catch (err) {
+      logger.error('Error updating member:', err);
+    }
+  };
+
+  const deleteMember = async (id) => {
+    try {
+      const { error } = await supabase.from('members').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, members: (prev.members || []).filter(m => m.id !== id) }));
+    } catch (err) {
+      logger.error('Error deleting member:', err);
+    }
+  };
+
+  // ── Team-lead planning: sprints ───────────────────────────────────────────
+  const addSprint = async (sprint) => {
+    try {
+      const newSprint = {
+        id: sprint.id || crypto.randomUUID(),
+        team_id: sprint.team_id,
+        name: sprint.name,
+        start_date: sprint.start_date || null,
+        end_date: sprint.end_date || null,
+        working_days: sprint.working_days ?? 10,
+        quarter: sprint.quarter || null,
+        year: sprint.year || null,
+        goal: sprint.goal || '',
+        status: sprint.status || 'planning'
+      };
+      const { data: inserted, error } = await supabase.from('sprints').insert([newSprint]).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, sprints: [...(prev.sprints || []), inserted[0]] }));
+      return { success: true, data: inserted[0] };
+    } catch (err) {
+      logger.error('Error adding sprint:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateSprint = async (id, updates) => {
+    try {
+      const { error } = await supabase.from('sprints').update(updates).eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, sprints: (prev.sprints || []).map(s => s.id === id ? { ...s, ...updates } : s) }));
+    } catch (err) {
+      logger.error('Error updating sprint:', err);
+    }
+  };
+
+  const deleteSprint = async (id) => {
+    try {
+      const { error } = await supabase.from('sprints').delete().eq('id', id);
+      if (error) throw error;
+      // Tasks reference sprint_id with ON DELETE SET NULL; mirror that locally (back to backlog).
+      setData(prev => ({
+        ...prev,
+        sprints: (prev.sprints || []).filter(s => s.id !== id),
+        tasks: (prev.tasks || []).map(t => t.sprint_id === id ? { ...t, sprint_id: null } : t)
+      }));
+    } catch (err) {
+      logger.error('Error deleting sprint:', err);
+    }
+  };
+
+  // Per-person availability override for a sprint (PTO/holidays). Upsert on (sprint_id, member_id).
+  const setMemberAvailability = async (sprintId, memberId, availableDays, note = '') => {
+    try {
+      const existing = (data.memberSprintCapacity || []).find(c => c.sprint_id === sprintId && c.member_id === memberId);
+      const row = {
+        id: existing?.id || crypto.randomUUID(),
+        sprint_id: sprintId,
+        member_id: memberId,
+        available_days: availableDays,
+        note
+      };
+      const { data: upserted, error } = await supabase
+        .from('member_sprint_capacity')
+        .upsert(row, { onConflict: 'sprint_id,member_id' })
+        .select();
+      if (error) throw error;
+      setData(prev => {
+        const others = (prev.memberSprintCapacity || []).filter(c => !(c.sprint_id === sprintId && c.member_id === memberId));
+        return { ...prev, memberSprintCapacity: [...others, upserted[0]] };
+      });
+    } catch (err) {
+      logger.error('Error setting member availability:', err);
+    }
+  };
+
+  // ── Team-lead planning: tasks ─────────────────────────────────────────────
+  const buildTask = (task) => ({
+    id: task.id || crypto.randomUUID(),
+    team_id: task.team_id,
+    sprint_id: task.sprint_id || null,
+    roadmap_item_id: task.roadmap_item_id || null,
+    feature_id: task.feature_id || null,
+    product_id: task.product_id || null,
+    title: task.title,
+    description: task.description || '',
+    estimate_days: task.estimate_days ?? 1,
+    assignee_member_id: task.assignee_member_id || null,
+    status: task.status || 'Todo',
+    order: task.order ?? 0
+  });
+
+  const addTask = async (task) => {
+    try {
+      const { data: inserted, error } = await supabase.from('tasks').insert([buildTask(task)]).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, tasks: [...(prev.tasks || []), inserted[0]] }));
+      return { success: true, data: inserted[0] };
+    } catch (err) {
+      logger.error('Error adding task:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateTask = async (id, updates) => {
+    try {
+      const { error } = await supabase.from('tasks').update(updates).eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, tasks: (prev.tasks || []).map(t => t.id === id ? { ...t, ...updates } : t) }));
+    } catch (err) {
+      logger.error('Error updating task:', err);
+    }
+  };
+
+  const deleteTask = async (id) => {
+    try {
+      const { error } = await supabase.from('tasks').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, tasks: (prev.tasks || []).filter(t => t.id !== id) }));
+    } catch (err) {
+      logger.error('Error deleting task:', err);
+    }
+  };
+
+  // Break a PM roadmap item into several estimated tasks in one shot.
+  const createTasksFromRoadmapItem = async (roadmapItemId, teamId, drafts = []) => {
+    try {
+      const item = (data.roadmaps || []).find(r => r.id === roadmapItemId);
+      const rows = drafts.map((d, i) => buildTask({
+        ...d,
+        team_id: teamId,
+        roadmap_item_id: roadmapItemId,
+        product_id: d.product_id || item?.product_id || null,
+        order: d.order ?? i
+      }));
+      if (rows.length === 0) return { success: true, data: [] };
+      const { data: inserted, error } = await supabase.from('tasks').insert(rows).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, tasks: [...(prev.tasks || []), ...inserted] }));
+      return { success: true, data: inserted };
+    } catch (err) {
+      logger.error('Error creating tasks from roadmap item:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const setActiveTeam = (id) => setData(prev => ({ ...prev, activeTeamId: id }));
+
+  // ── Capacity math (person-days) ───────────────────────────────────────────
+  // Available days for a member in a sprint: explicit override, else
+  // sprint.working_days * the member's capacity_factor.
+  const getMemberAvailableDays = (sprint, memberId) => {
+    const override = (data.memberSprintCapacity || []).find(c => c.sprint_id === sprint?.id && c.member_id === memberId);
+    if (override) return Number(override.available_days) || 0;
+    const member = (data.members || []).find(m => m.id === memberId);
+    const factor = member?.capacity_factor ?? 1;
+    return (Number(sprint?.working_days) || 0) * factor;
+  };
+
+  // Committed work (Σ estimate_days) for a sprint.
+  const getSprintLoad = (sprintId) =>
+    (data.tasks || [])
+      .filter(t => t.sprint_id === sprintId)
+      .reduce((sum, t) => sum + (Number(t.estimate_days) || 0), 0);
+
+  // Total available person-days across the active roster for a sprint.
+  const getSprintCapacity = (sprintId) => {
+    const sprint = (data.sprints || []).find(s => s.id === sprintId);
+    if (!sprint) return 0;
+    return (data.members || [])
+      .filter(m => m.team_id === sprint.team_id && m.active)
+      .reduce((sum, m) => sum + getMemberAvailableDays(sprint, m.id), 0);
+  };
+
   // Helper selectors
   const selectedProductIds = data.selectedProductIds || (data.activeProductId ? [data.activeProductId] : []);
 
@@ -1236,6 +1480,14 @@ export const ProductProvider = ({ children }) => {
   const activeCustomers = (data.customers || []).filter(c => selectedProductIds.includes(c.product_id));
   const activeProductUsers = (data.productUsers || []).filter(u => selectedProductIds.includes(u.product_id));
   const activeReviews = (data.reviews || []).filter(r => selectedProductIds.includes(r.product_id));
+
+  // Team-lead planning: resolve the active team (TL's owned team by default) and its data
+  const ownedTeams = (data.teams || []).filter(t => t.owner_id === user?.id);
+  const activeTeamId = data.activeTeamId || ownedTeams[0]?.id || (data.teams || [])[0]?.id || '';
+  const activeTeam = (data.teams || []).find(t => t.id === activeTeamId) || null;
+  const teamRoster = (data.members || []).filter(m => m.team_id === activeTeamId);
+  const teamSprints = (data.sprints || []).filter(s => s.team_id === activeTeamId);
+  const teamTasks = (data.tasks || []).filter(t => t.team_id === activeTeamId);
 
   const allRoadmapBoards = data.roadmapBoards || [];
   const activeRoadmapBoards = allRoadmapBoards.filter(b =>
@@ -1294,6 +1546,29 @@ export const ProductProvider = ({ children }) => {
     createTeam,
     teams: data.teams || [],
     teamMembers: data.teamMembers || [],
+    // Team-lead planning
+    activeTeamId,
+    activeTeam,
+    setActiveTeam,
+    ownedTeams,
+    teamRoster,
+    teamSprints,
+    teamTasks,
+    memberSprintCapacity: data.memberSprintCapacity || [],
+    addMember,
+    updateMember,
+    deleteMember,
+    addSprint,
+    updateSprint,
+    deleteSprint,
+    setMemberAvailability,
+    addTask,
+    updateTask,
+    deleteTask,
+    createTasksFromRoadmapItem,
+    getMemberAvailableDays,
+    getSprintLoad,
+    getSprintCapacity,
     selectedProductIds,
     setSelectedProductIds,
     activeProduct,
