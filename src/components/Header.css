@@ -123,3 +123,23 @@
   border-color: var(--accent-primary);
 }
 
+
+/* ── Global quarter selector ── */
+.quarter-selector {
+  margin-right: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-secondary);
+}
+
+.quarter-select {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  padding: 0.1rem 0.2rem;
+}

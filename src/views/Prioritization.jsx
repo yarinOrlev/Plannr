@@ -15,9 +15,10 @@ const Prioritization = () => {
     deleteFeature, 
     availableTeams, 
     activeObjectives, 
-    searchTerm, 
+    searchTerm,
     selectedProductIds,
-    updateScoringConfig
+    updateScoringConfig,
+    activeQuarter
   } = useProductContext();
 
   const [sortKey, setSortKey] = useState('totalScore');
@@ -105,7 +106,15 @@ const Prioritization = () => {
     else { setSortKey(key); setSortDir('desc'); }
   };
 
+  // Features inherit their quarter from the linked objective; the global quarter
+  // selector filters by it. Features with no objective stay visible (unscoped).
+  const quarterLabel = `${activeQuarter.quarter} ${activeQuarter.year}`;
+  const quarterObjectiveIds = new Set(
+    (activeObjectives || []).filter(o => (o.quarter || '') === quarterLabel).map(o => o.id)
+  );
+
   const sorted = [...activeFeatures]
+    .filter(f => !f.objective_id || quarterObjectiveIds.has(f.objective_id))
     .filter(f => f.title.toLowerCase().includes(searchTerm.toLowerCase()) || f.description?.toLowerCase().includes(searchTerm.toLowerCase()))
     .map(f => ({ ...f, totalScore: calculateScore(f, scoringConfig) }))
     .sort((a, b) => {
@@ -163,7 +172,10 @@ const Prioritization = () => {
       <header className="page-header">
         <div>
           <h1 className="text-h1 mb-2">תעדוף פיצ'רים</h1>
-          <p className="text-secondary text-lg">תעדוף משימות ופיצ'רים לפי מודל ניקוד מותאם אישית</p>
+          <p className="text-secondary text-lg">
+            תעדוף משימות ופיצ'רים לפי מודל ניקוד מותאם אישית
+            <span className="badge badge-gray" style={{ marginInlineStart: '0.5rem' }}>פיצ'רים ביעדים של {quarterLabel}</span>
+          </p>
         </div>
         <div className="flex gap-2">
           <button className="btn btn-secondary" onClick={() => setShowSettings(true)}>

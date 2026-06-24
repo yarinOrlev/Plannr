@@ -40,40 +40,29 @@ const SprintBoard = () => {
     activeTeamId, teamSprints, teamRoster, teamTasks, teamProducts,
     teamRoadmapItems, addSprint, deleteSprint,
     addTask, updateTask, deleteTask, getMemberAvailableDays,
+    activeQuarter,
   } = useProductContext();
 
-  const [selectedQ, setSelectedQ] = useState(null);
   const [creatingSprint, setCreatingSprint] = useState(false);
   const [sprintDraft, setSprintDraft] = useState(EMPTY_SPRINT);
   const [editor, setEditor] = useState(null); // task being added/edited
 
   const activeRoster = teamRoster.filter(m => m.active);
 
-  // Distinct quarters that have sprints.
-  const quarters = useMemo(() => {
-    const map = {};
-    teamSprints.forEach(s => {
-      if (!s.quarter || !s.year) return;
-      const key = `${s.year}-${s.quarter}`;
-      map[key] = { key, quarter: s.quarter, year: s.year };
-    });
-    return Object.values(map).sort((a, b) =>
-      (Number(a.year) || 0) - (Number(b.year) || 0) || (Q_NUM[a.quarter] || 9) - (Q_NUM[b.quarter] || 9));
-  }, [teamSprints]);
-
-  const activeQ = quarters.find(q => q.key === selectedQ) || quarters[quarters.length - 1] || null;
-  const range = activeQ ? quarterRange(activeQ.quarter, activeQ.year) : null;
+  // The quarter is driven by the global selector in the Header.
+  const activeQ = activeQuarter;
+  const range = quarterRange(activeQ.quarter, activeQ.year);
 
   const quarterSprints = useMemo(() =>
-    !activeQ ? [] : teamSprints
+    teamSprints
       .filter(s => s.quarter === activeQ.quarter && s.year === activeQ.year)
       .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')),
-    [teamSprints, activeQ]);
+    [teamSprints, activeQ.quarter, activeQ.year]);
 
   const milestones = useMemo(() =>
-    !activeQ ? [] : teamRoadmapItems
+    teamRoadmapItems
       .filter(r => r.bucket === 'Timeline' && r.quarter === activeQ.quarter && r.year === activeQ.year),
-    [teamRoadmapItems, activeQ]);
+    [teamRoadmapItems, activeQ.quarter, activeQ.year]);
 
   const milestoneColor = useMemo(() => {
     const m = {};
@@ -147,7 +136,6 @@ const SprintBoard = () => {
     const quarter = d ? `Q${Math.floor(d.getMonth() / 3) + 1}` : null;
     const year = d ? String(d.getFullYear()) : null;
     await addSprint({ ...sprintDraft, working_days: Number(sprintDraft.working_days) || 10, quarter, year, team_id: activeTeamId });
-    if (quarter && year) setSelectedQ(`${year}-${quarter}`);
     setSprintDraft(EMPTY_SPRINT);
     setCreatingSprint(false);
   };
@@ -178,12 +166,7 @@ const SprintBoard = () => {
           <p className="text-secondary text-sm">תכנון עומס הצוות מול היעדים הרבעוניים</p>
         </div>
         <div className="flex-center gap-2" style={{ flexWrap: 'wrap' }}>
-          {quarters.length > 0 && (
-            <select className="modal-input" style={{ width: 150, height: 38 }}
-              value={activeQ?.key || ''} onChange={e => setSelectedQ(e.target.value)}>
-              {quarters.map(q => <option key={q.key} value={q.key}>{q.quarter} {q.year}</option>)}
-            </select>
-          )}
+          <span className="badge badge-gray"><CalendarRange size={13} /> {activeQ.quarter} {activeQ.year}</span>
           <button className="btn btn-secondary" onClick={() => setCreatingSprint(v => !v)}>
             <Plus size={16} /> ספרינט חדש
           </button>
@@ -215,7 +198,7 @@ const SprintBoard = () => {
         </div>
       )}
 
-      {!activeQ || quarterSprints.length === 0 ? (
+      {quarterSprints.length === 0 ? (
         <div className="empty-state" style={{ direction: 'rtl' }}>
           <CalendarRange size={48} className="text-tertiary mb-4" />
           <h3 className="text-h3 mb-2">אין ספרינטים ברבעון</h3>

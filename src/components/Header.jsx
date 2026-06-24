@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2, LogOut, ArrowRight, Users } from 'lucide-react';
+import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2, LogOut, ArrowRight, Users, Calendar } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SharingModal from './SharingModal';
 import './Header.css';
 
 const Header = () => {
-  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode, searchTerm, setSearchTerm } = useProductContext();
+  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode, searchTerm, setSearchTerm, activeQuarter, setActiveQuarter, availableQuarters } = useProductContext();
   const { logout, userProfile, isHoD } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,6 +71,24 @@ const Header = () => {
             <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => setShowAddProduct(true)}>
               <Plus size={15} /> מוצר חדש
             </button>
+          </div>
+
+          <div className="quarter-selector flex-center gap-1" title="הרבעון הפעיל — משותף לכל המסכים">
+            <Calendar size={15} className="text-tertiary" />
+            <select
+              className="quarter-select"
+              value={`${activeQuarter.year}-${activeQuarter.quarter}`}
+              onChange={(e) => {
+                const [year, quarter] = e.target.value.split('-');
+                setActiveQuarter({ quarter, year });
+              }}
+            >
+              {availableQuarters.map((q) => (
+                <option key={`${q.year}-${q.quarter}`} value={`${q.year}-${q.quarter}`}>
+                  {q.quarter} {q.year}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="header-right">
