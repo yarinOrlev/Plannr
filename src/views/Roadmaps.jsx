@@ -601,6 +601,7 @@ const Roadmaps = () => {
     loading,
     searchTerm,
     getRoadmapItemProgress,
+    activeQuarter,
   } = useProductContext();
 
   // Mode: 'timeline' | 'kanban'
@@ -622,10 +623,14 @@ const Roadmaps = () => {
     return (parseInt(a.year || '2026') * 10 + qa) - (parseInt(b.year || '2026') * 10 + qb);
   });
 
-  // Currently selected timeline board
-  const activeTimeline = mode === 'timeline'
-    ? (timelineBoards.find(b => b.id === activeRoadmapBoard?.id) || timeframes[0])
-    : null;
+  // Timeline is driven by the global quarter selector (Header). Use a matching
+  // board if one exists, else a synthetic timeframe for the selected quarter.
+  const activeTimeline = useMemo(() =>
+    mode === 'timeline'
+      ? (timelineBoards.find(b => b.quarter === activeQuarter.quarter && b.year === activeQuarter.year)
+          || { id: 'global-timeline', quarter: activeQuarter.quarter, year: activeQuarter.year })
+      : null,
+    [mode, timelineBoards, activeQuarter.quarter, activeQuarter.year]);
 
   // Currently selected kanban board
   const activeKanban = mode === 'kanban'
@@ -699,24 +704,22 @@ const Roadmaps = () => {
             </button>
           )}
 
-          {/* Board / Timeframe selector */}
-          {!loading && (
+          {/* Timeline follows the global quarter; only Kanban needs a board picker */}
+          {!loading && mode === 'timeline' && (
+            <span className="badge badge-gray"><Calendar size={13} /> {activeQuarter.quarter} {activeQuarter.year}</span>
+          )}
+          {!loading && mode === 'kanban' && (
             <div className="flex-center gap-2">
-              <span className="text-sm text-secondary">{mode === 'timeline' ? 'רבעון:' : 'לוח Kanban:'}</span>
+              <span className="text-sm text-secondary">לוח Kanban:</span>
               <select
                 className="modal-input"
                 style={{ width: '180px', height: '38px', padding: '0 0.75rem' }}
-                value={mode === 'timeline' ? activeTimeline?.id : activeKanban?.id}
+                value={activeKanban?.id}
                 onChange={e => setActiveRoadmapBoard(e.target.value)}
               >
-                {mode === 'timeline'
-                  ? timeframes.map(b => (
-                      <option key={b.id} value={b.id}>{b.quarter} {b.year}</option>
-                    ))
-                  : kanbanBoards.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))
-                }
+                {kanbanBoards.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
               </select>
             </div>
           )}

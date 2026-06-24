@@ -12,7 +12,7 @@ const QUARTERS = {
 };
 
 const DepartmentOverview = () => {
-  const { data, addReview, updateReviewStatus, setActiveProduct, getSprintCapacity, getSprintLoad } = useProductContext();
+  const { data, addReview, updateReviewStatus, setActiveProduct, getSprintCapacity, getSprintLoad, activeQuarter } = useProductContext();
   const navigate = useNavigate();
   
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -20,8 +20,9 @@ const DepartmentOverview = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [newNote, setNewNote] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
-  const [timelineQuarter, setTimelineQuarter] = useState('Q3');
-  const [timelineYear, setTimelineYear] = useState('2026');
+  // Department timeline follows the global quarter selector (Header).
+  const timelineQuarter = activeQuarter.quarter;
+  const timelineYear = activeQuarter.year;
   const [visibleProducts, setVisibleProducts] = useState({});
   const [selectedTeamId, setSelectedTeamId] = useState('all');
 
@@ -378,36 +379,16 @@ const DepartmentOverview = () => {
                 <Calendar size={20} className="text-indigo" /> ציר זמן מחלקתי — {timelineQuarter} {timelineYear}
               </h3>
             </div>
-            <div className="flex-center gap-3">
-              <div className="flex-center gap-2">
-                <Filter size={14} className="text-tertiary" />
-                <select 
-                  className="modal-input" 
-                  style={{ width: '100px', height: '36px', padding: '0 0.5rem' }}
-                  value={timelineQuarter}
-                  onChange={(e) => setTimelineQuarter(e.target.value)}
-                >
-                  {Object.keys(QUARTERS).map(q => <option key={q} value={q}>{q}</option>)}
-                </select>
-                <select 
-                  className="modal-input" 
-                  style={{ width: '100px', height: '36px', padding: '0 0.5rem' }}
-                  value={timelineYear}
-                  onChange={(e) => setTimelineYear(e.target.value)}
-                >
-                  <option value="2026">2026</option>
-                  <option value="2027">2027</option>
-                  <option value="2028">2028</option>
-                </select>
-              </div>
-            </div>
+            <span className="badge badge-gray flex-center gap-1">
+              <Filter size={13} /> {timelineQuarter} {timelineYear}
+            </span>
           </div>
 
           <div className="unified-timeline-grid">
             {/* Header row with months */}
             <div className="timeline-grid-header">
               <div className="product-col-header">מוצר</div>
-              {QUARTERS[timelineQuarter].map(month => (
+              {(QUARTERS[timelineQuarter] || []).map(month => (
                 <div key={month} className="month-col-header">{month}</div>
               ))}
             </div>
