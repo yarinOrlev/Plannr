@@ -185,7 +185,7 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .content-area {
-  padding: 2.5rem;
+  padding: 1.75rem 2rem;
   flex: 1;
   max-width: 1200px;
   margin: 0 auto;
@@ -312,10 +312,10 @@ body.dark .badge-gray   { background: rgba(148, 163, 184, 0.1); color: #94A3B8; 
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 1.5rem;
+  padding-bottom: 1rem;
 }
 
 .header-actions {
