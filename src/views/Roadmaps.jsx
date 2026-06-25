@@ -307,6 +307,7 @@ const KanbanView = ({
   deleteRoadmapItem,
   updateReviewStatus,
   searchTerm,
+  getRoadmapItemProgress,
 }) => {
   const [addingTo, setAddingTo] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', teams: [], product_id: data.activeProductId });
@@ -501,6 +502,15 @@ const KanbanView = ({
                             {item.status === 'Failed' && <AlertCircle size={14} className="text-red-400" />}
                             <h4 className="card-title font-medium">{item.title}</h4>
                           </div>
+                          {(() => {
+                            const prog = getRoadmapItemProgress?.(item.id);
+                            if (!prog || prog.total === 0) return null;
+                            return (
+                              <span className="badge badge-blue mb-2" style={{ fontSize: '0.65rem' }}>
+                                {prog.total} משימות · {prog.days}ד מתוכננים
+                              </span>
+                            );
+                          })()}
                           {item.teams?.length > 0 && (
                             <div className="flex gap-1 mb-2 flex-wrap">
                               {item.teams.map(t => <span key={t} className="badge" style={{ fontSize: '0.65rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', padding: '0.15rem 0.45rem' }}>{t}</span>)}
@@ -590,6 +600,8 @@ const Roadmaps = () => {
     updateReviewStatus,
     loading,
     searchTerm,
+    getRoadmapItemProgress,
+    activeQuarter,
   } = useProductContext();
 
   // Mode: 'timeline' | 'kanban'
@@ -600,21 +612,14 @@ const Roadmaps = () => {
   const timelineBoards = allBoards.filter(b => b.view_type === 'timeline');
   const kanbanBoards = allBoards.filter(b => b.view_type === 'kanban');
 
-  // Unique timeframes for timeline (Q+Year combos), deduplicated
-  const timeframes = Array.from(
-    new Map(
-      timelineBoards.map(b => [`${b.quarter}-${b.year}`, b])
-    ).values()
-  ).sort((a, b) => {
-    const qa = parseInt(a.quarter?.replace('Q', '') || '1');
-    const qb = parseInt(b.quarter?.replace('Q', '') || '1');
-    return (parseInt(a.year || '2026') * 10 + qa) - (parseInt(b.year || '2026') * 10 + qb);
-  });
-
-  // Currently selected timeline board
-  const activeTimeline = mode === 'timeline'
-    ? (timelineBoards.find(b => b.id === activeRoadmapBoard?.id) || timeframes[0])
-    : null;
+  // Timeline is driven by the global quarter selector (Header). Use a matching
+  // board if one exists, else a synthetic timeframe for the selected quarter.
+  const activeTimeline = useMemo(() =>
+    mode === 'timeline'
+      ? (timelineBoards.find(b => b.quarter === activeQuarter.quarter && b.year === activeQuarter.year)
+          || { id: 'global-timeline', quarter: activeQuarter.quarter, year: activeQuarter.year })
+      : null,
+    [mode, timelineBoards, activeQuarter.quarter, activeQuarter.year]);
 
   // Currently selected kanban board
   const activeKanban = mode === 'kanban'
@@ -647,7 +652,7 @@ const Roadmaps = () => {
   // Early return AFTER all hooks
   if (!activeProduct) return null;
 
-  logger.debug('Roadmaps render', { mode, timeframes: timeframes.length, timelineItems: timelineItems.length, kanbanItems: kanbanItems.length });
+  logger.debug('Roadmaps render', { mode, timelineItems: timelineItems.length, kanbanItems: kanbanItems.length });
 
   return (
     <div className="content-area animate-fade-in roadmaps-layout">
@@ -688,24 +693,22 @@ const Roadmaps = () => {
             </button>
           )}
 
-          {/* Board / Timeframe selector */}
-          {!loading && (
+          {/* Timeline follows the global quarter; only Kanban needs a board picker */}
+          {!loading && mode === 'timeline' && (
+            <span className="badge badge-gray"><Calendar size={13} /> {activeQuarter.quarter} {activeQuarter.year}</span>
+          )}
+          {!loading && mode === 'kanban' && (
             <div className="flex-center gap-2">
-              <span className="text-sm text-secondary">{mode === 'timeline' ? 'רבעון:' : 'לוח Kanban:'}</span>
+              <span className="text-sm text-secondary">לוח Kanban:</span>
               <select
                 className="modal-input"
                 style={{ width: '180px', height: '38px', padding: '0 0.75rem' }}
-                value={mode === 'timeline' ? activeTimeline?.id : activeKanban?.id}
+                value={activeKanban?.id}
                 onChange={e => setActiveRoadmapBoard(e.target.value)}
               >
-                {mode === 'timeline'
-                  ? timeframes.map(b => (
-                      <option key={b.id} value={b.id}>{b.quarter} {b.year}</option>
-                    ))
-                  : kanbanBoards.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))
-                }
+                {kanbanBoards.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
               </select>
             </div>
           )}
@@ -713,7 +716,7 @@ const Roadmaps = () => {
       </header>
 
       {/* Product selector row */}
-      <div className="flex justify-center mb-4">
+      <div className="flex justify-center">
         <MultiProductSelector />
       </div>
 
@@ -751,6 +754,7 @@ const Roadmaps = () => {
             deleteRoadmapItem={deleteRoadmapItem}
             updateReviewStatus={updateReviewStatus}
             searchTerm={searchTerm || ''}
+            getRoadmapItemProgress={getRoadmapItemProgress}
           />
         ) : (
           <div className="glass-panel p-10 text-center animate-fade-in" style={{ direction: 'rtl' }}>

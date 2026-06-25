@@ -1,12 +1,18 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, RefreshCcw, Briefcase, LogOut, Database } from 'lucide-react';
+import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, RefreshCcw, Briefcase, LogOut, Database, Gauge, CalendarRange, BarChart3 } from 'lucide-react';
 import './Sidebar.css';
 import { useProductContext } from '../context/ProductContext';
 
+const ROLE_LABELS = {
+  HoD: 'ראש מחלקה',
+  TeamLead: 'ראש צוות',
+  PM: 'מנהל מוצר',
+};
+
 const Sidebar = () => {
-  const { user, logout, isHoD, userProfile } = useAuth();
+  const { logout, userProfile } = useAuth();
   const { seedInitialData } = useProductContext();
   
   const navItems = [
@@ -18,23 +24,19 @@ const Sidebar = () => {
     { path: '/customers', icon: <Users size={18} />, label: 'לקוחות ומשתמשים', color: 'pink' },
     { path: '/documentation', icon: <BookOpen size={18} />, label: 'תיעוד', color: 'yellow' },
     { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green' },
+    { path: '/team/capacity', icon: <Gauge size={18} />, label: 'צוות וקיבולת', color: 'teal', roles: ['TeamLead', 'HoD'] },
+    { path: '/team/sprints', icon: <CalendarRange size={18} />, label: 'תכנון ספרינטים', color: 'blue', roles: ['TeamLead', 'HoD'] },
+    { path: '/team/planning', icon: <BarChart3 size={18} />, label: 'תכנון רבעוני', color: 'indigo', roles: ['TeamLead', 'HoD'] },
     { path: '/department', icon: <Briefcase size={18} />, label: 'מבט מחלקתי', color: 'indigo', roles: ['HoD'] },
     { path: '/settings', icon: <Settings size={18} />, label: 'הגדרות', color: 'gray' },
   ];
 
-  // Explicitly define visibility logic
-  const visibleNavItems = navItems.filter(item => {
-    // 1. If no roles defined, it's public for all authenticated users
-    if (!item.roles || item.roles.length === 0) return true;
-    
-    // 2. If it is an HoD-only item, show it ONLY if the user is an HoD
-    if (item.roles.includes('HoD')) {
-      return isHoD;
-    }
-    
-    // Default fallback
-    return true;
-  });
+  // Items without a `roles` list are public to all authenticated users;
+  // otherwise the user's role must be in the list.
+  const userRole = userProfile?.role;
+  const visibleNavItems = navItems.filter(item =>
+    !item.roles || item.roles.length === 0 || item.roles.includes(userRole)
+  );
 
   return (
     <aside className="sidebar glass-panel">
@@ -64,7 +66,7 @@ const Sidebar = () => {
           <div className="user-avatar">{userProfile?.avatar || 'U'}</div>
           <div className="user-info">
             <span className="user-name">{userProfile?.name || 'משתמש'}</span>
-            <span className="user-role">{userProfile?.role === 'HoD' ? 'ראש מחלקה' : 'מנהל מוצר'}</span>
+            <span className="user-role">{ROLE_LABELS[userProfile?.role] || 'מנהל מוצר'}</span>
           </div>
           <button className="logout-btn" onClick={logout} title="התנתקות">
             <LogOut size={16} />

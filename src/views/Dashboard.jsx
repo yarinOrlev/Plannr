@@ -71,7 +71,7 @@ const Dashboard = () => {
 
       <MultiProductSelector />
 
-      <div className="dashboard-hub mt-6">
+      <div className="dashboard-hub">
         
         {/* 1. Strategic Centerpiece - Only show if EXACTLY one product is selected */}
         {selectedProductIds.length === 1 && (

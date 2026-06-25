@@ -133,6 +133,7 @@ export const AuthProvider = ({ children }) => {
     fetchAllUsers,
     isAuthenticated: !!user,
     isHoD: user?.user_metadata?.role === 'HoD',
+    isTeamLead: user?.user_metadata?.role === 'TeamLead',
     userProfile: {
       id: user?.id,
       name: user?.user_metadata?.name,

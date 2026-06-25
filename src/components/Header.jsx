@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
-import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2, LogOut, ArrowRight, Users } from 'lucide-react';
+import { Bell, Search, User, Plus, X, Check, Sun, Moon, Trash2, ArrowRight, Users, Calendar } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SharingModal from './SharingModal';
 import './Header.css';
 
 const Header = () => {
-  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode, searchTerm, setSearchTerm } = useProductContext();
-  const { logout, userProfile, isHoD } = useAuth();
+  const { data, setActiveProduct, addProduct, deleteProduct, darkMode, toggleDarkMode, searchTerm, setSearchTerm, activeQuarter, setActiveQuarter, availableYears } = useProductContext();
+  const { isHoD } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -72,6 +72,28 @@ const Header = () => {
               <Plus size={15} /> מוצר חדש
             </button>
           </div>
+
+          <div className="quarter-selector flex-center gap-1" title="הרבעון הפעיל — משותף לכל המסכים">
+            <Calendar size={15} className="text-tertiary" />
+            <select
+              className="quarter-select"
+              value={activeQuarter.quarter}
+              onChange={(e) => setActiveQuarter({ ...activeQuarter, quarter: e.target.value })}
+            >
+              {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
+                <option key={q} value={q}>{q}</option>
+              ))}
+            </select>
+            <select
+              className="quarter-select"
+              value={activeQuarter.year}
+              onChange={(e) => setActiveQuarter({ ...activeQuarter, year: e.target.value })}
+            >
+              {availableYears.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="header-right">
           <div className="search-bar">
@@ -85,15 +107,6 @@ const Header = () => {
           <button className="theme-toggle" onClick={toggleDarkMode} title={darkMode ? 'מצב יום' : 'מצב לילה'}>
             {darkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <div className="user-profile-actions flex-center gap-3">
-            <div className="user-info flex-col items-start hidden-md">
-              <span className="text-xs font-bold">{userProfile?.name}</span>
-              <span className="text-[10px] text-tertiary">{userProfile?.role}</span>
-            </div>
-            <button className="btn-icon text-tertiary hover:text-danger" onClick={logout} title="התנתקות">
-              <LogOut size={18} />
-            </button>
-          </div>
         </div>
       </header>
 

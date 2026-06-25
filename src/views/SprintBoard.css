@@ -1,0 +1,202 @@
+.sprint-board-layout {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Sprint create form ─────────────────────────────────────────────────── */
+.sprint-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+  padding: 1.25rem;
+}
+
+.sprint-form .field,
+.task-editor .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sprint-form label,
+.task-editor label {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+/* Capacity-meter + status-color classes are shared design-system utilities
+   (defined in index.css) — used here and by Quarter Planning + the HoD tile. */
+
+/* ── Committed milestones rail ──────────────────────────────────────────── */
+.requirements-panel { padding: 1rem 1.25rem; }
+
+.requirements-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.requirement-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+}
+
+.requirement-main { display: flex; flex-direction: column; gap: 0.2rem; min-width: 160px; }
+.requirement-title { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.requirement-product { font-size: 0.72rem; color: var(--text-tertiary); }
+
+.milestone-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.78rem; }
+
+/* ── Task editor ────────────────────────────────────────────────────────── */
+.task-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+}
+
+.task-editor .field { flex: 1; min-width: 120px; }
+
+/* ── Gantt ──────────────────────────────────────────────────────────────── */
+.gantt { padding: 0; overflow: hidden; }
+
+.gantt-header,
+.gantt-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.gantt-label-col {
+  flex: 0 0 130px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.5rem 0.85rem;
+  border-left: 1px solid var(--border-color);
+}
+
+.gantt-track { position: relative; flex: 1; min-width: 0; }
+
+.gantt-months { display: flex; }
+.gantt-month {
+  flex: 1;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0.45rem 0;
+  border-left: 1px solid var(--border-color);
+}
+.gantt-month:last-child { border-left: none; }
+
+.gantt-sprint-bands { position: relative; height: 26px; background: var(--bg-secondary); }
+.gantt-sprint-band {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  padding: 0 0.4rem;
+  background: var(--accent-primary-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.gantt-band-del { color: var(--text-tertiary); display: inline-flex; }
+.gantt-band-del:hover { color: var(--accent-danger); }
+
+.gantt-header { border-bottom: 1px solid var(--border-color); }
+
+.gantt-row { border-bottom: 1px solid var(--border-color); }
+.gantt-row:last-child { border-bottom: none; }
+
+.gantt-member-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.gantt-member-cap { font-size: 0.72rem; font-weight: 700; color: var(--text-tertiary); }
+.gantt-member-cap.is-over { color: var(--accent-danger); }
+
+.gantt-row-track { height: 46px; }
+
+.gantt-gridline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-color);
+  opacity: 0.6;
+}
+
+.gantt-overload {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(220, 38, 38, 0.08);
+  z-index: 1;
+}
+
+.gantt-block {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 28px;
+  min-width: 14px;
+  display: flex;
+  align-items: center;
+  padding: 0 0.45rem;
+  border-radius: var(--border-radius-sm);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+}
+.gantt-block:hover { filter: brightness(1.08); }
+.gantt-block-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.gantt-add-inline {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px dashed var(--border-color);
+  color: var(--text-tertiary);
+  background: var(--bg-primary);
+  z-index: 3;
+}
+.gantt-add-inline:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
+
+.gantt-row-backlog {
+  background: var(--bg-secondary);
+  border-top: 2px dashed var(--border-color);
+}
+.gantt-row-backlog .gantt-member-name { color: var(--text-secondary); }
+
+.gantt-backlog-empty {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  font-style: italic;
+}

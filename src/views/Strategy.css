@@ -166,7 +166,7 @@
 }
 
 .strategy-card {
-  padding: 2.5rem 2rem;
+  padding: 1.75rem;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -218,8 +218,8 @@
 
 /* ── Vision Section ── */
 .vision-section {
-  padding: 3rem;
-  margin-top: 2rem;
+  padding: 2rem;
+  margin-top: 1.5rem;
   background: linear-gradient(rgba(99, 102, 241, 0.03), rgba(99, 102, 241, 0.03));
   border: 1px solid rgba(99, 102, 241, 0.1);
   position: relative;
@@ -241,7 +241,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
 }
 
 .vision-header {
@@ -274,7 +274,7 @@
 }
 
 .teams-management-section, .roadmap-management-section {
-  padding: 2.5rem;
+  padding: 1.75rem;
 }
 
 .section-header {

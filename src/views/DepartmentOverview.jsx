@@ -12,7 +12,7 @@ const QUARTERS = {
 };
 
 const DepartmentOverview = () => {
-  const { data, addReview, updateReviewStatus, setActiveProduct } = useProductContext();
+  const { data, addReview, updateReviewStatus, setActiveProduct, getSprintCapacity, getSprintLoad, activeQuarter } = useProductContext();
   const navigate = useNavigate();
   
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -20,8 +20,9 @@ const DepartmentOverview = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [newNote, setNewNote] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
-  const [timelineQuarter, setTimelineQuarter] = useState('Q3');
-  const [timelineYear, setTimelineYear] = useState('2026');
+  // Department timeline follows the global quarter selector (Header).
+  const timelineQuarter = activeQuarter.quarter;
+  const timelineYear = activeQuarter.year;
   const [visibleProducts, setVisibleProducts] = useState({});
   const [selectedTeamId, setSelectedTeamId] = useState('all');
 
@@ -172,6 +173,37 @@ const DepartmentOverview = () => {
               </div>
             </div>
           </div>
+
+          {(data.sprints || []).length > 0 && (
+            <section className="dept-capacity-section mb-6">
+              <h3 className="text-h3 mb-4">קיבולת צוותים — {activeQuarter.quarter} {activeQuarter.year}</h3>
+              <div className="dept-capacity-grid">
+                {teams.map(team => {
+                  // Sum the team's sprints in the globally-selected quarter.
+                  const quarterSprints = (data.sprints || []).filter(s =>
+                    s.team_id === team.id && s.quarter === activeQuarter.quarter && s.year === activeQuarter.year);
+                  if (!quarterSprints.length) return null;
+                  const load = quarterSprints.reduce((sum, s) => sum + getSprintLoad(s.id), 0);
+                  const capacity = quarterSprints.reduce((sum, s) => sum + getSprintCapacity(s.id), 0);
+                  const ratio = capacity ? load / capacity : 0;
+                  const color = !capacity ? 'gray' : ratio > 1 ? 'red' : ratio > 0.9 ? 'amber' : 'green';
+                  const pct = capacity ? Math.min(100, ratio * 100) : 0;
+                  return (
+                    <div key={team.id} className="glass-panel dept-capacity-card">
+                      <div className="flex-between mb-2">
+                        <span className="font-semibold">{team.name}</span>
+                        <span className={`text-sm font-bold text-${color}`}>{load}/{capacity}ד</span>
+                      </div>
+                      <div className="capacity-meter-track">
+                        <div className={`capacity-meter-fill fill-${color}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-xs text-tertiary mt-2">{quarterSprints.length} ספרינטים</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <div className="products-grid">
             {products.map(product => {
@@ -348,36 +380,16 @@ const DepartmentOverview = () => {
                 <Calendar size={20} className="text-indigo" /> ציר זמן מחלקתי — {timelineQuarter} {timelineYear}
               </h3>
             </div>
-            <div className="flex-center gap-3">
-              <div className="flex-center gap-2">
-                <Filter size={14} className="text-tertiary" />
-                <select 
-                  className="modal-input" 
-                  style={{ width: '100px', height: '36px', padding: '0 0.5rem' }}
-                  value={timelineQuarter}
-                  onChange={(e) => setTimelineQuarter(e.target.value)}
-                >
-                  {Object.keys(QUARTERS).map(q => <option key={q} value={q}>{q}</option>)}
-                </select>
-                <select 
-                  className="modal-input" 
-                  style={{ width: '100px', height: '36px', padding: '0 0.5rem' }}
-                  value={timelineYear}
-                  onChange={(e) => setTimelineYear(e.target.value)}
-                >
-                  <option value="2026">2026</option>
-                  <option value="2027">2027</option>
-                  <option value="2028">2028</option>
-                </select>
-              </div>
-            </div>
+            <span className="badge badge-gray flex-center gap-1">
+              <Filter size={13} /> {timelineQuarter} {timelineYear}
+            </span>
           </div>
 
           <div className="unified-timeline-grid">
             {/* Header row with months */}
             <div className="timeline-grid-header">
               <div className="product-col-header">מוצר</div>
-              {QUARTERS[timelineQuarter].map(month => (
+              {(QUARTERS[timelineQuarter] || []).map(month => (
                 <div key={month} className="month-col-header">{month}</div>
               ))}
             </div>

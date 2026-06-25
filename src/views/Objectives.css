@@ -1,7 +1,6 @@
 .objectives-layout {
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
 }
 
 .quarter-selector {
@@ -16,7 +15,7 @@
 .objectives-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
   max-width: 900px;
 }
 

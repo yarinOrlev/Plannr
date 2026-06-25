@@ -12,17 +12,21 @@ import Documentation from './views/Documentation';
 import Notes from './views/Notes';
 import Customers from './views/Customers';
 import DepartmentOverview from './views/DepartmentOverview';
+import TeamCapacity from './views/TeamCapacity';
+import SprintBoard from './views/SprintBoard';
+import TeamPlanning from './views/TeamPlanning';
 import SettingsView from './views/Settings';
 import FloatingNoteBubble from './components/FloatingNoteBubble';
 import Login from './views/Login';
 import LoadingScreen from './components/LoadingScreen';
 
-const ProtectedRoute = ({ children, requireHoD = false }) => {
-  const { isAuthenticated, isHoD, loading } = useAuth();
+const ProtectedRoute = ({ children, requireHoD = false, allowedRoles = null }) => {
+  const { isAuthenticated, isHoD, userProfile, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (requireHoD && !isHoD) return <Navigate to="/" replace />;
+  if (allowedRoles && !allowedRoles.includes(userProfile?.role)) return <Navigate to="/" replace />;
 
   return children;
 };
@@ -84,6 +88,30 @@ function AppContent() {
           <Route path="/prioritization" element={<Prioritization />} />
           <Route path="/roadmaps" element={<Roadmaps />} />
           <Route path="/objectives" element={<Objectives />} />
+          <Route
+            path="/team/capacity"
+            element={
+              <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
+                <TeamCapacity />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/team/sprints"
+            element={
+              <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
+                <SprintBoard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/team/planning"
+            element={
+              <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
+                <TeamPlanning />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/customers" element={<Customers />} />
           <Route path="/documentation" element={<Documentation />} />
           <Route path="/notes" element={<Notes />} />
