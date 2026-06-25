@@ -5,6 +5,14 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* Tailwind utilities fill in the spacing/flex/sizing/palette classes the app
+   uses. Preflight is disabled in tailwind.config.js, and these directives sit
+   BEFORE the design-system rules below so that on any name collision (e.g.
+   .text-primary, .flex-col) the hand-rolled definitions win. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* ── Minimal, Professional SaaS Palette ── */
   --bg-primary:    #FFFFFF;   /* Pure White */
@@ -204,6 +212,14 @@ button { cursor: pointer; border: none; background: none; }
 .text-primary    { color: var(--accent-primary); }
 .text-success    { color: var(--accent-success); }
 .text-danger     { color: var(--accent-danger); }
+.text-indigo     { color: var(--accent-indigo); }
+.text-yellow     { color: var(--accent-warning); }
+
+/* Surface backgrounds keyed to the theme (kept out of the Tailwind palette so
+   `text-secondary`/`text-tertiary` retain their text-color meaning above). */
+.bg-primary   { background-color: var(--bg-primary); }
+.bg-secondary { background-color: var(--bg-secondary); }
+.bg-tertiary  { background-color: var(--bg-tertiary); }
 
 /* ── Buttons - Clean & Structured ── */
 .btn {
