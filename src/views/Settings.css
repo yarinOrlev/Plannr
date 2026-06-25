@@ -1,13 +1,12 @@
 .settings-layout {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
 }
 
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .settings-section {

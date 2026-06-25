@@ -1,7 +1,6 @@
 .team-capacity-layout {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 }
 
 .capacity-summary {

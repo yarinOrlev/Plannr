@@ -1,7 +1,6 @@
 .roadmaps-layout {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
 }
 
 .kanban-board {
