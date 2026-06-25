@@ -716,7 +716,7 @@ const Roadmaps = () => {
       </header>
 
       {/* Product selector row */}
-      <div className="flex justify-center mb-4">
+      <div className="flex justify-center">
         <MultiProductSelector />
       </div>
 

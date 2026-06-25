@@ -1,7 +1,6 @@
 .notes-layout {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 }
 
 .notes-tags {

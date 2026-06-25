@@ -190,6 +190,12 @@ button { cursor: pointer; border: none; background: none; }
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  /* Single source of vertical rhythm for every page (flex or block layout).
+     Per-view *-layout classes should NOT redefine this gap, and elements
+     inside should not add their own top/bottom margins, to avoid doubling. */
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 /* ── Animations - Precise moves ── */
@@ -313,7 +319,8 @@ body.dark .badge-gray   { background: rgba(148, 163, 184, 0.1); color: #94A3B8; 
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  /* No margin-bottom: spacing below the title comes from the content-area gap.
+     The border + padding-bottom is just the divider line. */
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 1rem;
 }
