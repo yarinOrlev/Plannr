@@ -18,7 +18,7 @@ const Sidebar = () => {
   const navItems = [
     { path: '/', icon: <LayoutDashboard size={18} />, label: 'לוח בקרה', color: 'blue' },
     { path: '/strategy', icon: <Compass size={18} />, label: 'אסטרטגיה', color: 'indigo' },
-    { path: '/prioritization', icon: <SlidersHorizontal size={18} />, label: 'תעדוף', color: 'purple' },
+    { path: '/prioritization', icon: <SlidersHorizontal size={18} />, label: 'פיצרים ומשימות', color: 'purple' },
     { path: '/roadmaps', icon: <Map size={18} />, label: 'מפת דרכים', color: 'teal' },
     { path: '/objectives', icon: <Target size={18} />, label: 'יעדים', color: 'red' },
     { path: '/customers', icon: <Users size={18} />, label: 'לקוחות ומשתמשים', color: 'pink' },

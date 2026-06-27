@@ -1,96 +1,429 @@
 import React, { useState, useMemo } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import {
-  CalendarRange, Plus, Trash2, Check, X, Users, Layers,
+  CalendarRange, Plus, Trash2, Check, X, Users, Target,
+  ListTodo, ChevronDown, ChevronRight, Search, Clock,
+  GitPullRequest, UserCheck, ArrowLeft, Zap,
 } from 'lucide-react';
 import './SprintBoard.css';
 
-// ── Quarter / date helpers ───────────────────────────────────────────────────
-const MONTHS_BY_Q = {
-  Q1: ['ינואר', 'פברואר', 'מרץ'],
-  Q2: ['אפריל', 'מאי', 'יוני'],
-  Q3: ['יולי', 'אוגוסט', 'ספטמבר'],
-  Q4: ['אוקטובר', 'נובמבר', 'דצמבר'],
-};
-const Q_NUM = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
-const MILESTONE_COLORS = ['#2563EB', '#7C3AED', '#059669', '#D97706', '#DC2626', '#0891B2', '#DB2777', '#65A30D'];
-const ESTIMATE_OPTIONS = [0.5, 1, 2, 3, 5, 8, 13];
-
-const quarterRange = (quarter, year) => {
-  const y = Number(year) || new Date().getFullYear();
-  const sm = ((Q_NUM[quarter] || 1) - 1) * 3;
-  return { start: new Date(y, sm, 1), end: new Date(y, sm + 3, 0) };
-};
-const toDate = (s) => (s ? new Date(s) : null);
-const fmtDate = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : (d || ''));
-const pctBetween = (date, start, end) => {
-  const span = end - start;
-  if (span <= 0) return 0;
-  return Math.min(100, Math.max(0, ((date - start) / span) * 100));
+// ─── Constants ────────────────────────────────────────────────────────────────
+const COMPLEXITY_CONFIG = {
+  XS: { color: '#10B981', bg: '#D1FAE5', border: '#6EE7B7', desc: 'כמה שעות' },
+  S:  { color: '#3B82F6', bg: '#DBEAFE', border: '#93C5FD', desc: '1–2 ימים' },
+  M:  { color: '#F59E0B', bg: '#FEF3C7', border: '#FCD34D', desc: '3–5 ימים' },
+  L:  { color: '#F97316', bg: '#FFEDD5', border: '#FDBA74', desc: 'שבוע–שבועיים' },
+  XL: { color: '#EF4444', bg: '#FEE2E2', border: '#FCA5A5', desc: 'מעל שבועיים' },
 };
 
-const EMPTY_SPRINT = { name: '', start_date: '', end_date: '', working_days: 10, goal: '' };
-const newTaskTemplate = (memberId, startDate) => ({
-  _new: true, title: '', estimate_days: 1, assignee_member_id: memberId || '',
-  roadmap_item_id: '', start_date: startDate || '',
-});
+const STATUS_CONFIG = {
+  'Todo':        { label: 'ממתין',  dot: '#9CA3AF' },
+  'In Progress': { label: 'בעבודה', dot: '#3B82F6' },
+  'In CR':       { label: 'בסקירה', dot: '#8B5CF6' },
+  'Done':        { label: 'הושלם',  dot: '#10B981' },
+  'Blocked':     { label: 'חסום',   dot: '#EF4444' },
+};
 
+const EMPTY_SPRINT = { name: '', goal: '', start_date: '', end_date: '', working_days: 10 };
+
+const fmtDate = (d) => {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
+};
+
+// ─── Shared UI atoms ──────────────────────────────────────────────────────────
+const ComplexityBadge = ({ complexity = 'M' }) => {
+  const cfg = COMPLEXITY_CONFIG[complexity] || COMPLEXITY_CONFIG['M'];
+  return (
+    <span style={{
+      display: 'inline-block', padding: '0.12rem 0.5rem', borderRadius: '6px',
+      fontSize: '0.7rem', fontWeight: '700',
+      color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
+    }}>
+      {complexity}
+    </span>
+  );
+};
+
+const StatusSelect = ({ value, onChange }) => (
+  <select className="sb-select sb-status-select" value={value || 'Todo'} onChange={e => onChange(e.target.value)}>
+    {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+      <option key={k} value={k}>{v.label}</option>
+    ))}
+  </select>
+);
+
+const MemberSelect = ({ value, roster, onChange, placeholder = '—' }) => (
+  <select className="sb-select" value={value || ''} onChange={e => onChange(e.target.value || null)}>
+    <option value="">{placeholder}</option>
+    {roster.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+  </select>
+);
+
+// ─── Sprint mission row ───────────────────────────────────────────────────────
+const SprintMissionRow = ({ task, feature, objective, roster, updateFeatureTask, onRemove }) => {
+  const upd = (field, val) => updateFeatureTask(task.id, { [field]: val });
+
+  return (
+    <tr className="sb-mission-row">
+      <td className="sb-mission-title-cell">
+        <div className="sb-mission-hierarchy">
+          {objective && (
+            <span className="sb-mission-obj">
+              <Target size={9} style={{ display: 'inline', marginLeft: 2 }} />
+              {objective.title}
+            </span>
+          )}
+          {feature && <span className="sb-mission-feature">{feature.title}</span>}
+          <span className="sb-mission-task">{task.title}</span>
+        </div>
+        {task.description && <p className="sb-mission-desc">{task.description}</p>}
+      </td>
+      <td className="text-center">
+        <ComplexityBadge complexity={task.complexity || 'M'} />
+      </td>
+      <td className="text-center sb-hours-cell">
+        {task.estimate_hours > 0 ? `${task.estimate_hours}ש'` : '—'}
+      </td>
+      <td>
+        <MemberSelect value={task.assignee_member_id} roster={roster}
+          onChange={v => upd('assignee_member_id', v)} placeholder="אחראי" />
+      </td>
+      <td>
+        <MemberSelect value={task.cr_reviewer_1_id} roster={roster}
+          onChange={v => upd('cr_reviewer_1_id', v)} placeholder="CR 1" />
+      </td>
+      <td>
+        <MemberSelect value={task.cr_reviewer_2_id} roster={roster}
+          onChange={v => upd('cr_reviewer_2_id', v)} placeholder="CR 2" />
+      </td>
+      <td>
+        <StatusSelect value={task.status} onChange={v => upd('status', v)} />
+      </td>
+      <td>
+        <button className="btn-icon-xs text-danger" onClick={() => onRemove(task.id)} title="הסר מספרינט">
+          <X size={13} />
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+// ─── Sprint card ──────────────────────────────────────────────────────────────
+const SprintCard = ({ sprint, missions, features, objectives, roster, deleteSprint, updateFeatureTask }) => {
+  const [collapsed, setCollapsed] = useState(false);
+
+  const totalHours  = missions.reduce((s, t) => s + (Number(t.estimate_hours) || 0), 0);
+  const doneCount   = missions.filter(t => t.status === 'Done').length;
+  const inCrCount   = missions.filter(t => t.status === 'In CR').length;
+  const inProgCount = missions.filter(t => t.status === 'In Progress').length;
+  const progressPct = missions.length ? Math.round((doneCount / missions.length) * 100) : 0;
+
+  const removeMission = (taskId) =>
+    updateFeatureTask(taskId, { sprint_id: null, assignee_member_id: null, cr_reviewer_1_id: null, cr_reviewer_2_id: null });
+
+  return (
+    <div className="sb-sprint-card glass-panel">
+      {/* Header */}
+      <div className="sb-sprint-header" onClick={() => setCollapsed(v => !v)}>
+        <div className="sb-sprint-header-left">
+          <span className="sb-expand-btn">
+            {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+          </span>
+          <div className="sb-sprint-name-block">
+            <span className="sb-sprint-name">{sprint.name}</span>
+            {sprint.goal && <span className="sb-sprint-goal">{sprint.goal}</span>}
+          </div>
+        </div>
+        <div className="sb-sprint-header-right">
+          {(sprint.start_date || sprint.end_date) && (
+            <span className="sb-sprint-dates">
+              <CalendarRange size={12} />
+              {fmtDate(sprint.start_date)}{sprint.end_date ? ` – ${fmtDate(sprint.end_date)}` : ''}
+              {sprint.working_days && <span className="sb-sprint-workdays"> · {sprint.working_days}ד/אדם</span>}
+            </span>
+          )}
+          <div className="sb-sprint-chips">
+            <span className="sb-chip sb-chip-neutral">{missions.length} משימות</span>
+            {totalHours > 0 && <span className="sb-chip sb-chip-indigo"><Clock size={10} /> {totalHours}ש'</span>}
+            {inProgCount > 0 && <span className="sb-chip sb-chip-blue">{inProgCount} בעבודה</span>}
+            {inCrCount > 0 && <span className="sb-chip sb-chip-purple"><GitPullRequest size={10} /> {inCrCount}</span>}
+            {doneCount > 0 && <span className="sb-chip sb-chip-green"><Check size={10} /> {doneCount}</span>}
+          </div>
+          <button className="btn-icon-xs text-danger"
+            onClick={e => { e.stopPropagation(); if (window.confirm(`למחוק את "${sprint.name}"?`)) deleteSprint(sprint.id); }}
+            title="מחק ספרינט"><Trash2 size={13} /></button>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      {missions.length > 0 && (
+        <div className="sb-progress-bar">
+          <div className="sb-progress-fill" style={{ width: `${progressPct}%` }} title={`${progressPct}% הושלם`} />
+        </div>
+      )}
+
+      {/* Mission list */}
+      {!collapsed && (
+        <div className="sb-missions-body">
+          {missions.length === 0 ? (
+            <div className="sb-empty-missions">
+              <ListTodo size={28} className="opacity-20" />
+              <span>הוסף משימות מבריכת המשימות שמימין</span>
+              <span className="sb-empty-hint">בחר ספרינט יעד בבריכה ולחץ על משימה להוספה</span>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="sb-missions-table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'right', minWidth: 220 }}>משימה</th>
+                    <th style={{ minWidth: 70 }}>מורכבות</th>
+                    <th style={{ minWidth: 55 }}>שעות</th>
+                    <th style={{ minWidth: 120 }}>
+                      <span className="sb-col-icon"><UserCheck size={12} /> אחראי</span>
+                    </th>
+                    <th style={{ minWidth: 110 }}>
+                      <span className="sb-col-icon"><GitPullRequest size={12} /> CR 1</span>
+                    </th>
+                    <th style={{ minWidth: 110 }}>
+                      <span className="sb-col-icon"><GitPullRequest size={12} /> CR 2</span>
+                    </th>
+                    <th style={{ minWidth: 100 }}>סטטוס</th>
+                    <th style={{ width: 32 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {missions.map(task => {
+                    const feature   = features.find(f => f.id === task.feature_id);
+                    const objective = objectives.find(o => o.id === feature?.objective_id);
+                    return (
+                      <SprintMissionRow key={task.id}
+                        task={task} feature={feature} objective={objective}
+                        roster={roster} updateFeatureTask={updateFeatureTask}
+                        onRemove={removeMission} />
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Pool task item ───────────────────────────────────────────────────────────
+const PoolTaskItem = ({ task, feature, objective, onAssign, disabled }) => (
+  <div className={`pool-task-row ${disabled ? 'pool-task-row--disabled' : ''}`}
+    onClick={() => !disabled && onAssign(task.id)}
+    title={disabled ? 'בחר ספרינט יעד תחילה' : `הוסף לספרינט`}>
+    <button className="pool-add-btn" disabled={disabled}>
+      <Plus size={11} />
+    </button>
+    <div className="pool-task-info">
+      {objective && <span className="pool-task-obj">{objective.title}</span>}
+      {feature && <span className="pool-task-feature">{feature.title}</span>}
+      <span className="pool-task-title">{task.title}</span>
+      {task.description && <span className="pool-task-desc">{task.description}</span>}
+    </div>
+    <div className="pool-task-meta">
+      <ComplexityBadge complexity={task.complexity || 'M'} />
+      {task.estimate_hours > 0 && <span className="pool-task-hours">{task.estimate_hours}ש'</span>}
+    </div>
+  </div>
+);
+
+// ─── Mission pool sidebar ─────────────────────────────────────────────────────
+const MissionPool = ({ tasks, features, objectives, quarterSprints, updateFeatureTask }) => {
+  const [targetSprintId, setTargetSprintId] = useState('');
+  const [search, setSearch] = useState('');
+
+  const unassigned = tasks.filter(t => !t.sprint_id);
+
+  const filtered = useMemo(() => {
+    if (!search) return unassigned;
+    const q = search.toLowerCase();
+    return unassigned.filter(t => {
+      const feat = features.find(f => f.id === t.feature_id);
+      return t.title.toLowerCase().includes(q) ||
+        feat?.title.toLowerCase().includes(q) ||
+        t.description?.toLowerCase().includes(q);
+    });
+  }, [unassigned, features, search]);
+
+  // Group: objective → feature → tasks
+  const groups = useMemo(() => {
+    const map = new Map();
+    filtered.forEach(task => {
+      const feat  = features.find(f => f.id === task.feature_id);
+      const objId = feat?.objective_id || '__none__';
+      if (!map.has(objId)) map.set(objId, new Map());
+      const fMap = map.get(objId);
+      if (!fMap.has(task.feature_id)) fMap.set(task.feature_id, []);
+      fMap.get(task.feature_id).push(task);
+    });
+    return map;
+  }, [filtered, features]);
+
+  const handleAssign = (taskId) => {
+    if (!targetSprintId) return;
+    updateFeatureTask(taskId, { sprint_id: targetSprintId });
+  };
+
+  return (
+    <div className="mission-pool glass-panel">
+      <div className="pool-header">
+        <div className="pool-title">
+          <ListTodo size={15} />
+          <span>בריכת משימות</span>
+        </div>
+        <span className="badge badge-gray" style={{ fontSize: '0.7rem' }}>{unassigned.length}</span>
+      </div>
+
+      <div className="pool-controls">
+        <div className="pool-sprint-selector">
+          <label className="pool-ctrl-label">הוסף ל:</label>
+          <select className="premium-input" style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+            value={targetSprintId} onChange={e => setTargetSprintId(e.target.value)}>
+            <option value="">— בחר ספרינט —</option>
+            {quarterSprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div className="pool-search-wrap">
+          <Search size={13} className="pool-search-icon" />
+          <input className="pool-search-input" placeholder="חפש משימה..."
+            value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+      </div>
+
+      {!targetSprintId && (
+        <div className="pool-notice">
+          <ArrowLeft size={13} />
+          <span>בחר ספרינט יעד כדי להוסיף משימות</span>
+        </div>
+      )}
+
+      <div className="pool-list">
+        {filtered.length === 0 && (
+          <div className="pool-empty">
+            {unassigned.length === 0 ? (
+              <>
+                <Check size={22} className="opacity-20" />
+                <span>כל המשימות שויכו לספרינטים</span>
+              </>
+            ) : (
+              <>
+                <Search size={22} className="opacity-20" />
+                <span>לא נמצאו תוצאות</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {[...groups.entries()].map(([objId, featureMap]) => {
+          const obj = objectives.find(o => o.id === objId);
+          return (
+            <div key={objId} className="pool-obj-group">
+              <div className="pool-obj-header">
+                <Target size={11} />
+                <span>{obj?.title || 'ללא יעד'}</span>
+              </div>
+              {[...featureMap.entries()].map(([fId, fTasks]) => {
+                const feature = features.find(f => f.id === fId);
+                return (
+                  <div key={fId} className="pool-feature-group">
+                    <div className="pool-feature-header">
+                      <Zap size={10} style={{ opacity: 0.5 }} />
+                      <span>{feature?.title || 'פיצ\'ר לא ידוע'}</span>
+                    </div>
+                    {fTasks.map(task => (
+                      <PoolTaskItem key={task.id}
+                        task={task} feature={feature} objective={obj}
+                        onAssign={handleAssign}
+                        disabled={!targetSprintId} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── Sprint create form ───────────────────────────────────────────────────────
+const SprintCreateForm = ({ onSave, onCancel }) => {
+  const [draft, setDraft] = useState(EMPTY_SPRINT);
+  const set = (k, v) => setDraft(d => ({ ...d, [k]: v }));
+
+  return (
+    <div className="glass-panel sb-create-form animate-fade-in" style={{ direction: 'rtl' }}>
+      <div className="flex-between mb-4">
+        <h3 className="text-h3">ספרינט חדש</h3>
+        <button className="btn-icon" onClick={onCancel}><X size={18} /></button>
+      </div>
+      <div className="sb-form-grid">
+        <div className="sb-field" style={{ gridColumn: '1 / 3' }}>
+          <label>שם הספרינט *</label>
+          <input className="premium-input" autoFocus value={draft.name}
+            onChange={e => set('name', e.target.value)} placeholder="לדוגמה: ספרינט 15" />
+        </div>
+        <div className="sb-field" style={{ gridColumn: '1 / -1' }}>
+          <label>מטרת הספרינט</label>
+          <input className="premium-input" value={draft.goal}
+            onChange={e => set('goal', e.target.value)}
+            placeholder="מה נרצה להשיג בסוף הספרינט? (לדוגמה: השלמת תשתית ה-auth)" />
+        </div>
+        <div className="sb-field">
+          <label>תאריך התחלה</label>
+          <input type="date" className="premium-input" value={draft.start_date}
+            onChange={e => set('start_date', e.target.value)} />
+        </div>
+        <div className="sb-field">
+          <label>תאריך סיום</label>
+          <input type="date" className="premium-input" value={draft.end_date}
+            onChange={e => set('end_date', e.target.value)} />
+        </div>
+        <div className="sb-field">
+          <label>ימי עבודה לאדם</label>
+          <input type="number" min="1" max="30" className="premium-input"
+            value={draft.working_days} onChange={e => set('working_days', e.target.value)} />
+        </div>
+      </div>
+      <div className="modal-footer-premium mt-4">
+        <button className="btn btn-secondary" onClick={onCancel}>ביטול</button>
+        <button className="btn btn-primary" onClick={() => draft.name.trim() && onSave(draft)}>
+          <Check size={16} /> צור ספרינט
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 const SprintBoard = () => {
   const {
-    activeTeamId, teamSprints, teamRoster, teamTasks, teamProducts,
-    teamRoadmapItems, addSprint, deleteSprint,
-    addTask, updateTask, deleteTask, getMemberAvailableDays,
-    activeQuarter,
+    activeTeamId, teamSprints, teamRoster,
+    addSprint, deleteSprint, activeQuarter,
+    featureTasks, updateFeatureTask,
+    activeFeatures, activeObjectives, selectedProductIds,
   } = useProductContext();
 
   const [creatingSprint, setCreatingSprint] = useState(false);
-  const [sprintDraft, setSprintDraft] = useState(EMPTY_SPRINT);
-  const [editor, setEditor] = useState(null); // task being added/edited
-
-  const activeRoster = teamRoster.filter(m => m.active);
-
-  // The quarter is driven by the global selector in the Header.
-  const activeQ = activeQuarter;
-  const range = quarterRange(activeQ.quarter, activeQ.year);
-
-  const quarterSprints = useMemo(() =>
-    teamSprints
-      .filter(s => s.quarter === activeQ.quarter && s.year === activeQ.year)
-      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')),
-    [teamSprints, activeQ.quarter, activeQ.year]);
-
-  const milestones = useMemo(() =>
-    teamRoadmapItems
-      .filter(r => r.bucket === 'Timeline' && r.quarter === activeQ.quarter && r.year === activeQ.year),
-    [teamRoadmapItems, activeQ.quarter, activeQ.year]);
-
-  const milestoneColor = useMemo(() => {
-    const m = {};
-    milestones.forEach((it, i) => { m[it.id] = MILESTONE_COLORS[i % MILESTONE_COLORS.length]; });
-    return m;
-  }, [milestones]);
-
-  const milestoneIds = milestones.map(m => m.id);
-  const quarterSprintIds = quarterSprints.map(s => s.id);
-
-  // Tasks shown in this quarter: by milestone, sprint, or a start_date that falls in range.
-  const quarterTasks = useMemo(() => {
-    if (!range) return [];
-    return teamTasks.filter(t => {
-      if (t.roadmap_item_id && milestoneIds.includes(t.roadmap_item_id)) return true;
-      if (t.sprint_id && quarterSprintIds.includes(t.sprint_id)) return true;
-      const d = toDate(t.start_date);
-      return d && d >= range.start && d <= range.end;
-    });
-  }, [teamTasks, range, milestoneIds, quarterSprintIds]);
 
   if (!activeTeamId) {
     return (
       <div className="content-area animate-fade-in">
-        <header className="page-header"><div>
-          <h1 className="text-h1 mb-2">תכנון ספרינטים</h1>
-          <p className="text-secondary text-lg">תכנון עומס הצוות מול היעדים הרבעוניים</p>
-        </div></header>
+        <header className="page-header">
+          <div>
+            <h1 className="text-h1 mb-2">תכנון ספרינטים</h1>
+            <p className="text-secondary text-lg">שייך משימות לספרינטים, הגדר אחראים וסוקרי קוד</p>
+          </div>
+        </header>
         <div className="empty-state" style={{ direction: 'rtl' }}>
           <Users size={48} className="text-tertiary mb-4" />
           <h3 className="text-h3 mb-2">אין צוות עדיין</h3>
@@ -100,293 +433,90 @@ const SprintBoard = () => {
     );
   }
 
-  const sprintForDate = (dateStr) => {
-    const d = toDate(dateStr);
-    if (!d) return null;
-    return quarterSprints.find(s => {
-      const a = toDate(s.start_date), b = toDate(s.end_date);
-      return a && b && d >= a && d <= b;
-    }) || null;
-  };
+  const activeQ    = activeQuarter;
+  const activeRoster = teamRoster.filter(m => m.active);
 
-  const effectiveStart = (task) => {
-    const d = toDate(task.start_date);
-    if (d) return d;
-    const sp = quarterSprints.find(s => s.id === task.sprint_id);
-    return toDate(sp?.start_date) || range.start;
-  };
+  const quarterSprints = useMemo(() =>
+    teamSprints
+      .filter(s => s.quarter === activeQ.quarter && String(s.year) === String(activeQ.year))
+      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')),
+    [teamSprints, activeQ.quarter, activeQ.year]);
 
-  // Allocated days for a member within a given sprint (by task start position).
-  const memberSprintLoad = (memberId, sprint) => {
-    const a = toDate(sprint.start_date), b = toDate(sprint.end_date);
-    return quarterTasks
-      .filter(t => t.assignee_member_id === memberId)
-      .filter(t => { const d = effectiveStart(t); return a && b && d >= a && d <= b; })
-      .reduce((sum, t) => sum + (Number(t.estimate_days) || 0), 0);
-  };
-  const memberQuarterLoad = (memberId) =>
-    quarterTasks.filter(t => t.assignee_member_id === memberId)
-      .reduce((s, t) => s + (Number(t.estimate_days) || 0), 0);
-  const memberQuarterCapacity = (memberId) =>
-    quarterSprints.reduce((s, sp) => s + getMemberAvailableDays(sp, memberId), 0);
+  // Feature tasks scoped to currently selected products
+  const productFeatureTasks = useMemo(() =>
+    featureTasks.filter(t => !t.product_id || selectedProductIds.includes(t.product_id)),
+    [featureTasks, selectedProductIds]);
 
-  const handleCreateSprint = async () => {
-    if (!sprintDraft.name.trim()) return;
-    const d = toDate(sprintDraft.start_date);
-    const quarter = d ? `Q${Math.floor(d.getMonth() / 3) + 1}` : null;
-    const year = d ? String(d.getFullYear()) : null;
-    await addSprint({ ...sprintDraft, working_days: Number(sprintDraft.working_days) || 10, quarter, year, team_id: activeTeamId });
-    setSprintDraft(EMPTY_SPRINT);
+  const sprintMissions = (sprintId) =>
+    productFeatureTasks.filter(t => t.sprint_id === sprintId);
+
+  const handleCreateSprint = async (draft) => {
+    const d = draft.start_date ? new Date(draft.start_date) : null;
+    const quarter = d ? `Q${Math.floor(d.getMonth() / 3) + 1}` : activeQ.quarter;
+    const year    = d ? String(d.getFullYear()) : activeQ.year;
+    await addSprint({ ...draft, working_days: Number(draft.working_days) || 10, quarter, year, team_id: activeTeamId });
     setCreatingSprint(false);
   };
 
-  const saveEditor = async () => {
-    if (!editor?.title.trim()) return;
-    const payload = {
-      title: editor.title,
-      estimate_days: Number(editor.estimate_days) || 1,
-      assignee_member_id: editor.assignee_member_id || null,
-      roadmap_item_id: editor.roadmap_item_id || null,
-      start_date: editor.start_date || null,
-      sprint_id: sprintForDate(editor.start_date)?.id || null,
-    };
-    if (editor._new) {
-      await addTask({ ...payload, team_id: activeTeamId });
-    } else {
-      await updateTask(editor.id, payload);
-    }
-    setEditor(null);
-  };
-
-  // Shared Gantt renderers (used by member rows and the unassigned backlog row).
-  const renderGridlines = () => quarterSprints.map(s => {
-    const x = pctBetween(toDate(s.end_date) || range.end, range.start, range.end);
-    return <div key={s.id} className="gantt-gridline" style={{ right: `${x}%` }} />;
-  });
-  const renderBlock = (t) => {
-    const d = effectiveStart(t);
-    const left = pctBetween(d, range.start, range.end);
-    const widthPct = Math.max(3, ((Number(t.estimate_days) || 1) * 86400000) / (range.end - range.start) * 100);
-    const color = milestoneColor[t.roadmap_item_id] || '#64748B';
-    return (
-      <button key={t.id} className="gantt-block" title={`${t.title} · ${t.estimate_days}ד`}
-        style={{ right: `${left}%`, width: `${Math.min(widthPct, 100 - left)}%`, background: color }}
-        onClick={() => setEditor({ ...t, start_date: fmtDate(d), estimate_days: Number(t.estimate_days) || 1, roadmap_item_id: t.roadmap_item_id || '', assignee_member_id: t.assignee_member_id || '' })}>
-        <span className="gantt-block-title">{t.title}</span>
-      </button>
-    );
-  };
-  const backlogTasks = quarterTasks.filter(t => !t.assignee_member_id);
-
   return (
-    <div className="content-area animate-fade-in sprint-board-layout">
-      <header className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ flex: 1, minWidth: 200 }}>
+    <div className="content-area animate-fade-in sb-layout">
+      <header className="page-header">
+        <div>
           <h1 className="text-h1 mb-2">תכנון ספרינטים</h1>
-          <p className="text-secondary text-sm">תכנון עומס הצוות מול היעדים הרבעוניים</p>
+          <p className="text-secondary text-sm">
+            שייך משימות לספרינטים, הגדר אחראים וסוקרי CR
+            <span className="badge badge-gray" style={{ marginInlineStart: '0.5rem' }}>
+              {activeQ.quarter} {activeQ.year}
+            </span>
+          </p>
         </div>
-        <div className="flex-center gap-2" style={{ flexWrap: 'wrap' }}>
-          <span className="badge badge-gray"><CalendarRange size={13} /> {activeQ.quarter} {activeQ.year}</span>
-          <button className="btn btn-secondary" onClick={() => setCreatingSprint(v => !v)}>
-            <Plus size={16} /> ספרינט חדש
-          </button>
-        </div>
+        <button className={`btn ${creatingSprint ? 'btn-secondary' : 'btn-primary'}`}
+          onClick={() => setCreatingSprint(v => !v)}>
+          {creatingSprint ? <><X size={16} /> ביטול</> : <><Plus size={16} /> ספרינט חדש</>}
+        </button>
       </header>
 
       {creatingSprint && (
-        <div className="glass-panel sprint-form" style={{ direction: 'rtl' }}>
-          <div className="field"><label>שם הספרינט</label>
-            <input className="modal-input" value={sprintDraft.name} autoFocus
-              onChange={e => setSprintDraft({ ...sprintDraft, name: e.target.value })} placeholder="לדוגמה: ספרינט 14" />
-          </div>
-          <div className="field"><label>תאריך התחלה</label>
-            <input type="date" className="modal-input" value={sprintDraft.start_date}
-              onChange={e => setSprintDraft({ ...sprintDraft, start_date: e.target.value })} />
-          </div>
-          <div className="field"><label>תאריך סיום</label>
-            <input type="date" className="modal-input" value={sprintDraft.end_date}
-              onChange={e => setSprintDraft({ ...sprintDraft, end_date: e.target.value })} />
-          </div>
-          <div className="field"><label>ימי עבודה לאדם</label>
-            <input type="number" min="1" className="modal-input" value={sprintDraft.working_days}
-              onChange={e => setSprintDraft({ ...sprintDraft, working_days: e.target.value })} />
-          </div>
-          <div className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
-            <button className="btn btn-primary" onClick={handleCreateSprint}><Check size={16} /> צור</button>
-            <button className="btn-icon" onClick={() => { setCreatingSprint(false); setSprintDraft(EMPTY_SPRINT); }}><X size={18} /></button>
-          </div>
-        </div>
+        <SprintCreateForm
+          onSave={handleCreateSprint}
+          onCancel={() => setCreatingSprint(false)} />
       )}
 
-      {quarterSprints.length === 0 ? (
+      {quarterSprints.length === 0 && !creatingSprint ? (
         <div className="empty-state" style={{ direction: 'rtl' }}>
           <CalendarRange size={48} className="text-tertiary mb-4" />
-          <h3 className="text-h3 mb-2">אין ספרינטים ברבעון</h3>
-          <p className="text-secondary mb-4">צור ספרינטים עם תאריכים כדי לבנות את לוח התכנון הרבעוני.</p>
-          <button className="btn btn-primary" onClick={() => setCreatingSprint(true)}><Plus size={16} /> צור ספרינט</button>
+          <h3 className="text-h3 mb-2">אין ספרינטים ב-{activeQ.quarter} {activeQ.year}</h3>
+          <p className="text-secondary mb-4">צור ספרינט ראשון כדי להתחיל לשייך משימות לצוות</p>
+          <button className="btn btn-primary" onClick={() => setCreatingSprint(true)}>
+            <Plus size={16} /> צור ספרינט
+          </button>
         </div>
       ) : (
-        <>
-          {/* Milestones (committed) + breakdown rail */}
-          <div className="glass-panel requirements-panel" style={{ direction: 'rtl' }}>
-            <div className="flex-center gap-2 mb-3" style={{ justifyContent: 'flex-start' }}>
-              <span className="icon-badge bg-indigo"><Layers size={18} /></span>
-              <span className="text-h3">אבני דרך מחויבות (PM)</span>
-              <span className="badge badge-gray">{milestones.length}</span>
-            </div>
-            {milestones.length === 0 ? (
-              <p className="text-tertiary text-sm" style={{ fontStyle: 'italic' }}>
-                אין אבני דרך בציר הזמן לרבעון זה. ה-PM משבץ אותן ממפת הדרכים.
-              </p>
-            ) : (
-              <div className="requirements-list">
-                {milestones.map(item => (
-                  <div key={item.id} className="requirement-row">
-                    <div className="requirement-main">
-                      <span className="flex-center gap-2" style={{ justifyContent: 'flex-start' }}>
-                        <span className="milestone-swatch" style={{ background: milestoneColor[item.id] }} />
-                        <span className="requirement-title">{item.title}</span>
-                      </span>
-                      <span className="requirement-product">
-                        {teamProducts.find(p => p.id === item.product_id)?.name || ''}
-                        {' · '}{quarterTasks.filter(t => t.roadmap_item_id === item.id).length} משימות
-                      </span>
-                    </div>
-                    <button className="btn btn-secondary btn-sm"
-                      onClick={() => setEditor({ ...newTaskTemplate('', fmtDate(range.start)), roadmap_item_id: item.id })}>
-                      <Plus size={14} /> פרק למשימה
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div className="sb-main-grid">
+          {/* Sprint cards */}
+          <div className="sb-sprints-col">
+            {quarterSprints.map(sprint => (
+              <SprintCard key={sprint.id}
+                sprint={sprint}
+                missions={sprintMissions(sprint.id)}
+                features={activeFeatures}
+                objectives={activeObjectives}
+                roster={activeRoster}
+                deleteSprint={deleteSprint}
+                updateFeatureTask={updateFeatureTask} />
+            ))}
           </div>
 
-          {/* Task editor */}
-          {editor && (
-            <div className="glass-panel task-editor" style={{ direction: 'rtl' }}>
-              <div className="field" style={{ flex: 2, minWidth: 180 }}><label>משימה</label>
-                <input className="modal-input" value={editor.title} autoFocus
-                  onChange={e => setEditor({ ...editor, title: e.target.value })} placeholder="כותרת המשימה" />
-              </div>
-              <div className="field"><label>אבן דרך</label>
-                <select className="modal-input" value={editor.roadmap_item_id}
-                  onChange={e => setEditor({ ...editor, roadmap_item_id: e.target.value })}>
-                  <option value="">— ללא —</option>
-                  {milestones.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
-                </select>
-              </div>
-              <div className="field"><label>אחראי</label>
-                <select className="modal-input" value={editor.assignee_member_id}
-                  onChange={e => setEditor({ ...editor, assignee_member_id: e.target.value })}>
-                  <option value="">— ללא —</option>
-                  {activeRoster.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </div>
-              <div className="field"><label>התחלה</label>
-                <input type="date" className="modal-input" value={editor.start_date}
-                  min={fmtDate(range.start)} max={fmtDate(range.end)}
-                  onChange={e => setEditor({ ...editor, start_date: e.target.value })} />
-              </div>
-              <div className="field" style={{ maxWidth: 110 }}><label>אומדן (ימים)</label>
-                <select className="modal-input" value={editor.estimate_days}
-                  onChange={e => setEditor({ ...editor, estimate_days: parseFloat(e.target.value) })}>
-                  {ESTIMATE_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
-              <div className="flex-center gap-2" style={{ alignItems: 'flex-end' }}>
-                <button className="btn btn-primary" onClick={saveEditor}><Check size={16} /> שמירה</button>
-                {!editor._new && <button className="btn-icon text-danger" onClick={() => { deleteTask(editor.id); setEditor(null); }}><Trash2 size={16} /></button>}
-                <button className="btn-icon" onClick={() => setEditor(null)}><X size={18} /></button>
-              </div>
-            </div>
-          )}
-
-          {/* Gantt */}
-          <div className="glass-panel gantt" style={{ direction: 'rtl' }}>
-            {/* Header: months + sprint bands */}
-            <div className="gantt-header">
-              <div className="gantt-label-col text-xs text-tertiary">צוות \ זמן</div>
-              <div className="gantt-track">
-                <div className="gantt-months">
-                  {(MONTHS_BY_Q[activeQ.quarter] || []).map((mname, i) => (
-                    <div key={i} className="gantt-month">{mname}</div>
-                  ))}
-                </div>
-                <div className="gantt-sprint-bands">
-                  {quarterSprints.map(s => {
-                    const left = pctBetween(toDate(s.start_date) || range.start, range.start, range.end);
-                    const right = pctBetween(toDate(s.end_date) || range.end, range.start, range.end);
-                    return (
-                      <div key={s.id} className="gantt-sprint-band" style={{ right: `${left}%`, width: `${Math.max(2, right - left)}%` }}
-                        title={`${s.name} · ${s.start_date || ''}–${s.end_date || ''}`}>
-                        <span>{s.name}</span>
-                        <button className="gantt-band-del" onClick={() => { if (window.confirm('למחוק את הספרינט?')) deleteSprint(s.id); }}><X size={11} /></button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Member rows */}
-            <div className="gantt-body">
-              {activeRoster.length === 0 && (
-                <p className="text-tertiary text-sm" style={{ padding: '1rem', fontStyle: 'italic' }}>אין אנשי צוות פעילים.</p>
-              )}
-              {activeRoster.map(member => {
-                const load = memberQuarterLoad(member.id);
-                const cap = memberQuarterCapacity(member.id);
-                const over = cap && load > cap;
-                const tasks = quarterTasks.filter(t => t.assignee_member_id === member.id);
-                return (
-                  <div key={member.id} className="gantt-row">
-                    <div className="gantt-label-col">
-                      <span className="gantt-member-name">{member.name}</span>
-                      <span className={`gantt-member-cap ${over ? 'is-over' : ''}`}>{load}/{cap}ד</span>
-                    </div>
-                    <div className="gantt-track gantt-row-track">
-                      {renderGridlines()}
-                      {/* per-sprint overload tint */}
-                      {quarterSprints.map(s => {
-                        const a = pctBetween(toDate(s.start_date) || range.start, range.start, range.end);
-                        const b = pctBetween(toDate(s.end_date) || range.end, range.start, range.end);
-                        const ml = memberSprintLoad(member.id, s);
-                        const av = getMemberAvailableDays(s, member.id);
-                        if (!av || ml <= av) return null;
-                        return <div key={s.id} className="gantt-overload" style={{ right: `${a}%`, width: `${Math.max(2, b - a)}%` }} title={`עומס יתר: ${ml}/${av} ימים`} />;
-                      })}
-                      {tasks.map(renderBlock)}
-                      <button className="gantt-add-inline" title="הוסף משימה"
-                        onClick={() => setEditor(newTaskTemplate(member.id, fmtDate(quarterSprints[0]?.start_date || range.start)))}>
-                        <Plus size={13} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Unassigned backlog — tasks with no assignee, editable here */}
-              <div className="gantt-row gantt-row-backlog">
-                <div className="gantt-label-col">
-                  <span className="gantt-member-name">ללא שיוך</span>
-                  <span className="gantt-member-cap">{backlogTasks.length} · {backlogTasks.reduce((s, t) => s + (Number(t.estimate_days) || 0), 0)}ד</span>
-                </div>
-                <div className="gantt-track gantt-row-track">
-                  {renderGridlines()}
-                  {backlogTasks.map(renderBlock)}
-                  <button className="gantt-add-inline" title="הוסף משימה ללא שיוך"
-                    onClick={() => setEditor(newTaskTemplate('', fmtDate(quarterSprints[0]?.start_date || range.start)))}>
-                    <Plus size={13} />
-                  </button>
-                  {backlogTasks.length === 0 && (
-                    <span className="gantt-backlog-empty text-tertiary text-xs">אין משימות ללא שיוך</span>
-                  )}
-                </div>
-              </div>
-            </div>
+          {/* Mission pool */}
+          <div className="sb-pool-col">
+            <MissionPool
+              tasks={productFeatureTasks}
+              features={activeFeatures}
+              objectives={activeObjectives}
+              quarterSprints={quarterSprints}
+              updateFeatureTask={updateFeatureTask} />
           </div>
-        </>
+        </div>
       )}
     </div>
   );

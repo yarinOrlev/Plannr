@@ -31,6 +31,7 @@ const defaultData = {
   tasks: [],                 // PM-requirement breakdown in person-days
   memberSprintCapacity: [],  // per-person availability overrides (PTO)
   activeTeamId: '',          // currently selected team for planning views
+  featureTasks: [],          // PM-level tasks under a feature, scored by RICE
   scoringConfig: [
     { id: 'reach', label: 'טווח (Reach)', weight: 1, type: 'multiplier', defaultValue: 1, info: 'כמה משתמשים יושפעו?' },
     { id: 'impact', label: 'השפעה (Impact)', weight: 1, type: 'multiplier', defaultValue: 1, info: 'כמה זה יתרום למטרה?' },
@@ -124,7 +125,8 @@ export const ProductProvider = ({ children }) => {
               members: 'members',
               sprints: 'sprints',
               tasks: 'tasks',
-              member_sprint_capacity: 'memberSprintCapacity'
+              member_sprint_capacity: 'memberSprintCapacity',
+              feature_tasks: 'featureTasks'
             };
 
             const key = tableKeyMap[table];
@@ -274,7 +276,7 @@ export const ProductProvider = ({ children }) => {
       const [
         features, strategy, roadmaps, objectives, notes,
         reviews, roadmapBoards, customers, productUsers, documentation,
-        members, sprints, tasks, memberSprintCapacity
+        members, sprints, tasks, memberSprintCapacity, featureTasks
       ] = await Promise.all([
         fetchTable('features', getQuery('features')),
         fetchTable('strategy', getQuery('strategy')),
@@ -290,7 +292,8 @@ export const ProductProvider = ({ children }) => {
         fetchTable('sprints', getTeamQuery('sprints').order('start_date', { ascending: true })),
         fetchTable('tasks', getTeamQuery('tasks')),
         // capacity rows have no team_id; scoped client-side via selectors
-        fetchTable('member_sprint_capacity', supabase.from('member_sprint_capacity').select('*'))
+        fetchTable('member_sprint_capacity', supabase.from('member_sprint_capacity').select('*')),
+        fetchTable('feature_tasks', getQuery('feature_tasks'))
       ]);
 
       setData(prev => {
@@ -316,6 +319,7 @@ export const ProductProvider = ({ children }) => {
           sprints: sprints || [],
           tasks: tasks || [],
           memberSprintCapacity: memberSprintCapacity || [],
+          featureTasks: featureTasks || [],
           activeProductId: nextActiveProductId,
           selectedProductIds: products.map(p => p.id),
           activeRoadmapBoardId: nextActiveBoardId
@@ -1432,6 +1436,61 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  // ── Feature tasks (PM RICE tasks under a feature) ────────────────────────
+  const addFeatureTask = async (task) => {
+    try {
+      const newTask = {
+        id: crypto.randomUUID(),
+        feature_id: task.feature_id,
+        product_id: task.product_id || null,
+        title: task.title,
+        description: task.description || null,
+        complexity: task.complexity || 'M',
+        estimate_hours: task.estimate_hours ?? 0,
+        reach: task.reach ?? 1,
+        impact: task.impact ?? 1,
+        confidence: task.confidence ?? 1,
+        effort: task.effort ?? 1,
+        status: task.status || 'Todo',
+        order: task.order ?? 0,
+        sprint_id: task.sprint_id || null,
+        assignee_member_id: task.assignee_member_id || null,
+        cr_reviewer_1_id: task.cr_reviewer_1_id || null,
+        cr_reviewer_2_id: task.cr_reviewer_2_id || null,
+      };
+      const { data: inserted, error } = await supabase.from('feature_tasks').insert([newTask]).select();
+      if (error) throw error;
+      setData(prev => ({ ...prev, featureTasks: [...(prev.featureTasks || []), inserted[0]] }));
+      return { success: true, data: inserted[0] };
+    } catch (err) {
+      logger.error('Error adding feature task:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateFeatureTask = async (id, updates) => {
+    try {
+      const { error } = await supabase.from('feature_tasks').update(updates).eq('id', id);
+      if (error) throw error;
+      setData(prev => ({
+        ...prev,
+        featureTasks: (prev.featureTasks || []).map(t => t.id === id ? { ...t, ...updates } : t)
+      }));
+    } catch (err) {
+      logger.error('Error updating feature task:', err);
+    }
+  };
+
+  const deleteFeatureTask = async (id) => {
+    try {
+      const { error } = await supabase.from('feature_tasks').delete().eq('id', id);
+      if (error) throw error;
+      setData(prev => ({ ...prev, featureTasks: (prev.featureTasks || []).filter(t => t.id !== id) }));
+    } catch (err) {
+      logger.error('Error deleting feature task:', err);
+    }
+  };
+
   const setActiveTeam = (id) => setData(prev => ({ ...prev, activeTeamId: id }));
 
   // ── Capacity math (person-days) ───────────────────────────────────────────
@@ -1604,6 +1663,10 @@ export const ProductProvider = ({ children }) => {
     addTask,
     updateTask,
     deleteTask,
+    featureTasks: data.featureTasks || [],
+    addFeatureTask,
+    updateFeatureTask,
+    deleteFeatureTask,
     getMemberAvailableDays,
     getSprintLoad,
     getSprintCapacity,
