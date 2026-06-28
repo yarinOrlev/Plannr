@@ -1445,8 +1445,14 @@ export const ProductProvider = ({ children }) => {
         product_id: task.product_id || null,
         title: task.title,
         description: task.description || null,
-        complexity: task.complexity || 'M',
+        complexity: task.complexity ?? 3,
         estimate_hours: task.estimate_hours ?? 0,
+        due_date: task.due_date || null,
+        definition_of_done: Array.isArray(task.definition_of_done) ? task.definition_of_done : [],
+        rice_enabled: task.rice_enabled !== false,
+        original_estimate_days: task.original_estimate_days != null && task.original_estimate_days !== '' ? Number(task.original_estimate_days) : null,
+        actual_time_days: task.actual_time_days != null && task.actual_time_days !== '' ? Number(task.actual_time_days) : null,
+        remaining_work_days: task.remaining_work_days != null ? Number(task.remaining_work_days) : null,
         reach: task.reach ?? 1,
         impact: task.impact ?? 1,
         confidence: task.confidence ?? 1,
@@ -1472,13 +1478,31 @@ export const ProductProvider = ({ children }) => {
     try {
       const { error } = await supabase.from('feature_tasks').update(updates).eq('id', id);
       if (error) throw error;
-      setData(prev => ({
-        ...prev,
-        featureTasks: (prev.featureTasks || []).map(t => t.id === id ? { ...t, ...updates } : t)
-      }));
+      let nextTasks;
+      setData(prev => {
+        nextTasks = (prev.featureTasks || []).map(t => t.id === id ? { ...t, ...updates } : t);
+        return { ...prev, featureTasks: nextTasks };
+      });
+      if ('status' in updates && nextTasks) {
+        const task = nextTasks.find(t => t.id === id);
+        if (task?.feature_id) await syncFeatureStatus(task.feature_id, nextTasks);
+      }
     } catch (err) {
       logger.error('Error updating feature task:', err);
     }
+  };
+
+  // Derive a feature's status from its tasks: all Done → Done, any active → In Progress,
+  // otherwise Planned. Persists only when the derived status actually changed.
+  const syncFeatureStatus = async (featureId, tasksSource) => {
+    const tasks = (tasksSource || data.featureTasks || []).filter(t => t.feature_id === featureId);
+    if (tasks.length === 0) return;
+    const allDone = tasks.every(t => t.status === 'Done');
+    const anyActive = tasks.some(t => t.status === 'In Progress' || t.status === 'In CR');
+    const newStatus = allDone ? 'Done' : (anyActive ? 'In Progress' : 'Planned');
+    const feature = (data.features || []).find(f => f.id === featureId);
+    if (!feature || feature.status === newStatus) return;
+    await updateFeature(featureId, { status: newStatus });
   };
 
   const deleteFeatureTask = async (id) => {

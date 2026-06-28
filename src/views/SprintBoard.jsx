@@ -1,245 +1,492 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useProductContext } from '../context/ProductContext';
 import {
   CalendarRange, Plus, Trash2, Check, X, Users, Target,
-  ListTodo, ChevronDown, ChevronRight, Search, Clock,
-  GitPullRequest, UserCheck, ArrowLeft, Zap,
+  ListTodo, Search, Clock,
+  UserCheck, Zap, Pencil, Flag, AlertTriangle,
+  CalendarClock, Gauge, ListChecks,
 } from 'lucide-react';
+import DefinitionOfDone from '../components/DefinitionOfDone';
+import RichTextEditor from '../components/RichText';
 import './SprintBoard.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const COMPLEXITY_CONFIG = {
-  XS: { color: '#10B981', bg: '#D1FAE5', border: '#6EE7B7', desc: 'כמה שעות' },
-  S:  { color: '#3B82F6', bg: '#DBEAFE', border: '#93C5FD', desc: '1–2 ימים' },
-  M:  { color: '#F59E0B', bg: '#FEF3C7', border: '#FCD34D', desc: '3–5 ימים' },
-  L:  { color: '#F97316', bg: '#FFEDD5', border: '#FDBA74', desc: 'שבוע–שבועיים' },
-  XL: { color: '#EF4444', bg: '#FEE2E2', border: '#FCA5A5', desc: 'מעל שבועיים' },
+  1: { color: '#10B981', bg: '#D1FAE5', border: '#6EE7B7', desc: 'מאמץ מינימלי' },
+  2: { color: '#3B82F6', bg: '#DBEAFE', border: '#93C5FD', desc: 'יחסית קל' },
+  3: { color: '#F59E0B', bg: '#FEF3C7', border: '#FCD34D', desc: 'בינוני' },
+  4: { color: '#F97316', bg: '#FFEDD5', border: '#FDBA74', desc: 'מורכב' },
+  5: { color: '#EF4444', bg: '#FEE2E2', border: '#FCA5A5', desc: 'מורכב מאוד' },
 };
 
+const STATUS_ORDER = ['Todo', 'In Progress', 'In CR', 'Blocked', 'Done'];
 const STATUS_CONFIG = {
-  'Todo':        { label: 'ממתין',  dot: '#9CA3AF' },
-  'In Progress': { label: 'בעבודה', dot: '#3B82F6' },
-  'In CR':       { label: 'בסקירה', dot: '#8B5CF6' },
-  'Done':        { label: 'הושלם',  dot: '#10B981' },
-  'Blocked':     { label: 'חסום',   dot: '#EF4444' },
+  'Todo':        { label: 'ממתין',  dot: '#9CA3AF', soft: '#F3F4F6', text: '#4B5563' },
+  'In Progress': { label: 'בעבודה', dot: '#3B82F6', soft: '#EFF6FF', text: '#1D4ED8' },
+  'In CR':       { label: 'בסקירה', dot: '#8B5CF6', soft: '#F5F3FF', text: '#6D28D9' },
+  'Blocked':     { label: 'חסום',   dot: '#EF4444', soft: '#FEF2F2', text: '#B91C1C' },
+  'Done':        { label: 'הושלם',  dot: '#10B981', soft: '#ECFDF5', text: '#047857' },
 };
 
 const EMPTY_SPRINT = { name: '', goal: '', start_date: '', end_date: '', working_days: 10 };
 
-const fmtDate = (d) => {
-  if (!d) return '';
-  return new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
+const fmtDate = (d) =>
+  !d ? '' : new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
+
+const daysBetween = (a, b) => {
+  if (!a || !b) return null;
+  return Math.round((new Date(b) - new Date(a)) / 86400000);
 };
+
+const daysUntil = (d) => {
+  if (!d) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((new Date(d) - today) / 86400000);
+};
+
+// health of a task by due date + status
+const taskHealth = (task) => {
+  if (task.status === 'Done') return 'done';
+  if (!task.due_date) return 'none';
+  const d = daysUntil(task.due_date);
+  if (d < 0) return 'overdue';
+  if (d <= 2) return 'soon';
+  return 'ok';
+};
+
+const initials = (name = '') =>
+  name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
-const ComplexityBadge = ({ complexity = 'M' }) => {
-  const cfg = COMPLEXITY_CONFIG[complexity] || COMPLEXITY_CONFIG['M'];
+const ComplexityBadge = ({ complexity = 3 }) => {
+  const c = Number(complexity) || 3;
+  const cfg = COMPLEXITY_CONFIG[c] || COMPLEXITY_CONFIG[3];
   return (
-    <span style={{
-      display: 'inline-block', padding: '0.12rem 0.5rem', borderRadius: '6px',
-      fontSize: '0.7rem', fontWeight: '700',
+    <span title={`מורכבות ${c} — ${cfg.desc}`} style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: 18, height: 18, borderRadius: '5px',
+      fontSize: '0.68rem', fontWeight: 800,
       color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
-    }}>
-      {complexity}
-    </span>
+    }}>{c}</span>
   );
 };
 
-const StatusSelect = ({ value, onChange }) => (
-  <select className="sb-select sb-status-select" value={value || 'Todo'} onChange={e => onChange(e.target.value)}>
-    {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-      <option key={k} value={k}>{v.label}</option>
-    ))}
-  </select>
+const Avatar = ({ name, title }) => (
+  <span className="sb-avatar" title={title || name}>{initials(name)}</span>
 );
 
-const MemberSelect = ({ value, roster, onChange, placeholder = '—' }) => (
-  <select className="sb-select" value={value || ''} onChange={e => onChange(e.target.value || null)}>
-    <option value="">{placeholder}</option>
-    {roster.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-  </select>
-);
+// ─── Mission card (kanban) ────────────────────────────────────────────────────
+const MissionCard = ({ task, feature, objective, roster, onOpen, onDragStart, onDragEnd }) => {
+  const health = taskHealth(task);
+  const assignee = roster.find(m => m.id === task.assignee_member_id);
+  const due = daysUntil(task.due_date);
 
-// ─── Sprint mission row ───────────────────────────────────────────────────────
-const SprintMissionRow = ({ task, feature, objective, roster, updateFeatureTask, onRemove }) => {
-  const upd = (field, val) => updateFeatureTask(task.id, { [field]: val });
+  const dueLabel = () => {
+    if (!task.due_date) return null;
+    if (health === 'overdue') return `באיחור ${Math.abs(due)}י'`;
+    if (due === 0) return 'היום';
+    if (health === 'soon') return `עוד ${due}י'`;
+    return fmtDate(task.due_date);
+  };
 
   return (
-    <tr className="sb-mission-row">
-      <td className="sb-mission-title-cell">
-        <div className="sb-mission-hierarchy">
-          {objective && (
-            <span className="sb-mission-obj">
-              <Target size={9} style={{ display: 'inline', marginLeft: 2 }} />
-              {objective.title}
+    <div
+      className={`sb-card sb-card--${health}`}
+      draggable
+      onClick={() => onOpen(task)}
+      onDragStart={e => onDragStart(e, task.id, 'board')}
+      onDragEnd={onDragEnd}
+      title="לחץ לפרטים · גרור לשינוי סטטוס"
+    >
+      <div className="sb-card-context">
+        {objective && <span className="sb-card-obj"><Target size={10} /> {objective.title}</span>}
+        {feature && <span className="sb-card-feature">{feature.title}</span>}
+      </div>
+
+      <div className="sb-card-title-row">
+        <span className="sb-card-title">{task.title}</span>
+      </div>
+
+      <div className="sb-card-meta">
+        <ComplexityBadge complexity={task.complexity ?? 3} />
+        {task.estimate_hours > 0 && <span className="sb-card-hours"><Clock size={11} /> {task.estimate_hours}ש'</span>}
+        {Array.isArray(task.definition_of_done) && task.definition_of_done.length > 0 && (() => {
+          const items = task.definition_of_done;
+          const done = items.filter(i => i.done).length;
+          return (
+            <span className={`dod-chip ${done === items.length ? 'dod-chip--complete' : ''}`} title="הגדרת סיום">
+              <ListChecks size={11} /> {done}/{items.length}
             </span>
-          )}
-          {feature && <span className="sb-mission-feature">{feature.title}</span>}
-          <span className="sb-mission-task">{task.title}</span>
-        </div>
-        {task.description && <p className="sb-mission-desc">{task.description}</p>}
-      </td>
-      <td className="text-center">
-        <ComplexityBadge complexity={task.complexity || 'M'} />
-      </td>
-      <td className="text-center sb-hours-cell">
-        {task.estimate_hours > 0 ? `${task.estimate_hours}ש'` : '—'}
-      </td>
-      <td>
-        <MemberSelect value={task.assignee_member_id} roster={roster}
-          onChange={v => upd('assignee_member_id', v)} placeholder="אחראי" />
-      </td>
-      <td>
-        <MemberSelect value={task.cr_reviewer_1_id} roster={roster}
-          onChange={v => upd('cr_reviewer_1_id', v)} placeholder="CR 1" />
-      </td>
-      <td>
-        <MemberSelect value={task.cr_reviewer_2_id} roster={roster}
-          onChange={v => upd('cr_reviewer_2_id', v)} placeholder="CR 2" />
-      </td>
-      <td>
-        <StatusSelect value={task.status} onChange={v => upd('status', v)} />
-      </td>
-      <td>
-        <button className="btn-icon-xs text-danger" onClick={() => onRemove(task.id)} title="הסר מספרינט">
-          <X size={13} />
-        </button>
-      </td>
-    </tr>
+          );
+        })()}
+        {task.due_date && (
+          <span className={`sb-card-due sb-card-due--${health}`}>
+            {health === 'overdue' || health === 'soon' ? <Flag size={11} /> : <CalendarClock size={11} />}
+            {dueLabel()}
+          </span>
+        )}
+        <span className="sb-card-assignee">
+          {assignee
+            ? <Avatar name={assignee.name} />
+            : <span className="sb-avatar sb-avatar--empty"><UserCheck size={12} /></span>}
+        </span>
+      </div>
+    </div>
   );
 };
 
-// ─── Sprint card ──────────────────────────────────────────────────────────────
-const SprintCard = ({ sprint, missions, features, objectives, roster, deleteSprint, updateFeatureTask }) => {
-  const [collapsed, setCollapsed] = useState(false);
+// ─── Task detail / edit modal ─────────────────────────────────────────────────
+const TaskDetailModal = ({ task, feature, objective, roster, updateFeatureTask, onRemove, onClose }) => {
+  const [form, setForm] = useState(task);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const orig = Number(form.original_estimate_days) || 0;
+  const actual = Number(form.actual_time_days) || 0;
+  const remaining = orig > 0 ? Math.max(0, orig - actual) : 0;
 
-  const totalHours  = missions.reduce((s, t) => s + (Number(t.estimate_hours) || 0), 0);
-  const doneCount   = missions.filter(t => t.status === 'Done').length;
-  const inCrCount   = missions.filter(t => t.status === 'In CR').length;
-  const inProgCount = missions.filter(t => t.status === 'In Progress').length;
-  const progressPct = missions.length ? Math.round((doneCount / missions.length) * 100) : 0;
+  // DoD is persisted immediately so items can be ticked off mid-sprint
+  // without needing to press Save.
+  const setDoD = (items) => {
+    setForm(f => ({ ...f, definition_of_done: items }));
+    updateFeatureTask(task.id, { definition_of_done: items });
+  };
+
+  const save = () => {
+    updateFeatureTask(task.id, {
+      title: form.title,
+      description: form.description || null,
+      status: form.status,
+      complexity: Number(form.complexity) || 3,
+      due_date: form.due_date || null,
+      estimate_hours: Number(form.estimate_hours) || 0,
+      original_estimate_days: form.original_estimate_days === '' || form.original_estimate_days == null ? null : Number(form.original_estimate_days),
+      actual_time_days: form.actual_time_days === '' || form.actual_time_days == null ? null : Number(form.actual_time_days),
+      remaining_work_days: orig > 0 ? remaining : null,
+      assignee_member_id: form.assignee_member_id || null,
+      cr_reviewer_1_id: form.cr_reviewer_1_id || null,
+      cr_reviewer_2_id: form.cr_reviewer_2_id || null,
+      definition_of_done: Array.isArray(form.definition_of_done) ? form.definition_of_done : [],
+    });
+    onClose();
+  };
+
+  return createPortal(
+    <div className="strategy-modal-overlay premium-blur" onClick={onClose}>
+      <div className="premium-modal glass-panel animate-scale-in sb-detail-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header-premium mb-2">
+          <div className="sb-detail-context">
+            {objective && <span className="sb-detail-obj"><Target size={12} /> {objective.title}</span>}
+            {feature && <span className="sb-detail-feature">{feature.title}</span>}
+          </div>
+          <button className="close-btn-premium" onClick={onClose}><X size={24} /></button>
+        </div>
+
+        <div className="sb-detail-body">
+          <div className="sb-detail-field tm-span-2">
+            <label className="input-label-premium">שם המשימה</label>
+            <input className="premium-input" value={form.title} onChange={e => set('title', e.target.value)} />
+          </div>
+
+          <div className="sb-detail-field tm-span-2">
+            <label className="input-label-premium">תיאור</label>
+            <RichTextEditor
+              value={form.description || ''}
+              onChange={v => set('description', v)}
+              placeholder="תיאור המשימה... אפשר ליצור רשימות עם • או 1." />
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">סטטוס</label>
+            <select className="premium-input" value={form.status || 'Todo'} onChange={e => set('status', e.target.value)}>
+              {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}
+            </select>
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">מורכבות (1–5)</label>
+            <select className="premium-input" value={form.complexity ?? 3} onChange={e => set('complexity', Number(e.target.value))}>
+              {Object.keys(COMPLEXITY_CONFIG).map(c => (
+                <option key={c} value={c}>{c} — {COMPLEXITY_CONFIG[c].desc}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">תאריך יעד</label>
+            <input type="date" className="premium-input" value={form.due_date || ''} onChange={e => set('due_date', e.target.value)} />
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">שעות הערכה</label>
+            <input type="number" min="0" step="0.5" className="premium-input"
+              value={form.estimate_hours ?? 0} onChange={e => set('estimate_hours', e.target.value)} />
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">הערכה מקורית (ימים)</label>
+            <input type="number" min="0" step="0.5" className="premium-input"
+              value={form.original_estimate_days ?? ''} onChange={e => set('original_estimate_days', e.target.value)} />
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">בוצע בפועל (ימים)</label>
+            <input type="number" min="0" step="0.5" className="premium-input"
+              value={form.actual_time_days ?? ''} onChange={e => set('actual_time_days', e.target.value)} />
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">עבודה נותרת (ימים)</label>
+            <div className="premium-input premium-input--readonly" style={{ fontWeight: 700, color: remaining === 0 && orig > 0 ? '#10b981' : 'var(--text-primary)' }}>
+              {orig > 0 ? remaining : '—'}
+            </div>
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">אחראי</label>
+            <select className="premium-input" value={form.assignee_member_id || ''} onChange={e => set('assignee_member_id', e.target.value || null)}>
+              <option value="">— ללא —</option>
+              {roster.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">סוקר CR 1</label>
+            <select className="premium-input" value={form.cr_reviewer_1_id || ''} onChange={e => set('cr_reviewer_1_id', e.target.value || null)}>
+              <option value="">— ללא —</option>
+              {roster.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+
+          <div className="sb-detail-field">
+            <label className="input-label-premium">סוקר CR 2</label>
+            <select className="premium-input" value={form.cr_reviewer_2_id || ''} onChange={e => set('cr_reviewer_2_id', e.target.value || null)}>
+              <option value="">— ללא —</option>
+              {roster.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+
+          <div className="sb-detail-field tm-span-2">
+            <DefinitionOfDone items={form.definition_of_done} onChange={setDoD} />
+          </div>
+        </div>
+
+        <div className="sb-detail-footer">
+          <button className="btn btn-danger-soft" onClick={() => { onRemove(task.id); onClose(); }}>
+            <X size={16} /> הסר מהספרינט
+          </button>
+          <div className="sb-detail-footer-main">
+            <button className="btn btn-secondary btn-lg" onClick={onClose}>ביטול</button>
+            <button className="btn btn-primary btn-lg" onClick={save}><Check size={18} /> שמירה</button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+// ─── Kanban column ────────────────────────────────────────────────────────────
+const KanbanColumn = ({ status, missions, features, objectives, roster, onOpen, onDropTask, dnd, isDragging }) => {
+  const [over, setOver] = useState(false);
+  const cfg = STATUS_CONFIG[status];
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setOver(false);
+    onDropTask(status);
+  };
+
+  return (
+    <div
+      className={`sb-col ${over ? 'sb-col--over' : ''} ${isDragging ? 'sb-col--active-drag' : ''}`}
+      onDragOver={e => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={handleDrop}
+    >
+      <div className="sb-col-header" style={{ '--col-dot': cfg.dot }}>
+        <span className="sb-col-dot" />
+        <span className="sb-col-name">{cfg.label}</span>
+        <span className="sb-col-count">{missions.length}</span>
+      </div>
+      <div className="sb-col-body">
+        {missions.map(task => {
+          const feature = features.find(f => f.id === task.feature_id);
+          const objective = objectives.find(o => o.id === feature?.objective_id);
+          return (
+            <MissionCard key={task.id} task={task} feature={feature} objective={objective}
+              roster={roster} onOpen={onOpen}
+              onDragStart={dnd.start} onDragEnd={dnd.end} />
+          );
+        })}
+        {missions.length === 0 && <div className="sb-col-empty">גרור לכאן</div>}
+      </div>
+    </div>
+  );
+};
+
+// ─── Sprint health banner ─────────────────────────────────────────────────────
+const HealthBanner = ({ missions }) => {
+  const overdue = missions.filter(t => taskHealth(t) === 'overdue');
+  const soon = missions.filter(t => taskHealth(t) === 'soon');
+  if (overdue.length === 0 && soon.length === 0) return null;
+  return (
+    <div className={`sb-health ${overdue.length ? 'sb-health--danger' : 'sb-health--warn'}`}>
+      <AlertTriangle size={15} />
+      <span>
+        {overdue.length > 0 && <strong>{overdue.length} משימות באיחור</strong>}
+        {overdue.length > 0 && soon.length > 0 && ' · '}
+        {soon.length > 0 && <span>{soon.length} מתקרבות לתאריך היעד</span>}
+        {' '}— ודא שהסטטוס מעודכן
+      </span>
+    </div>
+  );
+};
+
+// ─── Progress ring ────────────────────────────────────────────────────────────
+const ProgressRing = ({ pct }) => {
+  const r = 22, c = 2 * Math.PI * r;
+  return (
+    <div className="sb-ring">
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r={r} className="sb-ring-track" />
+        <circle cx="28" cy="28" r={r} className="sb-ring-fill"
+          strokeDasharray={c} strokeDashoffset={c - (c * pct) / 100}
+          transform="rotate(-90 28 28)" />
+      </svg>
+      <span className="sb-ring-label">{pct}%</span>
+    </div>
+  );
+};
+
+// ─── Sprint workspace (focused sprint) ────────────────────────────────────────
+const SprintWorkspace = ({ sprint, missions, features, objectives, roster, updateFeatureTask, getSprintCapacity, onEdit, onDelete, dnd, isDragging }) => {
+  const [detailId, setDetailId] = useState(null);
+
+  const dropToStatus = (status) => {
+    const cur = dnd.get();
+    if (!cur) return;
+    if (cur.from === 'pool') updateFeatureTask(cur.taskId, { sprint_id: sprint.id, status });
+    else updateFeatureTask(cur.taskId, { status });
+    dnd.end();
+  };
 
   const removeMission = (taskId) =>
-    updateFeatureTask(taskId, { sprint_id: null, assignee_member_id: null, cr_reviewer_1_id: null, cr_reviewer_2_id: null });
+    updateFeatureTask(taskId, { sprint_id: null });
+
+  const detailTask = missions.find(t => t.id === detailId);
+  const detailFeature = detailTask && features.find(f => f.id === detailTask.feature_id);
+  const detailObjective = detailFeature && objectives.find(o => o.id === detailFeature.objective_id);
+
+  const total = missions.length;
+  const done = missions.filter(t => t.status === 'Done').length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const totalHours = missions.reduce((s, t) => s + (Number(t.estimate_hours) || 0), 0);
+  const loadDays = missions.reduce((s, t) =>
+    s + (Number(t.original_estimate_days) || (Number(t.estimate_hours) || 0) / 8), 0);
+  const capacity = getSprintCapacity(sprint.id);
+  const overCapacity = capacity > 0 && loadDays > capacity;
+
+  const duration = daysBetween(sprint.start_date, sprint.end_date);
+  const byStatus = useMemo(() => {
+    const map = Object.fromEntries(STATUS_ORDER.map(s => [s, []]));
+    missions.forEach(t => (map[t.status] || map['Todo']).push(t));
+    return map;
+  }, [missions]);
 
   return (
-    <div className="sb-sprint-card glass-panel">
-      {/* Header */}
-      <div className="sb-sprint-header" onClick={() => setCollapsed(v => !v)}>
-        <div className="sb-sprint-header-left">
-          <span className="sb-expand-btn">
-            {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-          </span>
-          <div className="sb-sprint-name-block">
-            <span className="sb-sprint-name">{sprint.name}</span>
-            {sprint.goal && <span className="sb-sprint-goal">{sprint.goal}</span>}
+    <div className="sb-workspace">
+      {/* Sprint summary header */}
+      <div className="sb-summary glass-panel">
+        <div className="sb-summary-main">
+          <div className="sb-summary-titles">
+            <div className="sb-summary-name-row">
+              <h2 className="sb-summary-name">{sprint.name}</h2>
+              <div className="sb-summary-actions">
+                <button className="btn-icon-xs" onClick={() => onEdit(sprint)} title="ערוך ספרינט"><Pencil size={14} /></button>
+                <button className="btn-icon-xs text-danger"
+                  onClick={() => window.confirm(`למחוק את "${sprint.name}"?`) && onDelete(sprint.id)}
+                  title="מחק ספרינט"><Trash2 size={14} /></button>
+              </div>
+            </div>
+            {sprint.goal
+              ? <p className="sb-summary-goal"><Target size={13} /> {sprint.goal}</p>
+              : <p className="sb-summary-goal sb-summary-goal--empty" onClick={() => onEdit(sprint)}>+ הוסף מטרת ספרינט</p>}
+            <div className="sb-summary-dates">
+              <span><CalendarRange size={13} /> {fmtDate(sprint.start_date) || '—'} – {fmtDate(sprint.end_date) || '—'}</span>
+              {duration != null && <span className="sb-summary-duration">{duration} ימים</span>}
+              <span className="sb-summary-workdays">{sprint.working_days} ימי עבודה/אדם</span>
+            </div>
           </div>
+          <ProgressRing pct={pct} />
         </div>
-        <div className="sb-sprint-header-right">
-          {(sprint.start_date || sprint.end_date) && (
-            <span className="sb-sprint-dates">
-              <CalendarRange size={12} />
-              {fmtDate(sprint.start_date)}{sprint.end_date ? ` – ${fmtDate(sprint.end_date)}` : ''}
-              {sprint.working_days && <span className="sb-sprint-workdays"> · {sprint.working_days}ד/אדם</span>}
-            </span>
-          )}
-          <div className="sb-sprint-chips">
-            <span className="sb-chip sb-chip-neutral">{missions.length} משימות</span>
-            {totalHours > 0 && <span className="sb-chip sb-chip-indigo"><Clock size={10} /> {totalHours}ש'</span>}
-            {inProgCount > 0 && <span className="sb-chip sb-chip-blue">{inProgCount} בעבודה</span>}
-            {inCrCount > 0 && <span className="sb-chip sb-chip-purple"><GitPullRequest size={10} /> {inCrCount}</span>}
-            {doneCount > 0 && <span className="sb-chip sb-chip-green"><Check size={10} /> {doneCount}</span>}
+
+        <div className="sb-summary-stats">
+          <div className="sb-stat">
+            <span className="sb-stat-val">{done}/{total}</span>
+            <span className="sb-stat-label">משימות הושלמו</span>
           </div>
-          <button className="btn-icon-xs text-danger"
-            onClick={e => { e.stopPropagation(); if (window.confirm(`למחוק את "${sprint.name}"?`)) deleteSprint(sprint.id); }}
-            title="מחק ספרינט"><Trash2 size={13} /></button>
+          <div className="sb-stat">
+            <span className="sb-stat-val">{totalHours}<small>ש'</small></span>
+            <span className="sb-stat-label">סך שעות</span>
+          </div>
+          <div className={`sb-stat ${overCapacity ? 'sb-stat--over' : ''}`}>
+            <span className="sb-stat-val">
+              <Gauge size={13} style={{ marginInlineEnd: 3 }} />
+              {loadDays.toFixed(1)}<small>/{capacity.toFixed(0)}י'</small>
+            </span>
+            <span className="sb-stat-label">עומס מול קיבולת</span>
+            <div className="sb-cap-bar">
+              <div className="sb-cap-fill" style={{ width: `${capacity ? Math.min(100, (loadDays / capacity) * 100) : 0}%` }} />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Progress bar */}
-      {missions.length > 0 && (
-        <div className="sb-progress-bar">
-          <div className="sb-progress-fill" style={{ width: `${progressPct}%` }} title={`${progressPct}% הושלם`} />
-        </div>
-      )}
+      <HealthBanner missions={missions} />
 
-      {/* Mission list */}
-      {!collapsed && (
-        <div className="sb-missions-body">
-          {missions.length === 0 ? (
-            <div className="sb-empty-missions">
-              <ListTodo size={28} className="opacity-20" />
-              <span>הוסף משימות מבריכת המשימות שמימין</span>
-              <span className="sb-empty-hint">בחר ספרינט יעד בבריכה ולחץ על משימה להוספה</span>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="sb-missions-table">
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'right', minWidth: 220 }}>משימה</th>
-                    <th style={{ minWidth: 70 }}>מורכבות</th>
-                    <th style={{ minWidth: 55 }}>שעות</th>
-                    <th style={{ minWidth: 120 }}>
-                      <span className="sb-col-icon"><UserCheck size={12} /> אחראי</span>
-                    </th>
-                    <th style={{ minWidth: 110 }}>
-                      <span className="sb-col-icon"><GitPullRequest size={12} /> CR 1</span>
-                    </th>
-                    <th style={{ minWidth: 110 }}>
-                      <span className="sb-col-icon"><GitPullRequest size={12} /> CR 2</span>
-                    </th>
-                    <th style={{ minWidth: 100 }}>סטטוס</th>
-                    <th style={{ width: 32 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {missions.map(task => {
-                    const feature   = features.find(f => f.id === task.feature_id);
-                    const objective = objectives.find(o => o.id === feature?.objective_id);
-                    return (
-                      <SprintMissionRow key={task.id}
-                        task={task} feature={feature} objective={objective}
-                        roster={roster} updateFeatureTask={updateFeatureTask}
-                        onRemove={removeMission} />
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      {/* Kanban */}
+      <div className="sb-kanban">
+        {STATUS_ORDER.map(status => (
+          <KanbanColumn key={status} status={status} missions={byStatus[status]}
+            features={features} objectives={objectives} roster={roster}
+            onOpen={(t) => setDetailId(t.id)}
+            onDropTask={dropToStatus} dnd={dnd} isDragging={isDragging} />
+        ))}
+      </div>
+
+      {detailTask && (
+        <TaskDetailModal
+          task={detailTask}
+          feature={detailFeature}
+          objective={detailObjective}
+          roster={roster}
+          updateFeatureTask={updateFeatureTask}
+          onRemove={removeMission}
+          onClose={() => setDetailId(null)} />
       )}
     </div>
   );
 };
 
-// ─── Pool task item ───────────────────────────────────────────────────────────
-const PoolTaskItem = ({ task, feature, objective, onAssign, disabled }) => (
-  <div className={`pool-task-row ${disabled ? 'pool-task-row--disabled' : ''}`}
-    onClick={() => !disabled && onAssign(task.id)}
-    title={disabled ? 'בחר ספרינט יעד תחילה' : `הוסף לספרינט`}>
-    <button className="pool-add-btn" disabled={disabled}>
-      <Plus size={11} />
-    </button>
-    <div className="pool-task-info">
-      {objective && <span className="pool-task-obj">{objective.title}</span>}
-      {feature && <span className="pool-task-feature">{feature.title}</span>}
-      <span className="pool-task-title">{task.title}</span>
-      {task.description && <span className="pool-task-desc">{task.description}</span>}
+// ─── Mission pool (left) ──────────────────────────────────────────────────────
+const PoolItem = ({ task, onAssign, onDragStart, onDragEnd }) => (
+  <div className="sb-pool-item"
+    draggable
+    onDragStart={e => onDragStart(e, task.id, 'pool')}
+    onDragEnd={onDragEnd}
+    onClick={() => onAssign(task.id)}
+    title="לחץ או גרור כדי להוסיף לספרינט">
+    <button className="sb-pool-add"><Plus size={11} /></button>
+    <div className="sb-pool-item-info">
+      <span className="sb-pool-item-title">{task.title}</span>
+      {task.due_date && <span className="sb-pool-item-due"><CalendarClock size={9} /> {fmtDate(task.due_date)}</span>}
     </div>
-    <div className="pool-task-meta">
-      <ComplexityBadge complexity={task.complexity || 'M'} />
-      {task.estimate_hours > 0 && <span className="pool-task-hours">{task.estimate_hours}ש'</span>}
-    </div>
+    <ComplexityBadge complexity={task.complexity ?? 3} />
   </div>
 );
 
-// ─── Mission pool sidebar ─────────────────────────────────────────────────────
-const MissionPool = ({ tasks, features, objectives, quarterSprints, updateFeatureTask }) => {
-  const [targetSprintId, setTargetSprintId] = useState('');
+const MissionPool = ({ tasks, features, objectives, sprint, updateFeatureTask, dndHandlers }) => {
   const [search, setSearch] = useState('');
-
   const unassigned = tasks.filter(t => !t.sprint_id);
 
   const filtered = useMemo(() => {
@@ -253,11 +500,10 @@ const MissionPool = ({ tasks, features, objectives, quarterSprints, updateFeatur
     });
   }, [unassigned, features, search]);
 
-  // Group: objective → feature → tasks
   const groups = useMemo(() => {
     const map = new Map();
     filtered.forEach(task => {
-      const feat  = features.find(f => f.id === task.feature_id);
+      const feat = features.find(f => f.id === task.feature_id);
       const objId = feat?.objective_id || '__none__';
       if (!map.has(objId)) map.set(objId, new Map());
       const fMap = map.get(objId);
@@ -267,82 +513,58 @@ const MissionPool = ({ tasks, features, objectives, quarterSprints, updateFeatur
     return map;
   }, [filtered, features]);
 
-  const handleAssign = (taskId) => {
-    if (!targetSprintId) return;
-    updateFeatureTask(taskId, { sprint_id: targetSprintId });
+  const assign = (taskId) => sprint && updateFeatureTask(taskId, { sprint_id: sprint.id, status: 'Todo' });
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const cur = dndHandlers.get();
+    if (cur?.from === 'board') {
+      updateFeatureTask(cur.taskId, { sprint_id: null });
+      dndHandlers.end();
+    }
   };
 
   return (
-    <div className="mission-pool glass-panel">
-      <div className="pool-header">
-        <div className="pool-title">
-          <ListTodo size={15} />
-          <span>בריכת משימות</span>
-        </div>
+    <div className="sb-pool glass-panel"
+      onDragOver={e => e.preventDefault()}
+      onDrop={handleDrop}>
+      <div className="sb-pool-header">
+        <div className="sb-pool-title"><ListTodo size={15} /> בריכת משימות</div>
         <span className="badge badge-gray" style={{ fontSize: '0.7rem' }}>{unassigned.length}</span>
       </div>
 
-      <div className="pool-controls">
-        <div className="pool-sprint-selector">
-          <label className="pool-ctrl-label">הוסף ל:</label>
-          <select className="premium-input" style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
-            value={targetSprintId} onChange={e => setTargetSprintId(e.target.value)}>
-            <option value="">— בחר ספרינט —</option>
-            {quarterSprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-        <div className="pool-search-wrap">
-          <Search size={13} className="pool-search-icon" />
-          <input className="pool-search-input" placeholder="חפש משימה..."
-            value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
+      <div className="sb-pool-search">
+        <Search size={13} className="sb-pool-search-icon" />
+        <input placeholder="חפש משימה..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {!targetSprintId && (
-        <div className="pool-notice">
-          <ArrowLeft size={13} />
-          <span>בחר ספרינט יעד כדי להוסיף משימות</span>
+      {sprint && (
+        <div className="sb-pool-target">
+          מוסיף אל: <strong>{sprint.name}</strong>
         </div>
       )}
 
-      <div className="pool-list">
+      <div className="sb-pool-list">
         {filtered.length === 0 && (
-          <div className="pool-empty">
-            {unassigned.length === 0 ? (
-              <>
-                <Check size={22} className="opacity-20" />
-                <span>כל המשימות שויכו לספרינטים</span>
-              </>
-            ) : (
-              <>
-                <Search size={22} className="opacity-20" />
-                <span>לא נמצאו תוצאות</span>
-              </>
-            )}
+          <div className="sb-pool-empty">
+            {unassigned.length === 0
+              ? <><Check size={22} className="opacity-20" /><span>כל המשימות שויכו</span></>
+              : <><Search size={22} className="opacity-20" /><span>לא נמצאו תוצאות</span></>}
           </div>
         )}
-
         {[...groups.entries()].map(([objId, featureMap]) => {
           const obj = objectives.find(o => o.id === objId);
           return (
-            <div key={objId} className="pool-obj-group">
-              <div className="pool-obj-header">
-                <Target size={11} />
-                <span>{obj?.title || 'ללא יעד'}</span>
-              </div>
+            <div key={objId} className="sb-pool-group">
+              <div className="sb-pool-obj"><Target size={11} /> {obj?.title || 'ללא יעד'}</div>
               {[...featureMap.entries()].map(([fId, fTasks]) => {
                 const feature = features.find(f => f.id === fId);
                 return (
-                  <div key={fId} className="pool-feature-group">
-                    <div className="pool-feature-header">
-                      <Zap size={10} style={{ opacity: 0.5 }} />
-                      <span>{feature?.title || 'פיצ\'ר לא ידוע'}</span>
-                    </div>
+                  <div key={fId} className="sb-pool-feature-group">
+                    <div className="sb-pool-feature"><Zap size={10} style={{ opacity: 0.5 }} /> {feature?.title || 'פיצ\'ר'}</div>
                     {fTasks.map(task => (
-                      <PoolTaskItem key={task.id}
-                        task={task} feature={feature} objective={obj}
-                        onAssign={handleAssign}
-                        disabled={!targetSprintId} />
+                      <PoolItem key={task.id} task={task}
+                        onAssign={assign} onDragStart={dndHandlers.start} onDragEnd={dndHandlers.end} />
                     ))}
                   </div>
                 );
@@ -355,15 +577,16 @@ const MissionPool = ({ tasks, features, objectives, quarterSprints, updateFeatur
   );
 };
 
-// ─── Sprint create form ───────────────────────────────────────────────────────
-const SprintCreateForm = ({ onSave, onCancel }) => {
-  const [draft, setDraft] = useState(EMPTY_SPRINT);
+// ─── Sprint create / edit form ────────────────────────────────────────────────
+const SprintForm = ({ initial, onSave, onCancel }) => {
+  const [draft, setDraft] = useState(initial || EMPTY_SPRINT);
   const set = (k, v) => setDraft(d => ({ ...d, [k]: v }));
+  const duration = daysBetween(draft.start_date, draft.end_date);
 
   return (
-    <div className="glass-panel sb-create-form animate-fade-in" style={{ direction: 'rtl' }}>
+    <div className="glass-panel sb-form animate-fade-in" style={{ direction: 'rtl' }}>
       <div className="flex-between mb-4">
-        <h3 className="text-h3">ספרינט חדש</h3>
+        <h3 className="text-h3">{initial ? 'עריכת ספרינט' : 'ספרינט חדש'}</h3>
         <button className="btn-icon" onClick={onCancel}><X size={18} /></button>
       </div>
       <div className="sb-form-grid">
@@ -372,48 +595,133 @@ const SprintCreateForm = ({ onSave, onCancel }) => {
           <input className="premium-input" autoFocus value={draft.name}
             onChange={e => set('name', e.target.value)} placeholder="לדוגמה: ספרינט 15" />
         </div>
-        <div className="sb-field" style={{ gridColumn: '1 / -1' }}>
-          <label>מטרת הספרינט</label>
-          <input className="premium-input" value={draft.goal}
-            onChange={e => set('goal', e.target.value)}
-            placeholder="מה נרצה להשיג בסוף הספרינט? (לדוגמה: השלמת תשתית ה-auth)" />
-        </div>
-        <div className="sb-field">
-          <label>תאריך התחלה</label>
-          <input type="date" className="premium-input" value={draft.start_date}
-            onChange={e => set('start_date', e.target.value)} />
-        </div>
-        <div className="sb-field">
-          <label>תאריך סיום</label>
-          <input type="date" className="premium-input" value={draft.end_date}
-            onChange={e => set('end_date', e.target.value)} />
-        </div>
         <div className="sb-field">
           <label>ימי עבודה לאדם</label>
           <input type="number" min="1" max="30" className="premium-input"
             value={draft.working_days} onChange={e => set('working_days', e.target.value)} />
         </div>
+        <div className="sb-field" style={{ gridColumn: '1 / -1' }}>
+          <label>מטרת הספרינט</label>
+          <input className="premium-input" value={draft.goal}
+            onChange={e => set('goal', e.target.value)}
+            placeholder="מה נרצה להשיג? (לדוגמה: השלמת תשתית ה-auth)" />
+        </div>
+        <div className="sb-field">
+          <label>תאריך התחלה</label>
+          <input type="date" className="premium-input" value={draft.start_date || ''}
+            onChange={e => set('start_date', e.target.value)} />
+        </div>
+        <div className="sb-field">
+          <label>תאריך סיום</label>
+          <input type="date" className="premium-input" value={draft.end_date || ''}
+            onChange={e => set('end_date', e.target.value)} />
+        </div>
+        <div className="sb-field sb-duration-field">
+          <label>משך</label>
+          <div className="sb-duration-pill">
+            {duration != null ? `${duration} ימים` : '—'}
+          </div>
+        </div>
       </div>
       <div className="modal-footer-premium mt-4">
         <button className="btn btn-secondary" onClick={onCancel}>ביטול</button>
         <button className="btn btn-primary" onClick={() => draft.name.trim() && onSave(draft)}>
-          <Check size={16} /> צור ספרינט
+          <Check size={16} /> {initial ? 'שמור שינויים' : 'צור ספרינט'}
         </button>
       </div>
     </div>
   );
 };
 
+// ─── Sprint tabs ──────────────────────────────────────────────────────────────
+const SprintTabs = ({ sprints, missionsOf, focusedId, onFocus }) => (
+  <div className="sb-tabs">
+    {sprints.map(s => {
+      const m = missionsOf(s.id);
+      const done = m.filter(t => t.status === 'Done').length;
+      const pct = m.length ? Math.round((done / m.length) * 100) : 0;
+      const hasRisk = m.some(t => taskHealth(t) === 'overdue');
+      return (
+        <button key={s.id}
+          className={`sb-tab ${focusedId === s.id ? 'sb-tab--active' : ''}`}
+          onClick={() => onFocus(s.id)}>
+          <div className="sb-tab-top">
+            {hasRisk && <Flag size={11} className="sb-tab-flag" />}
+            <span className="sb-tab-name">{s.name}</span>
+            <span className="sb-tab-count">{m.length}</span>
+          </div>
+          <div className="sb-tab-bar"><div className="sb-tab-bar-fill" style={{ width: `${pct}%` }} /></div>
+        </button>
+      );
+    })}
+  </div>
+);
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 const SprintBoard = () => {
   const {
     activeTeamId, teamSprints, teamRoster,
-    addSprint, deleteSprint, activeQuarter,
-    featureTasks, updateFeatureTask,
+    addSprint, updateSprint, deleteSprint, activeQuarter,
+    featureTasks, updateFeatureTask, getSprintCapacity,
     activeFeatures, activeObjectives, selectedProductIds,
   } = useProductContext();
 
-  const [creatingSprint, setCreatingSprint] = useState(false);
+  const [formMode, setFormMode] = useState(null); // null | 'create' | sprintObject(edit)
+  const [focusedId, setFocusedId] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = React.useRef(null);
+
+  const activeQ = activeQuarter;
+  const activeRoster = teamRoster.filter(m => m.active);
+
+  const quarterSprints = useMemo(() =>
+    teamSprints
+      .filter(s => s.quarter === activeQ.quarter && String(s.year) === String(activeQ.year))
+      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')),
+    [teamSprints, activeQ.quarter, activeQ.year]);
+
+  const productFeatureTasks = useMemo(() =>
+    featureTasks.filter(t => !t.product_id || selectedProductIds.includes(t.product_id)),
+    [featureTasks, selectedProductIds]);
+
+  const missionsOf = (sprintId) => productFeatureTasks.filter(t => t.sprint_id === sprintId);
+
+  // Derive the focused sprint with a fallback to the first one, so we never need
+  // an effect to "repair" focus when sprints are added/removed.
+  const focused = quarterSprints.find(s => s.id === focusedId) || quarterSprints[0] || null;
+
+  // Unified DnD bridge: a mutable ref is the single source of truth for the
+  // active drag (so the pool can read board-originated drags and vice-versa),
+  // plus a boolean state purely to drive column drop-zone visuals.
+  const dnd = {
+    start: (e, taskId, from) => {
+      dragRef.current = { taskId, from };
+      setIsDragging(true);
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', taskId); } catch { /* noop */ }
+    },
+    end: () => { dragRef.current = null; setIsDragging(false); },
+    get: () => dragRef.current,
+  };
+
+  const handleSave = async (draft) => {
+    const editing = formMode && formMode !== 'create';
+    if (editing) {
+      await updateSprint(formMode.id, {
+        name: draft.name, goal: draft.goal,
+        start_date: draft.start_date || null, end_date: draft.end_date || null,
+        working_days: Number(draft.working_days) || 10,
+      });
+    } else {
+      const d = draft.start_date ? new Date(draft.start_date) : null;
+      const quarter = d ? `Q${Math.floor(d.getMonth() / 3) + 1}` : activeQ.quarter;
+      const year = d ? String(d.getFullYear()) : activeQ.year;
+      const id = crypto.randomUUID();
+      await addSprint({ ...draft, id, working_days: Number(draft.working_days) || 10, quarter, year, team_id: activeTeamId });
+      setFocusedId(id);
+    }
+    setFormMode(null);
+  };
 
   if (!activeTeamId) {
     return (
@@ -421,7 +729,7 @@ const SprintBoard = () => {
         <header className="page-header">
           <div>
             <h1 className="text-h1 mb-2">תכנון ספרינטים</h1>
-            <p className="text-secondary text-lg">שייך משימות לספרינטים, הגדר אחראים וסוקרי קוד</p>
+            <p className="text-secondary text-lg">בנה ספרינט ויזואלי, שייך משימות ונטר התקדמות</p>
           </div>
         </header>
         <div className="empty-state" style={{ direction: 'rtl' }}>
@@ -433,90 +741,77 @@ const SprintBoard = () => {
     );
   }
 
-  const activeQ    = activeQuarter;
-  const activeRoster = teamRoster.filter(m => m.active);
-
-  const quarterSprints = useMemo(() =>
-    teamSprints
-      .filter(s => s.quarter === activeQ.quarter && String(s.year) === String(activeQ.year))
-      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')),
-    [teamSprints, activeQ.quarter, activeQ.year]);
-
-  // Feature tasks scoped to currently selected products
-  const productFeatureTasks = useMemo(() =>
-    featureTasks.filter(t => !t.product_id || selectedProductIds.includes(t.product_id)),
-    [featureTasks, selectedProductIds]);
-
-  const sprintMissions = (sprintId) =>
-    productFeatureTasks.filter(t => t.sprint_id === sprintId);
-
-  const handleCreateSprint = async (draft) => {
-    const d = draft.start_date ? new Date(draft.start_date) : null;
-    const quarter = d ? `Q${Math.floor(d.getMonth() / 3) + 1}` : activeQ.quarter;
-    const year    = d ? String(d.getFullYear()) : activeQ.year;
-    await addSprint({ ...draft, working_days: Number(draft.working_days) || 10, quarter, year, team_id: activeTeamId });
-    setCreatingSprint(false);
-  };
-
   return (
     <div className="content-area animate-fade-in sb-layout">
       <header className="page-header">
         <div>
           <h1 className="text-h1 mb-2">תכנון ספרינטים</h1>
           <p className="text-secondary text-sm">
-            שייך משימות לספרינטים, הגדר אחראים וסוקרי CR
+            לוח ויזואלי לבניית ספרינט — גרור משימות, נטר התקדמות וזהה סיכונים
             <span className="badge badge-gray" style={{ marginInlineStart: '0.5rem' }}>
               {activeQ.quarter} {activeQ.year}
             </span>
           </p>
         </div>
-        <button className={`btn ${creatingSprint ? 'btn-secondary' : 'btn-primary'}`}
-          onClick={() => setCreatingSprint(v => !v)}>
-          {creatingSprint ? <><X size={16} /> ביטול</> : <><Plus size={16} /> ספרינט חדש</>}
+        <button className={`btn ${formMode === 'create' ? 'btn-secondary' : 'btn-primary'}`}
+          onClick={() => setFormMode(m => m === 'create' ? null : 'create')}>
+          {formMode === 'create' ? <><X size={16} /> ביטול</> : <><Plus size={16} /> ספרינט חדש</>}
         </button>
       </header>
 
-      {creatingSprint && (
-        <SprintCreateForm
-          onSave={handleCreateSprint}
-          onCancel={() => setCreatingSprint(false)} />
+      {(formMode === 'create' || (formMode && formMode !== 'create')) && (
+        <SprintForm
+          initial={formMode !== 'create' ? {
+            name: formMode.name, goal: formMode.goal || '',
+            start_date: formMode.start_date || '', end_date: formMode.end_date || '',
+            working_days: formMode.working_days ?? 10,
+          } : null}
+          onSave={handleSave}
+          onCancel={() => setFormMode(null)} />
       )}
 
-      {quarterSprints.length === 0 && !creatingSprint ? (
+      {quarterSprints.length === 0 && formMode !== 'create' ? (
         <div className="empty-state" style={{ direction: 'rtl' }}>
           <CalendarRange size={48} className="text-tertiary mb-4" />
           <h3 className="text-h3 mb-2">אין ספרינטים ב-{activeQ.quarter} {activeQ.year}</h3>
-          <p className="text-secondary mb-4">צור ספרינט ראשון כדי להתחיל לשייך משימות לצוות</p>
-          <button className="btn btn-primary" onClick={() => setCreatingSprint(true)}>
+          <p className="text-secondary mb-4">צור ספרינט ראשון כדי להתחיל לבנות את הלוח</p>
+          <button className="btn btn-primary" onClick={() => setFormMode('create')}>
             <Plus size={16} /> צור ספרינט
           </button>
         </div>
-      ) : (
-        <div className="sb-main-grid">
-          {/* Sprint cards */}
-          <div className="sb-sprints-col">
-            {quarterSprints.map(sprint => (
-              <SprintCard key={sprint.id}
-                sprint={sprint}
-                missions={sprintMissions(sprint.id)}
+      ) : quarterSprints.length > 0 && (
+        <>
+          <SprintTabs sprints={quarterSprints} missionsOf={missionsOf}
+            focusedId={focused?.id} onFocus={setFocusedId} />
+
+          <div className="sb-board-grid">
+            <div className="sb-pool-col">
+              <MissionPool
+                tasks={productFeatureTasks}
                 features={activeFeatures}
                 objectives={activeObjectives}
-                roster={activeRoster}
-                deleteSprint={deleteSprint}
-                updateFeatureTask={updateFeatureTask} />
-            ))}
+                sprint={focused}
+                updateFeatureTask={updateFeatureTask}
+                dndHandlers={dnd} />
+            </div>
+            <div className="sb-work-col">
+              {focused && (
+                <SprintWorkspace
+                  sprint={focused}
+                  missions={missionsOf(focused.id)}
+                  features={activeFeatures}
+                  objectives={activeObjectives}
+                  roster={activeRoster}
+                  updateFeatureTask={updateFeatureTask}
+                  getSprintCapacity={getSprintCapacity}
+                  dnd={dnd}
+                  isDragging={isDragging}
+                  onEdit={(s) => setFormMode(s)}
+                  onDelete={(id) => { deleteSprint(id); setFormMode(null); }} />
+              )}
+            </div>
           </div>
-
-          {/* Mission pool */}
-          <div className="sb-pool-col">
-            <MissionPool
-              tasks={productFeatureTasks}
-              features={activeFeatures}
-              objectives={activeObjectives}
-              quarterSprints={quarterSprints}
-              updateFeatureTask={updateFeatureTask} />
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

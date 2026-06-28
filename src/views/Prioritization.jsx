@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useProductContext } from '../context/ProductContext';
 import {
   Plus, ChevronDown, ChevronRight, X, Check, Info, Pencil, Trash2,
-  Settings, Sliders, AlertCircle, Target, ListTodo
+  Settings, Sliders, AlertCircle, Target, ListTodo, ListChecks
 } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import ProductBadge from '../components/ProductBadge';
+import DefinitionOfDone from '../components/DefinitionOfDone';
+import RichTextEditor, { descPreview } from '../components/RichText';
 import './Prioritization.css';
 
 const calcRice = (t) => {
@@ -16,6 +19,13 @@ const calcRice = (t) => {
   return Math.round((r * i * c) / (e || 1) * 10) / 10;
 };
 
+const fmtShort = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return `${dt.getDate()}/${dt.getMonth() + 1}`;
+};
+
 const riceColor = (score) => {
   if (score >= 200) return 'badge-pink';
   if (score >= 100) return 'badge-purple';
@@ -24,27 +34,85 @@ const riceColor = (score) => {
   return 'badge-gray';
 };
 
-const COMPLEXITY_OPTIONS = ['XS', 'S', 'M', 'L', 'XL'];
+const COMPLEXITY_OPTIONS = [1, 2, 3, 4, 5];
 const COMPLEXITY_CONFIG = {
-  XS: { color: '#10B981', bg: '#D1FAE5', border: '#6EE7B7' },
-  S:  { color: '#3B82F6', bg: '#DBEAFE', border: '#93C5FD' },
-  M:  { color: '#F59E0B', bg: '#FEF3C7', border: '#FCD34D' },
-  L:  { color: '#F97316', bg: '#FFEDD5', border: '#FDBA74' },
-  XL: { color: '#EF4444', bg: '#FEE2E2', border: '#FCA5A5' },
+  1: { color: '#10B981', bg: '#D1FAE5', border: '#6EE7B7', label: '1 – מינימלי', desc: 'מאמץ מינימלי' },
+  2: { color: '#3B82F6', bg: '#DBEAFE', border: '#93C5FD', label: '2 – פשוט',    desc: 'יחסית קל ליישום' },
+  3: { color: '#F59E0B', bg: '#FEF3C7', border: '#FCD34D', label: '3 – בינוני',  desc: 'מאמץ סביר' },
+  4: { color: '#F97316', bg: '#FFEDD5', border: '#FDBA74', label: '4 – מורכב',   desc: 'דורש מאמץ ניכר' },
+  5: { color: '#EF4444', bg: '#FEE2E2', border: '#FCA5A5', label: '5 – מורכב מאוד', desc: 'משימה מורכבת מאוד' },
 };
 
-const ComplexityBadge = ({ complexity = 'M' }) => {
-  const cfg = COMPLEXITY_CONFIG[complexity] || COMPLEXITY_CONFIG['M'];
+const ComplexityBadge = ({ complexity = 3 }) => {
+  const c = Number(complexity) || 3;
+  const cfg = COMPLEXITY_CONFIG[c] || COMPLEXITY_CONFIG[3];
   return (
-    <span style={{
+    <span title={cfg.desc} style={{
       display: 'inline-block', padding: '0.1rem 0.45rem', borderRadius: '6px',
       fontSize: '0.68rem', fontWeight: '700',
       color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
-    }}>{complexity}</span>
+    }}>{c}</span>
   );
 };
 
-const BLANK_TASK = { title: '', description: '', complexity: 'M', estimate_hours: 0, reach: 1, impact: 1, confidence: 1, effort: 1 };
+// Task / feature workflow statuses (shared with Sprint board)
+const TASK_STATUS = {
+  'Todo':        { label: 'ממתין',  dot: '#9CA3AF', bg: '#F3F4F6', color: '#4B5563' },
+  'In Progress': { label: 'בעבודה', dot: '#3B82F6', bg: '#EFF6FF', color: '#1D4ED8' },
+  'In CR':       { label: 'בסקירה', dot: '#8B5CF6', bg: '#F5F3FF', color: '#6D28D9' },
+  'Blocked':     { label: 'חסום',   dot: '#EF4444', bg: '#FEF2F2', color: '#B91C1C' },
+  'Done':        { label: 'הושלם',  dot: '#10B981', bg: '#ECFDF5', color: '#047857' },
+};
+
+const FEATURE_STATUS = {
+  'Planned':     { label: 'מתוכנן', bg: '#F3F4F6', color: '#4B5563' },
+  'In Progress': { label: 'בעבודה', bg: '#EFF6FF', color: '#1D4ED8' },
+  'Done':        { label: 'הושלם',  bg: '#ECFDF5', color: '#047857' },
+};
+
+const StatusPill = ({ status }) => {
+  const cfg = FEATURE_STATUS[status] || FEATURE_STATUS['Planned'];
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+      padding: '0.05rem 0.45rem', borderRadius: '99px',
+      fontSize: '0.62rem', fontWeight: 700,
+      background: cfg.bg, color: cfg.color,
+    }}>{cfg.label}</span>
+  );
+};
+
+const TaskStatusSelect = ({ value, onChange }) => {
+  const cfg = TASK_STATUS[value] || TASK_STATUS['Todo'];
+  return (
+    <select
+      className="task-status-select"
+      value={value || 'Todo'}
+      onClick={e => e.stopPropagation()}
+      onChange={e => onChange(e.target.value)}
+      style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.bg }}
+    >
+      {Object.entries(TASK_STATUS).map(([k, v]) => (
+        <option key={k} value={k}>{v.label}</option>
+      ))}
+    </select>
+  );
+};
+
+const BLANK_TASK = { title: '', description: '', complexity: 3, estimate_hours: 0, due_date: '', original_estimate_days: '', actual_time_days: '', definition_of_done: [], rice_enabled: true, reach: 1, impact: 1, confidence: 1, effort: 1 };
+
+// Small inline progress chip for a task's Definition of Done
+const DoDChip = ({ items }) => {
+  const list = Array.isArray(items) ? items : [];
+  if (list.length === 0) return null;
+  const done = list.filter(i => i.done).length;
+  const complete = done === list.length;
+  return (
+    <span className={`dod-chip ${complete ? 'dod-chip--complete' : ''}`} title="הגדרת סיום">
+      <ListChecks size={10} /> {done}/{list.length}
+    </span>
+  );
+};
 
 // ─── RICE input field helper ──────────────────────────────────────────────────
 const RiceField = ({ label, tooltip, value, onChange }) => (
@@ -56,8 +124,12 @@ const RiceField = ({ label, tooltip, value, onChange }) => (
 );
 
 // ─── Single task row ──────────────────────────────────────────────────────────
-const TaskRow = ({ task, onEdit, onDelete }) => {
+const TaskRow = ({ task, onEdit, onDelete, onStatusChange }) => {
+  const riceOn = task.rice_enabled !== false;
   const score = calcRice(task);
+  const orig = Number(task.original_estimate_days) || 0;
+  const actual = Number(task.actual_time_days) || 0;
+  const remaining = orig > 0 ? Math.max(0, orig - actual) : null;
   return (
     <tr className="task-row">
       <td className="task-title-cell">
@@ -65,21 +137,42 @@ const TaskRow = ({ task, onEdit, onDelete }) => {
           <span className="task-connector" />
           <ListTodo size={13} className="task-icon" />
           <div>
-            <span className="task-title-text">{task.title}</span>
+            <div className="task-title-line">
+              <button type="button" className="task-title-text clickable-name"
+                onClick={() => onEdit(task)} title="פתח משימה">
+                {task.title}
+              </button>
+              <TaskStatusSelect value={task.status} onChange={onStatusChange} />
+              <DoDChip items={task.definition_of_done} />
+            </div>
             {task.description && (
-              <p className="task-desc-preview">{task.description}</p>
+              <p className="task-desc-preview" dir="auto">{descPreview(task.description)}</p>
             )}
           </div>
         </div>
       </td>
-      <td className="text-center"><ComplexityBadge complexity={task.complexity || 'M'} /></td>
+      <td className="text-center"><ComplexityBadge complexity={task.complexity ?? 3} /></td>
+      <td className="text-center rice-val text-xs" title={task.due_date || ''}>
+        {task.due_date ? fmtShort(task.due_date) : '—'}
+      </td>
+      <td className="text-center rice-val text-xs">
+        {orig > 0 ? (
+          <span className="flex-center gap-1 justify-center flex-col" style={{ lineHeight: 1.3 }}>
+            <span title="מקורי">{orig}י'</span>
+            <span title="בוצע" style={{ color: '#6366f1' }}>{actual}י'</span>
+            <span title="נותר" style={{ color: remaining === 0 ? '#10b981' : '#f59e0b', fontWeight: 700 }}>{remaining}י'</span>
+          </span>
+        ) : '—'}
+      </td>
       <td className="text-center rice-val">{task.estimate_hours > 0 ? `${task.estimate_hours}ש'` : '—'}</td>
-      <td className="text-center rice-val">{task.reach}</td>
-      <td className="text-center rice-val">{task.impact}</td>
-      <td className="text-center rice-val">{task.confidence}</td>
-      <td className="text-center rice-val">{task.effort}</td>
+      <td className="text-center rice-val">{riceOn ? task.reach : '—'}</td>
+      <td className="text-center rice-val">{riceOn ? task.impact : '—'}</td>
+      <td className="text-center rice-val">{riceOn ? task.confidence : '—'}</td>
+      <td className="text-center rice-val">{riceOn ? task.effort : '—'}</td>
       <td className="text-center">
-        <span className={`badge ${riceColor(score)} score-badge`}>{score}</span>
+        {riceOn
+          ? <span className={`badge ${riceColor(score)} score-badge`}>{score}</span>
+          : <span className="rice-off-dash" title="RICE כבוי">—</span>}
       </td>
       <td>
         <div className="flex-center gap-1">
@@ -91,59 +184,138 @@ const TaskRow = ({ task, onEdit, onDelete }) => {
   );
 };
 
-// ─── Add / edit task inline form ──────────────────────────────────────────────
-const TaskForm = ({ featureId, initial, onSave, onCancel }) => {
-  const [form, setForm] = useState(initial || BLANK_TASK);
+// ─── Add / edit task modal ────────────────────────────────────────────────────
+const TaskForm = ({ initial, onSave, onCancel }) => {
+  const [form, setForm] = useState(initial ? { ...BLANK_TASK, ...initial } : BLANK_TASK);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const riceOn = form.rice_enabled !== false;
   const score = calcRice(form);
+  const orig = Number(form.original_estimate_days) || 0;
+  const actual = Number(form.actual_time_days) || 0;
+  const remaining = orig > 0 ? Math.max(0, orig - actual) : 0;
 
-  return (
-    <tr className="task-form-row">
-      <td colSpan={9}>
-        <div className="task-form-inner">
-          {/* Row 1: title + complexity + hours */}
-          <div className="task-form-row1">
-            <input autoFocus className="premium-input task-form-title"
-              placeholder="שם המשימה..." value={form.title}
-              onChange={e => set('title', e.target.value)} />
-            <div className="rice-field">
-              <label className="rice-label">מורכבות</label>
-              <select className="premium-input rice-input" value={form.complexity}
-                onChange={e => set('complexity', e.target.value)}>
-                {COMPLEXITY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div className="rice-field">
-              <label className="rice-label">שעות הערכה</label>
-              <input type="number" min="0" step="0.5" className="premium-input rice-input"
-                value={form.estimate_hours} onChange={e => set('estimate_hours', Number(e.target.value))} />
+  const handleSave = (addAnother = false) => {
+    if (!form.title.trim()) return;
+    onSave({ ...form, remaining_work_days: orig > 0 ? remaining : null }, addAnother);
+    if (addAnother) setForm(BLANK_TASK);
+  };
+
+  return createPortal(
+    <div className="strategy-modal-overlay premium-blur" onClick={onCancel}>
+      <div className="premium-modal glass-panel animate-scale-in task-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header-premium mb-4">
+          <div className="flex-center gap-3" style={{ justifyContent: 'flex-start' }}>
+            <div className="icon-badge-sm bg-purple"><ListChecks size={20} /></div>
+            <h3 className="text-h2">{initial ? 'עריכת משימה' : 'משימה חדשה'}</h3>
+          </div>
+          <button className="close-btn-premium" onClick={onCancel}><X size={24} /></button>
+        </div>
+
+        <div className="task-modal-body">
+          <div className="task-modal-field tm-span-2">
+            <label className="input-label-premium">שם המשימה</label>
+            <input autoFocus className="premium-input" placeholder="שם המשימה..."
+              value={form.title} onChange={e => set('title', e.target.value)} />
+          </div>
+
+          <div className="task-modal-field tm-span-2">
+            <label className="input-label-premium">תיאור</label>
+            <RichTextEditor
+              value={form.description || ''}
+              onChange={v => set('description', v)}
+              placeholder="תיאור המשימה (אופציונלי)... אפשר ליצור רשימות עם • או 1." />
+          </div>
+
+          <div className="task-modal-field">
+            <label className="input-label-premium">מורכבות (1–5)</label>
+            <select className="premium-input" value={form.complexity}
+              onChange={e => set('complexity', Number(e.target.value))}>
+              {COMPLEXITY_OPTIONS.map(c => (
+                <option key={c} value={c}>{COMPLEXITY_CONFIG[c].label} — {COMPLEXITY_CONFIG[c].desc}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="task-modal-field">
+            <label className="input-label-premium">תאריך יעד</label>
+            <input type="date" className="premium-input"
+              value={form.due_date || ''} onChange={e => set('due_date', e.target.value)} />
+          </div>
+
+          <div className="task-modal-field">
+            <label className="input-label-premium">הערכת זמן מקורית (ימים)</label>
+            <input type="number" min="0" step="0.5" className="premium-input"
+              value={form.original_estimate_days} onChange={e => set('original_estimate_days', e.target.value)} />
+          </div>
+
+          <div className="task-modal-field">
+            <label className="input-label-premium">זמן בוצע בפועל (ימים)</label>
+            <input type="number" min="0" step="0.5" className="premium-input"
+              value={form.actual_time_days} onChange={e => set('actual_time_days', e.target.value)} />
+          </div>
+
+          <div className="task-modal-field">
+            <label className="input-label-premium">עבודה נותרת (ימים)</label>
+            <div className="premium-input premium-input--readonly" style={{
+              color: remaining === 0 && orig > 0 ? '#10b981' : 'var(--text-primary)', fontWeight: 700,
+            }}>
+              {orig > 0 ? remaining : '—'}
             </div>
           </div>
-          {/* Row 2: description */}
-          <textarea className="premium-input task-form-desc" rows={2}
-            placeholder="תיאור המשימה (אופציונלי)..."
-            value={form.description} onChange={e => set('description', e.target.value)} />
-          {/* Row 3: RICE */}
-          <div className="task-form-rice">
-            <RiceField label="Reach" tooltip="כמה משתמשים יושפעו?" value={form.reach} onChange={v => set('reach', v)} />
-            <RiceField label="Impact" tooltip="כמה זה יתרום?" value={form.impact} onChange={v => set('impact', v)} />
-            <RiceField label="Confidence" tooltip="כמה אנחנו בטוחים?" value={form.confidence} onChange={v => set('confidence', v)} />
-            <RiceField label="Effort" tooltip="כמה זמן ייקח (מחלק)?" value={form.effort} onChange={v => set('effort', v)} />
-            <div className="rice-field rice-score-preview">
-              <label className="rice-label">ציון RICE</label>
-              <span className={`badge ${riceColor(score)} score-badge`}>{score}</span>
-            </div>
+
+          <div className="task-modal-field">
+            <label className="input-label-premium">שעות הערכה</label>
+            <input type="number" min="0" step="0.5" className="premium-input"
+              value={form.estimate_hours} onChange={e => set('estimate_hours', Number(e.target.value))} />
           </div>
-          <div className="task-form-actions">
-            <button className="btn btn-secondary btn-sm" type="button" onClick={onCancel}><X size={14} /> ביטול</button>
-            <button className="btn btn-primary btn-sm" type="button"
-              onClick={() => { if (form.title.trim()) onSave(form); }}>
-              <Check size={14} /> שמור
-            </button>
+
+          {/* Definition of Done */}
+          <div className="task-modal-field tm-span-2">
+            <DefinitionOfDone items={form.definition_of_done}
+              onChange={items => set('definition_of_done', items)} />
+          </div>
+
+          {/* RICE block (optional) */}
+          <div className="task-modal-rice-wrap tm-span-2">
+            <div className="rice-toggle-row">
+              <span className="rice-toggle-label">חישוב RICE</span>
+              <button type="button"
+                className={`rice-switch ${riceOn ? 'rice-switch--on' : ''}`}
+                onClick={() => set('rice_enabled', !riceOn)}
+                role="switch" aria-checked={riceOn}
+                title={riceOn ? 'בטל חישוב RICE למשימה זו' : 'הפעל חישוב RICE'}>
+                <span className="rice-switch-knob" />
+              </button>
+            </div>
+            {riceOn && (
+              <div className="task-modal-rice">
+                <RiceField label="Reach" tooltip="כמה משתמשים יושפעו?" value={form.reach} onChange={v => set('reach', v)} />
+                <RiceField label="Impact" tooltip="כמה זה יתרום?" value={form.impact} onChange={v => set('impact', v)} />
+                <RiceField label="Confidence" tooltip="כמה אנחנו בטוחים?" value={form.confidence} onChange={v => set('confidence', v)} />
+                <RiceField label="Effort" tooltip="כמה זמן ייקח (מחלק)?" value={form.effort} onChange={v => set('effort', v)} />
+                <div className="rice-field rice-score-preview">
+                  <label className="rice-label">ציון RICE</label>
+                  <span className={`badge ${riceColor(score)} score-badge`}>{score}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </td>
-    </tr>
+
+        <div className="modal-footer-premium mt-6">
+          <button className="btn btn-secondary btn-lg" type="button" onClick={onCancel}>ביטול</button>
+          {!initial && (
+            <button className="btn btn-secondary btn-lg" type="button" onClick={() => handleSave(true)}>
+              <Plus size={18} /> שמור והוסף עוד
+            </button>
+          )}
+          <button className="btn btn-primary btn-lg" type="button" onClick={() => handleSave(false)}>
+            <Check size={18} /> {initial ? 'עדכון משימה' : 'שמירת משימה'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 
@@ -154,6 +326,7 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
   const [editingTask, setEditingTask] = useState(null);
 
   const tasks = featureTasks.filter(t => t.feature_id === feature.id);
+  const doneTasks = tasks.filter(t => t.status === 'Done').length;
 
   const totalScore = useMemo(() => {
     let m = 1, d = 1;
@@ -172,13 +345,13 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
     return 'badge-gray';
   };
 
-  const saveTask = async (form) => {
+  const saveTask = async (form, addAnother) => {
     if (editingTask) {
       await updateFeatureTask(editingTask.id, form);
       setEditingTask(null);
     } else {
       await addFeatureTask({ ...form, feature_id: feature.id, product_id: feature.product_id || null });
-      setAddingTask(false);
+      if (!addAnother) setAddingTask(false);
     }
   };
 
@@ -202,9 +375,20 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
               {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
             <div className="feature-title-body">
-              <span className="feature-name">{feature.title}</span>
+              <div className="feature-name-line">
+                <button type="button" className="feature-name clickable-name"
+                  onClick={() => onEditFeature(feature)} title="פתח פיצ'ר">
+                  {feature.title}
+                </button>
+                <StatusPill status={feature.status} />
+              </div>
+              {feature.description && (
+                <p className="task-desc-preview" dir="auto" style={{ marginTop: '0.15rem' }}>{descPreview(feature.description)}</p>
+              )}
               {tasks.length > 0 && (
-                <span className="tasks-chip">{tasks.length} משימות</span>
+                <span className="tasks-chip">
+                  {doneTasks}/{tasks.length} משימות הושלמו
+                </span>
               )}
             </div>
           </div>
@@ -213,6 +397,26 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
           <div className="flex gap-1 flex-wrap">
             {productNames.map(p => <ProductBadge key={p.id} productName={p.name} productId={p.id} />)}
           </div>
+        </td>
+        <td className="text-center">
+          <ComplexityBadge complexity={feature.complexity ?? 3} />
+        </td>
+        <td className="text-center rice-val text-xs" title={feature.due_date || ''}>
+          {feature.due_date ? fmtShort(feature.due_date) : '—'}
+        </td>
+        <td className="text-center rice-val text-xs">
+          {Number(feature.original_estimate_days) > 0 ? (() => {
+            const orig = Number(feature.original_estimate_days);
+            const actual = Number(feature.actual_time_days) || 0;
+            const rem = Math.max(0, orig - actual);
+            return (
+              <span className="flex-center gap-1 justify-center flex-col" style={{ lineHeight: 1.3 }}>
+                <span title="מקורי">{orig}י'</span>
+                <span title="בוצע" style={{ color: '#6366f1' }}>{actual}י'</span>
+                <span title="נותר" style={{ color: rem === 0 ? '#10b981' : '#f59e0b', fontWeight: 700 }}>{rem}י'</span>
+              </span>
+            );
+          })() : '—'}
         </td>
         {scoringConfig.map(c => (
           <td key={c.id} className="text-center feature-metric">{feature[c.id] || c.defaultValue}</td>
@@ -240,6 +444,8 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
         <tr className="task-subheader-row">
           <th className="task-subheader-cell" style={{ paddingRight: '3.5rem' }}>משימה</th>
           <th className="task-subheader-cell text-center">מורכבות</th>
+          <th className="task-subheader-cell text-center">תאריך יעד</th>
+          <th className="task-subheader-cell text-center">ימים</th>
           <th className="task-subheader-cell text-center">שעות</th>
           <th className="task-subheader-cell text-center">Reach</th>
           <th className="task-subheader-cell text-center">Impact</th>
@@ -252,20 +458,16 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
 
       {/* Task rows */}
       {expanded && tasks.map(task =>
-        editingTask?.id === task.id
-          ? <TaskForm key={task.id} featureId={feature.id} initial={editingTask} onSave={saveTask} onCancel={() => setEditingTask(null)} />
-          : <TaskRow key={task.id} task={task} onEdit={t => { setEditingTask(t); setAddingTask(false); }} onDelete={id => deleteFeatureTask(id)} />
-      )}
-
-      {/* Add task form */}
-      {expanded && addingTask && !editingTask && (
-        <TaskForm featureId={feature.id} onSave={saveTask} onCancel={() => setAddingTask(false)} />
+        <TaskRow key={task.id} task={task}
+          onEdit={t => { setEditingTask(t); setAddingTask(false); }}
+          onDelete={id => deleteFeatureTask(id)}
+          onStatusChange={s => updateFeatureTask(task.id, { status: s })} />
       )}
 
       {/* Empty tasks nudge */}
-      {expanded && tasks.length === 0 && !addingTask && (
+      {expanded && tasks.length === 0 && (
         <tr className="task-empty-row">
-          <td colSpan={9}>
+          <td colSpan={11}>
             <div className="task-empty-inner">
               <ListTodo size={16} className="opacity-30" />
               <span>אין משימות לפיצ'ר זה</span>
@@ -275,6 +477,25 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
             </div>
           </td>
         </tr>
+      )}
+
+      {/* Persistent add-task footer */}
+      {expanded && tasks.length > 0 && (
+        <tr className="task-add-row">
+          <td colSpan={11}>
+            <button className="task-add-btn" onClick={() => setAddingTask(true)}>
+              <Plus size={14} /> הוסף משימה
+            </button>
+          </td>
+        </tr>
+      )}
+
+      {/* Add / edit task modal (portal — rendered outside the table) */}
+      {(addingTask || editingTask) && (
+        <TaskForm
+          initial={editingTask}
+          onSave={saveTask}
+          onCancel={() => { setAddingTask(false); setEditingTask(null); }} />
       )}
     </>
   );
@@ -317,6 +538,9 @@ const ObjectiveSection = ({ objective, features, products, scoringConfig, featur
               <tr>
                 <th style={{ textAlign: 'right' }}>פיצ'ר / משימה</th>
                 <th>מוצרים</th>
+                <th className="metric-col">מורכבות</th>
+                <th className="metric-col">תאריך יעד</th>
+                <th className="metric-col">ימים</th>
                 {scoringConfig.map(c => (
                   <th key={c.id} className="metric-col">{c.label.split(' ')[0]}</th>
                 ))}
@@ -335,7 +559,7 @@ const ObjectiveSection = ({ objective, features, products, scoringConfig, featur
               ))}
               {features.length === 0 && (
                 <tr>
-                  <td colSpan={scoringConfig.length + 4} className="text-center py-8">
+                  <td colSpan={scoringConfig.length + 7} className="text-center py-8">
                     <div className="flex-center flex-col text-tertiary gap-2">
                       <AlertCircle size={28} className="opacity-20" />
                       <p className="text-sm">אין פיצ'רים ביעד זה</p>
@@ -365,7 +589,7 @@ const Prioritization = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [addForObjectiveId, setAddForObjectiveId] = useState('');
-  const [newFeature, setNewFeature] = useState({ title: '', objective_id: '', teams: [], productIds: [] });
+  const [newFeature, setNewFeature] = useState({ title: '', description: '', complexity: 3, due_date: '', original_estimate_days: '', actual_time_days: '', objective_id: '', teams: [], productIds: [] });
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [featureMetrics, setFeatureMetrics] = useState({});
 
@@ -404,7 +628,7 @@ const Prioritization = () => {
 
   const openAddForm = (objectiveId = '') => {
     setAddForObjectiveId(objectiveId);
-    setNewFeature({ title: '', objective_id: objectiveId, teams: [], productIds: [] });
+    setNewFeature({ title: '', description: '', complexity: 3, due_date: '', original_estimate_days: '', actual_time_days: '', objective_id: objectiveId, teams: [], productIds: [] });
     setFeatureMetrics({});
     setSelectedProducts([activeProduct.id]);
     setEditingId(null);
@@ -414,7 +638,17 @@ const Prioritization = () => {
   const handleEdit = (f) => {
     const metrics = {};
     scoringConfig.forEach(c => { metrics[c.id] = f[c.id] || c.defaultValue; });
-    setNewFeature({ title: f.title, objective_id: f.objective_id || '', teams: f.teams || [], productIds: f.product_ids || [f.product_id] });
+    setNewFeature({
+      title: f.title,
+      description: f.description || '',
+      complexity: f.complexity ?? 3,
+      due_date: f.due_date || '',
+      original_estimate_days: f.original_estimate_days ?? '',
+      actual_time_days: f.actual_time_days ?? '',
+      objective_id: f.objective_id || '',
+      teams: f.teams || [],
+      productIds: f.product_ids || [f.product_id],
+    });
     setFeatureMetrics(metrics);
     setSelectedProducts(f.product_ids || [f.product_id]);
     setEditingId(f.id);
@@ -425,14 +659,22 @@ const Prioritization = () => {
     e.preventDefault();
     if (!newFeature.title.trim()) return;
     if (selectedProducts.length === 0) { alert('יש לבחור לפחות מוצר אחד'); return; }
-    const featureData = { ...newFeature, ...featureMetrics, teams: [], productIds: selectedProducts };
+    const orig = Number(newFeature.original_estimate_days) || 0;
+    const actual = Number(newFeature.actual_time_days) || 0;
+    const featureData = {
+      ...newFeature,
+      ...featureMetrics,
+      teams: [],
+      productIds: selectedProducts,
+      remaining_work_days: orig > 0 ? Math.max(0, orig - actual) : null,
+    };
     if (editingId) updateFeature(editingId, featureData);
     else addFeature({ ...featureData, status: 'Planned' });
     resetForm();
   };
 
   const resetForm = () => {
-    setNewFeature({ title: '', objective_id: '', teams: [], productIds: [] });
+    setNewFeature({ title: '', description: '', complexity: 3, due_date: '', original_estimate_days: '', actual_time_days: '', objective_id: '', teams: [], productIds: [] });
     setFeatureMetrics({});
     setSelectedProducts([activeProduct.id]);
     setEditingId(null);
@@ -558,6 +800,57 @@ const Prioritization = () => {
                 value={newFeature.title}
                 onChange={e => setNewFeature({ ...newFeature, title: e.target.value })}
                 placeholder="לדוגמה: ייצוא פעילות משתמשים" />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="input-label-premium">תיאור</label>
+              <RichTextEditor
+                value={newFeature.description || ''}
+                onChange={v => setNewFeature({ ...newFeature, description: v })}
+                placeholder="תיאור הפיצ'ר (אופציונלי)... אפשר ליצור רשימות עם • או 1." />
+            </div>
+            <div>
+              <label className="input-label-premium">מורכבות (1–5)</label>
+              <select className="premium-input" value={newFeature.complexity}
+                onChange={e => setNewFeature({ ...newFeature, complexity: Number(e.target.value) })}>
+                {COMPLEXITY_OPTIONS.map(c => (
+                  <option key={c} value={c}>{COMPLEXITY_CONFIG[c].label} — {COMPLEXITY_CONFIG[c].desc}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="input-label-premium">תאריך יעד</label>
+              <input type="date" className="premium-input"
+                value={newFeature.due_date}
+                onChange={e => setNewFeature({ ...newFeature, due_date: e.target.value })} />
+            </div>
+            <div>
+              <label className="input-label-premium">הערכת זמן מקורית (ימים)</label>
+              <input type="number" min="0" step="0.5" className="premium-input"
+                value={newFeature.original_estimate_days}
+                onChange={e => setNewFeature({ ...newFeature, original_estimate_days: e.target.value })} />
+            </div>
+            <div>
+              <label className="input-label-premium">זמן בוצע בפועל (ימים)</label>
+              <input type="number" min="0" step="0.5" className="premium-input"
+                value={newFeature.actual_time_days}
+                onChange={e => setNewFeature({ ...newFeature, actual_time_days: e.target.value })} />
+            </div>
+            <div>
+              <label className="input-label-premium">עבודה נותרת (ימים — מחושב אוטומטית)</label>
+              <div className="premium-input" style={{
+                background: 'var(--bg-secondary)',
+                fontWeight: 700,
+                color: (() => {
+                  const orig = Number(newFeature.original_estimate_days) || 0;
+                  const actual = Number(newFeature.actual_time_days) || 0;
+                  const rem = Math.max(0, orig - actual);
+                  return orig > 0 && rem === 0 ? '#10b981' : 'var(--text-primary)';
+                })(),
+              }}>
+                {Number(newFeature.original_estimate_days) > 0
+                  ? Math.max(0, Number(newFeature.original_estimate_days) - (Number(newFeature.actual_time_days) || 0))
+                  : '—'}
+              </div>
             </div>
             <div style={{ gridColumn: '1 / -1' }} className="form-section-premium">
               <label className="input-label-premium mb-3">שיוך למוצרים</label>

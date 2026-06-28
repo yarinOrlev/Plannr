@@ -1,0 +1,100 @@
+/* ── Rich text editor ────────────────────────────── */
+.rt-editor {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.rt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.45rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.rt-toolbar-spacer { flex: 1; }
+
+.rt-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 28px;
+  padding: 0 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-family: var(--font-family);
+  transition: all 0.15s;
+}
+
+.rt-tool-btn:hover {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.rt-tool-toggle.active {
+  background: var(--accent-primary-light);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.rt-textarea {
+  border: none !important;
+  border-radius: 0 !important;
+  resize: vertical;
+  min-height: 90px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.rt-textarea:focus { outline: none; box-shadow: none !important; }
+
+/* ── Rendered view ───────────────────────────────── */
+.rt-preview-box {
+  padding: 0.75rem 0.9rem;
+  min-height: 90px;
+  background: var(--bg-primary);
+}
+
+.rt-preview-empty {
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.rt-view {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.rt-view p { margin: 0 0 0.5rem; }
+.rt-view p:last-child { margin-bottom: 0; }
+
+.rt-view ul,
+.rt-view ol {
+  margin: 0.25rem 0 0.6rem;
+  padding-inline-start: 1.4rem;
+}
+.rt-view ul:last-child,
+.rt-view ol:last-child { margin-bottom: 0; }
+
+.rt-view li {
+  margin-bottom: 0.25rem;
+}
+.rt-view li::marker { color: var(--accent-primary); }
+
+/* dir="auto" handles LTR/RTL automatically; keep list markers on the
+   correct side for each item's detected direction */
+.rt-view ul[dir],
+.rt-view ol[dir],
+.rt-view li[dir] { text-align: start; }
