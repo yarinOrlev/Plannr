@@ -185,10 +185,11 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .content-area {
+  /* Full width: only padding constrains the content, no max-width/centering,
+     so pages use all available horizontal space and nothing clips where it
+     could expand. */
   padding: 1.75rem 2rem;
   flex: 1;
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
   /* Single source of vertical rhythm for every page (flex or block layout).
      Per-view *-layout classes should NOT redefine this gap, and elements
