@@ -8,6 +8,7 @@ import {
   CalendarClock, Gauge, ListChecks,
 } from 'lucide-react';
 import DefinitionOfDone from '../components/DefinitionOfDone';
+import RichTextEditor from '../components/RichText';
 import './SprintBoard.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -188,8 +189,10 @@ const TaskDetailModal = ({ task, feature, objective, roster, updateFeatureTask, 
 
           <div className="sb-detail-field tm-span-2">
             <label className="input-label-premium">תיאור</label>
-            <textarea className="premium-input" rows={3} placeholder="תיאור המשימה..."
-              value={form.description || ''} onChange={e => set('description', e.target.value)} />
+            <RichTextEditor
+              value={form.description || ''}
+              onChange={v => set('description', v)}
+              placeholder="תיאור המשימה... אפשר ליצור רשימות עם • או 1." />
           </div>
 
           <div className="sb-detail-field">

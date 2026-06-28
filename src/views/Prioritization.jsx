@@ -8,6 +8,7 @@ import {
 import MultiProductSelector from '../components/MultiProductSelector';
 import ProductBadge from '../components/ProductBadge';
 import DefinitionOfDone from '../components/DefinitionOfDone';
+import RichTextEditor, { descPreview } from '../components/RichText';
 import './Prioritization.css';
 
 const calcRice = (t) => {
@@ -138,7 +139,7 @@ const TaskRow = ({ task, onEdit, onDelete, onStatusChange }) => {
               <DoDChip items={task.definition_of_done} />
             </div>
             {task.description && (
-              <p className="task-desc-preview">{task.description}</p>
+              <p className="task-desc-preview" dir="auto">{descPreview(task.description)}</p>
             )}
           </div>
         </div>
@@ -212,9 +213,10 @@ const TaskForm = ({ initial, onSave, onCancel }) => {
 
           <div className="task-modal-field tm-span-2">
             <label className="input-label-premium">תיאור</label>
-            <textarea className="premium-input" rows={3}
-              placeholder="תיאור המשימה (אופציונלי)..."
-              value={form.description} onChange={e => set('description', e.target.value)} />
+            <RichTextEditor
+              value={form.description || ''}
+              onChange={v => set('description', v)}
+              placeholder="תיאור המשימה (אופציונלי)... אפשר ליצור רשימות עם • או 1." />
           </div>
 
           <div className="task-modal-field">
@@ -374,7 +376,7 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
                 <StatusPill status={feature.status} />
               </div>
               {feature.description && (
-                <p className="task-desc-preview" style={{ marginTop: '0.15rem' }}>{feature.description}</p>
+                <p className="task-desc-preview" dir="auto" style={{ marginTop: '0.15rem' }}>{descPreview(feature.description)}</p>
               )}
               {tasks.length > 0 && (
                 <span className="tasks-chip">
@@ -796,10 +798,10 @@ const Prioritization = () => {
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="input-label-premium">תיאור</label>
-              <textarea rows={3} className="premium-input"
-                value={newFeature.description}
-                onChange={e => setNewFeature({ ...newFeature, description: e.target.value })}
-                placeholder="תיאור הפיצ'ר (אופציונלי)..." />
+              <RichTextEditor
+                value={newFeature.description || ''}
+                onChange={v => setNewFeature({ ...newFeature, description: v })}
+                placeholder="תיאור הפיצ'ר (אופציונלי)... אפשר ליצור רשימות עם • או 1." />
             </div>
             <div>
               <label className="input-label-premium">מורכבות (1–5)</label>
