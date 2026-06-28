@@ -176,6 +176,11 @@ button { cursor: pointer; border: none; background: none; }
 
 .main-content {
   flex: 1;
+  /* min-width:0 lets this flex item stay within the viewport instead of being
+     forced wider by wide content (default flex min-width is auto = content
+     size), which would otherwise stretch/break the layout. Overflow is then
+     handled locally by the component that overflows. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -185,10 +190,11 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .content-area {
+  /* Full width: only padding constrains the content, no max-width/centering,
+     so pages use all available horizontal space and nothing clips where it
+     could expand. */
   padding: 1.75rem 2rem;
   flex: 1;
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
   /* Single source of vertical rhythm for every page (flex or block layout).
      Per-view *-layout classes should NOT redefine this gap, and elements
@@ -354,6 +360,43 @@ body.dark .badge-gray   { background: rgba(148, 163, 184, 0.1); color: #94A3B8; 
   padding: 2rem;
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-lg);
+}
+
+/* Keep every modal within the viewport on small / zoomed windows: cap the
+   height relative to the screen and scroll the content inside instead of
+   letting the dialog overflow off-screen. (Width is already relational via
+   width:100% + max-width, so it shrinks on narrow screens too.) */
+.strategy-modal,
+.premium-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* WebKit: inset the modal scrollbar so it clears the rounded corners —
+   NOTE: do not set the standard scrollbar-width/scrollbar-color here, or
+   Chrome disables these ::-webkit-scrollbar pseudo-elements.
+   shortened top/bottom via the track margin, padded off the edge via a
+   transparent thumb border. */
+.strategy-modal::-webkit-scrollbar,
+.premium-modal::-webkit-scrollbar {
+  width: 11px;
+}
+.strategy-modal::-webkit-scrollbar-track,
+.premium-modal::-webkit-scrollbar-track {
+  margin: 20px 0;
+  background: transparent;
+}
+.strategy-modal::-webkit-scrollbar-thumb,
+.premium-modal::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.strategy-modal::-webkit-scrollbar-thumb:hover,
+.premium-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+  background-clip: padding-box;
 }
 
 /* ── Utility spacing ── */
