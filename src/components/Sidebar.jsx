@@ -1,9 +1,8 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, RefreshCcw, Briefcase, LogOut, Database, Gauge, CalendarRange, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, RefreshCcw, Briefcase, LogOut, Gauge, CalendarRange, BarChart3 } from 'lucide-react';
 import './Sidebar.css';
-import { useProductContext } from '../context/ProductContext';
 
 const ROLE_LABELS = {
   HoD: 'ראש מחלקה',
@@ -13,8 +12,7 @@ const ROLE_LABELS = {
 
 const Sidebar = () => {
   const { logout, userProfile } = useAuth();
-  const { seedInitialData } = useProductContext();
-  
+
   const navItems = [
     { path: '/', icon: <LayoutDashboard size={18} />, label: 'לוח בקרה', color: 'blue' },
     { path: '/strategy', icon: <Compass size={18} />, label: 'אסטרטגיה', color: 'indigo' },
@@ -73,11 +71,6 @@ const Sidebar = () => {
           </button>
         </div>
 
-        <button className="nav-link settings-btn text-xs" onClick={seedInitialData}>
-          <Database size={16} />
-          <span>טעינת נתוני דמו</span>
-        </button>
-        
         <button className="nav-link settings-btn text-xs" onClick={() => {
           if(window.confirm('האם אתה בטוח שברצונך לרענן את הנתונים?')) {
             window.location.reload();
