@@ -22,9 +22,9 @@ const Sidebar = () => {
     { path: '/customers', icon: <Users size={18} />, label: 'לקוחות ומשתמשים', color: 'pink' },
     { path: '/documentation', icon: <BookOpen size={18} />, label: 'תיעוד', color: 'yellow' },
     { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green' },
-    { path: '/team/capacity', icon: <Gauge size={18} />, label: 'צוות וקיבולת', color: 'teal', roles: ['TeamLead', 'HoD'] },
-    { path: '/team/sprints', icon: <CalendarRange size={18} />, label: 'תכנון ספרינטים', color: 'blue', roles: ['TeamLead', 'HoD'] },
-    { path: '/team/planning', icon: <BarChart3 size={18} />, label: 'תכנון רבעוני', color: 'indigo', roles: ['TeamLead', 'HoD'] },
+    { path: '/team/capacity', icon: <Gauge size={18} />, label: 'צוות וקיבולת', color: 'teal', roles: ['PM', 'TeamLead', 'HoD'] },
+    { path: '/team/sprints', icon: <CalendarRange size={18} />, label: 'תכנון ספרינטים', color: 'blue', roles: ['PM', 'TeamLead', 'HoD'] },
+    { path: '/team/planning', icon: <BarChart3 size={18} />, label: 'תכנון רבעוני', color: 'indigo', roles: ['PM', 'TeamLead', 'HoD'] },
     { path: '/department', icon: <Briefcase size={18} />, label: 'מבט מחלקתי', color: 'indigo', roles: ['HoD'] },
     { path: '/settings', icon: <Settings size={18} />, label: 'הגדרות', color: 'gray' },
   ];
