@@ -1,0 +1,181 @@
+/* ── Definition of Done checklist ────────────────── */
+.dod {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem;
+  background: rgba(var(--accent-primary-rgb), 0.03);
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+}
+
+.dod-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dod-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.dod-progress {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  border-radius: 99px;
+  padding: 0.1rem 0.55rem;
+}
+.dod-progress--complete { background: #D1FAE5; color: #047857; }
+
+.dod-bar {
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.dod-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10B981, #34D399);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.dod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dod-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dod-check {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.dod-check:hover { border-color: #10B981; }
+
+.dod-item--done .dod-check {
+  background: #10B981;
+  border-color: #10B981;
+}
+
+.dod-text-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0.3rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-family: var(--font-family);
+  transition: all 0.15s;
+}
+.dod-text-input:hover { background: var(--bg-secondary); }
+.dod-text-input:focus { outline: none; background: var(--bg-primary); border-color: var(--accent-primary); }
+
+.dod-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.dod-item--done .dod-text-input,
+.dod-item--done .dod-text {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+.dod-remove {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0.15rem;
+  border-radius: 5px;
+  flex-shrink: 0;
+  display: flex;
+  opacity: 0.6;
+  transition: all 0.15s;
+}
+.dod-remove:hover { background: #FEF2F2; color: #DC2626; opacity: 1; }
+
+.dod-empty {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.dod-add {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dod-add-input {
+  flex: 1;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-family: var(--font-family);
+  direction: rtl;
+}
+.dod-add-input:focus { outline: none; border-color: var(--accent-primary); }
+
+.dod-add-btn {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 8px;
+  border: 1.5px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dod-add-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+/* Inline DoD progress chip (rows / cards) */
+.dod-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.05rem 0.4rem;
+  border-radius: 99px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.dod-chip--complete { background: #D1FAE5; color: #047857; }
