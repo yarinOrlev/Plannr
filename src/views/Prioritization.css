@@ -87,7 +87,10 @@
   overflow-x: auto;
 }
 
-.table-responsive::-webkit-scrollbar { height: 5px; }
+.table-responsive::-webkit-scrollbar {
+  height: 5px;
+}
+
 .table-responsive::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 10px;
@@ -119,7 +122,51 @@
   text-align: center;
 }
 
-.metric-col { min-width: 68px; }
+.metric-col {
+  min-width: 68px;
+}
+
+/* ── Fit the full feature/task row within the panel (no horizontal scroll) ──
+   Fixed layout + narrow numeric columns + tighter padding so the wide title
+   column flexes and everything stays visible. */
+.features-table {
+  table-layout: fixed;
+}
+
+.features-table th,
+.features-table td {
+  padding-inline: 0.4rem;
+  overflow: hidden;
+}
+
+/* numeric / metric columns stay compact; widths come from the header row */
+.features-table .metric-col {
+  width: 56px;
+  min-width: 0;
+}
+
+.features-table thead th:nth-child(2) {
+  width: 96px;
+}
+
+/* products */
+.features-table thead th:nth-last-child(2) {
+  width: 58px;
+}
+
+/* score */
+.features-table thead th:last-child {
+  width: 64px;
+}
+
+/* actions */
+/* first column (feature/task title) takes the remaining width */
+
+.features-table .feature-name,
+.features-table .task-title-text {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 /* ── Feature row ─────────────────────────────────── */
 .feature-row td {
@@ -130,7 +177,9 @@
   transition: background 0.12s;
 }
 
-.feature-row:last-child td { border-bottom: none; }
+.feature-row:last-child td {
+  border-bottom: none;
+}
 
 .feature-row:hover td {
   background: rgba(var(--accent-primary-rgb), 0.03);
@@ -140,7 +189,9 @@
   background: rgba(var(--accent-primary-rgb), 0.04);
 }
 
-.feature-title-cell { min-width: 220px; }
+.feature-title-cell {
+  min-width: 220px;
+}
 
 .feature-title-wrapper {
   display: flex;
@@ -203,7 +254,10 @@
 }
 
 /* ── Task sub-header ─────────────────────────────── */
-.task-subheader-row { background: rgba(var(--accent-primary-rgb), 0.025) !important; }
+.task-subheader-row {
+  background: rgba(var(--accent-primary-rgb), 0.025) !important;
+}
+
 .task-subheader-cell {
   padding: 0.3rem 1rem !important;
   font-size: 0.62rem !important;
@@ -224,11 +278,17 @@
   background: rgba(var(--accent-primary-rgb), 0.018);
 }
 
-.task-row:last-of-type td { border-bottom: none; }
+.task-row:last-of-type td {
+  border-bottom: none;
+}
 
-.task-row:hover td { background: rgba(var(--accent-primary-rgb), 0.04); }
+.task-row:hover td {
+  background: rgba(var(--accent-primary-rgb), 0.04);
+}
 
-.task-title-cell { padding-right: 0 !important; }
+.task-title-cell {
+  padding-right: 0 !important;
+}
 
 .task-indent {
   display: flex;
@@ -245,7 +305,10 @@
   flex-shrink: 0;
 }
 
-.task-icon { color: var(--text-tertiary); flex-shrink: 0; }
+.task-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
 
 .task-title-text {
   font-size: 0.9rem;
@@ -290,7 +353,10 @@
   appearance: none;
   text-align: center;
 }
-.task-status-select:focus { outline: none; }
+
+.task-status-select:focus {
+  outline: none;
+}
 
 .feature-name-line {
   display: flex;
@@ -366,7 +432,9 @@
 }
 
 /* ── Task add/edit modal ─────────────────────────── */
-.task-modal { max-width: 760px !important; }
+.task-modal {
+  max-width: 760px !important;
+}
 
 .task-modal-body {
   display: grid;
@@ -381,7 +449,9 @@
   min-width: 0;
 }
 
-.tm-span-2 { grid-column: 1 / -1; }
+.tm-span-2 {
+  grid-column: 1 / -1;
+}
 
 .task-modal-field .premium-input,
 .task-modal-field textarea.premium-input {
@@ -389,7 +459,10 @@
   box-sizing: border-box;
 }
 
-.task-modal-field textarea.premium-input { resize: vertical; min-height: 70px; }
+.task-modal-field textarea.premium-input {
+  resize: vertical;
+  min-height: 70px;
+}
 
 .premium-input--readonly {
   display: flex;
@@ -434,7 +507,10 @@
   flex-shrink: 0;
   padding: 0;
 }
-.rice-switch--on { background: var(--accent-primary); }
+
+.rice-switch--on {
+  background: var(--accent-primary);
+}
 
 .rice-switch-knob {
   position: absolute;
@@ -447,9 +523,15 @@
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s;
 }
-.rice-switch--on .rice-switch-knob { transform: translateX(-18px); }
 
-.rice-off-dash { color: var(--text-tertiary); font-weight: 700; }
+.rice-switch--on .rice-switch-knob {
+  transform: translateX(-18px);
+}
+
+.rice-off-dash {
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
 
 .task-modal-rice {
   display: flex;
@@ -482,10 +564,14 @@
   padding: 0.4rem 0.4rem !important;
 }
 
-.rice-score-preview { gap: 0.35rem; }
+.rice-score-preview {
+  gap: 0.35rem;
+}
 
 @media (max-width: 640px) {
-  .task-modal-body { grid-template-columns: 1fr; }
+  .task-modal-body {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Badges ──────────────────────────────────────── */
@@ -497,10 +583,29 @@
   white-space: nowrap;
 }
 
-.badge-pink   { background: #FDF2F8; color: #BE185D; border: 1px solid #FCE7F3; }
-.badge-purple { background: #F5F3FF; color: #6D28D9; border: 1px solid #EDE9FE; }
-.badge-indigo { background: #EEF2FF; color: #4338CA; border: 1px solid #E0E7FF; }
-.badge-blue   { background: #EFF6FF; color: #1D4ED8; border: 1px solid #DBEAFE; }
+.badge-pink {
+  background: #FDF2F8;
+  color: #BE185D;
+  border: 1px solid #FCE7F3;
+}
+
+.badge-purple {
+  background: #F5F3FF;
+  color: #6D28D9;
+  border: 1px solid #EDE9FE;
+}
+
+.badge-indigo {
+  background: #EEF2FF;
+  color: #4338CA;
+  border: 1px solid #E0E7FF;
+}
+
+.badge-blue {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #DBEAFE;
+}
 
 /* ── Premium UI elements ─────────────────────────── */
 .badge-premium {
@@ -526,7 +631,9 @@
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
 }
 
-.editing-row { background-color: var(--accent-primary-light) !important; }
+.editing-row {
+  background-color: var(--accent-primary-light) !important;
+}
 
 .edit-form-container {
   border: 2px solid var(--accent-primary);
@@ -575,7 +682,9 @@
   color: white;
 }
 
-.bg-purple { background: linear-gradient(135deg, #818CF8, #C084FC); }
+.bg-purple {
+  background: linear-gradient(135deg, #818CF8, #C084FC);
+}
 
 .close-btn-premium {
   background: none;
@@ -605,7 +714,10 @@
   border: 1px dashed var(--border-color);
 }
 
-.settings-scroll-area::-webkit-scrollbar { width: 6px; }
+.settings-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+
 .settings-scroll-area::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 10px;
@@ -619,17 +731,57 @@
 }
 
 /* ── Buttons ─────────────────────────────────────── */
-.btn-sm  { padding: 0.35rem 0.8rem !important; font-size: 0.8rem !important; }
-.btn-xs  { padding: 0.2rem 0.55rem !important; font-size: 0.72rem !important; }
+.btn-sm {
+  padding: 0.35rem 0.8rem !important;
+  font-size: 0.8rem !important;
+}
 
-.text-accent { color: var(--accent-primary); }
+.btn-xs {
+  padding: 0.2rem 0.55rem !important;
+  font-size: 0.72rem !important;
+}
+
+.text-accent {
+  color: var(--accent-primary);
+}
 
 /* ── Dark-mode tweaks ────────────────────────────── */
-.dark .objective-header { background: rgba(255,255,255,0.03); }
-.dark .feature-row:hover td { background: rgba(255,255,255,0.03); }
-.dark .task-row td { background: rgba(255,255,255,0.015); }
-.dark .task-form-inner { background: rgba(255,255,255,0.04); }
-.dark .badge-pink   { background: #4a0820; color: #F9A8D4; border-color: #831843; }
-.dark .badge-purple { background: #2e1065; color: #C4B5FD; border-color: #4c1d95; }
-.dark .badge-indigo { background: #1e1b4b; color: #A5B4FC; border-color: #3730a3; }
-.dark .badge-blue   { background: #1e3a5f; color: #93C5FD; border-color: #1d4ed8; }
+.dark .objective-header {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark .feature-row:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark .task-row td {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.dark .task-form-inner {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dark .badge-pink {
+  background: #4a0820;
+  color: #F9A8D4;
+  border-color: #831843;
+}
+
+.dark .badge-purple {
+  background: #2e1065;
+  color: #C4B5FD;
+  border-color: #4c1d95;
+}
+
+.dark .badge-indigo {
+  background: #1e1b4b;
+  color: #A5B4FC;
+  border-color: #3730a3;
+}
+
+.dark .badge-blue {
+  background: #1e3a5f;
+  color: #93C5FD;
+  border-color: #1d4ed8;
+}

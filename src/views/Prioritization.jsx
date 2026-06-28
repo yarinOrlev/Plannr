@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useProductContext } from '../context/ProductContext';
 import {
   Plus, ChevronDown, ChevronRight, X, Check, Info, Pencil, Trash2,
-  Settings, Sliders, AlertCircle, Target, ListTodo, Calendar, Clock, ListChecks
+  Settings, Sliders, AlertCircle, Target, ListTodo, ListChecks
 } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import ProductBadge from '../components/ProductBadge';
@@ -17,6 +17,13 @@ const calcRice = (t) => {
   const c = Number(t.confidence || 1);
   const e = Number(t.effort || 1);
   return Math.round((r * i * c) / (e || 1) * 10) / 10;
+};
+
+const fmtShort = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return `${dt.getDate()}/${dt.getMonth() + 1}`;
 };
 
 const riceColor = (score) => {
@@ -145,8 +152,8 @@ const TaskRow = ({ task, onEdit, onDelete, onStatusChange }) => {
         </div>
       </td>
       <td className="text-center"><ComplexityBadge complexity={task.complexity ?? 3} /></td>
-      <td className="text-center rice-val text-xs">
-        {task.due_date ? <span className="flex-center gap-1 justify-center"><Calendar size={10} />{task.due_date}</span> : '—'}
+      <td className="text-center rice-val text-xs" title={task.due_date || ''}>
+        {task.due_date ? fmtShort(task.due_date) : '—'}
       </td>
       <td className="text-center rice-val text-xs">
         {orig > 0 ? (
@@ -394,10 +401,8 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
         <td className="text-center">
           <ComplexityBadge complexity={feature.complexity ?? 3} />
         </td>
-        <td className="text-center rice-val text-xs">
-          {feature.due_date ? (
-            <span className="flex-center gap-1 justify-center"><Calendar size={10} />{feature.due_date}</span>
-          ) : '—'}
+        <td className="text-center rice-val text-xs" title={feature.due_date || ''}>
+          {feature.due_date ? fmtShort(feature.due_date) : '—'}
         </td>
         <td className="text-center rice-val text-xs">
           {Number(feature.original_estimate_days) > 0 ? (() => {
