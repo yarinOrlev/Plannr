@@ -372,6 +372,33 @@ body.dark .badge-gray   { background: rgba(148, 163, 184, 0.1); color: #94A3B8; 
   overflow-y: auto;
 }
 
+/* WebKit: inset the modal scrollbar so it clears the rounded corners —
+   NOTE: do not set the standard scrollbar-width/scrollbar-color here, or
+   Chrome disables these ::-webkit-scrollbar pseudo-elements.
+   shortened top/bottom via the track margin, padded off the edge via a
+   transparent thumb border. */
+.strategy-modal::-webkit-scrollbar,
+.premium-modal::-webkit-scrollbar {
+  width: 11px;
+}
+.strategy-modal::-webkit-scrollbar-track,
+.premium-modal::-webkit-scrollbar-track {
+  margin: 20px 0;
+  background: transparent;
+}
+.strategy-modal::-webkit-scrollbar-thumb,
+.premium-modal::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.strategy-modal::-webkit-scrollbar-thumb:hover,
+.premium-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+  background-clip: padding-box;
+}
+
 /* ── Utility spacing ── */
 .mt-2 { margin-top:0.5rem; }
 .mt-4 { margin-top:1rem; }
