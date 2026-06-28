@@ -91,7 +91,7 @@ function AppContent() {
           <Route
             path="/team/capacity"
             element={
-              <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
+              <ProtectedRoute allowedRoles={['PM', 'TeamLead', 'HoD']}>
                 <TeamCapacity />
               </ProtectedRoute>
             }
@@ -99,7 +99,7 @@ function AppContent() {
           <Route
             path="/team/sprints"
             element={
-              <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
+              <ProtectedRoute allowedRoles={['PM', 'TeamLead', 'HoD']}>
                 <SprintBoard />
               </ProtectedRoute>
             }
@@ -107,7 +107,7 @@ function AppContent() {
           <Route
             path="/team/planning"
             element={
-              <ProtectedRoute allowedRoles={['TeamLead', 'HoD']}>
+              <ProtectedRoute allowedRoles={['PM', 'TeamLead', 'HoD']}>
                 <TeamPlanning />
               </ProtectedRoute>
             }
