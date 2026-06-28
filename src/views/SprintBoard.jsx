@@ -5,7 +5,8 @@ import {
   CalendarRange, Plus, Trash2, Check, X, Users, Target,
   ListTodo, Search, Clock,
   UserCheck, Zap, Pencil, Flag, AlertTriangle,
-  CalendarClock, Gauge, ListChecks,
+  CalendarClock, Gauge, ListChecks, SlidersHorizontal,
+  UserX, HelpCircle, Layers, ChevronDown, ChevronLeft,
 } from 'lucide-react';
 import DefinitionOfDone from '../components/DefinitionOfDone';
 import RichTextEditor from '../components/RichText';
@@ -30,6 +31,36 @@ const STATUS_CONFIG = {
 };
 
 const EMPTY_SPRINT = { name: '', goal: '', start_date: '', end_date: '', working_days: 10 };
+
+// estimate of a mission in days (prefers the days field, falls back to hours/8)
+const missionDays = (t) => Number(t.original_estimate_days) || (Number(t.estimate_hours) || 0) / 8;
+
+// ─── Toggleable sprint metrics ────────────────────────────────────────────────
+const METRIC_DEFS = [
+  { key: 'progress',        label: 'התקדמות' },
+  { key: 'estDays',         label: 'ימים מתוכננים' },
+  { key: 'capacity',        label: 'עומס מול קיבולת' },
+  { key: 'memberCapacity',  label: 'קיבולת לפי איש צוות' },
+  { key: 'statusBreakdown', label: 'פילוח סטטוס' },
+  { key: 'atRisk',          label: 'משימות בסיכון' },
+  { key: 'unassigned',      label: 'משימות ללא אחראי' },
+  { key: 'noEstimate',      label: 'משימות ללא הערכה' },
+  { key: 'avgComplexity',   label: 'מורכבות ממוצעת' },
+  { key: 'dod',             label: 'הגדרת סיום (DoD)' },
+];
+
+const DEFAULT_METRICS = {
+  progress: true, estDays: true, capacity: true, memberCapacity: true,
+  statusBreakdown: true, atRisk: true,
+  unassigned: false, noEstimate: false, avgComplexity: false, dod: false,
+};
+
+const loadMetrics = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('plannr_sprint_metrics'));
+    return { ...DEFAULT_METRICS, ...(saved || {}) };
+  } catch { return { ...DEFAULT_METRICS }; }
+};
 
 const fmtDate = (d) =>
   !d ? '' : new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
@@ -110,7 +141,7 @@ const MissionCard = ({ task, feature, objective, roster, onOpen, onDragStart, on
 
       <div className="sb-card-meta">
         <ComplexityBadge complexity={task.complexity ?? 3} />
-        {task.estimate_hours > 0 && <span className="sb-card-hours"><Clock size={11} /> {task.estimate_hours}ש'</span>}
+        {missionDays(task) > 0 && <span className="sb-card-hours" title="הערכה בימים"><Clock size={11} /> {+missionDays(task).toFixed(1)}י'</span>}
         {Array.isArray(task.definition_of_done) && task.definition_of_done.length > 0 && (() => {
           const items = task.definition_of_done;
           const done = items.filter(i => i.done).length;
@@ -217,13 +248,7 @@ const TaskDetailModal = ({ task, feature, objective, roster, updateFeatureTask, 
           </div>
 
           <div className="sb-detail-field">
-            <label className="input-label-premium">שעות הערכה</label>
-            <input type="number" min="0" step="0.5" className="premium-input"
-              value={form.estimate_hours ?? 0} onChange={e => set('estimate_hours', e.target.value)} />
-          </div>
-
-          <div className="sb-detail-field">
-            <label className="input-label-premium">הערכה מקורית (ימים)</label>
+            <label className="input-label-premium">הערכה בימים</label>
             <input type="number" min="0" step="0.5" className="premium-input"
               value={form.original_estimate_days ?? ''} onChange={e => set('original_estimate_days', e.target.value)} />
           </div>
@@ -358,9 +383,68 @@ const ProgressRing = ({ pct }) => {
   );
 };
 
+// ─── Per-member capacity ──────────────────────────────────────────────────────
+const MemberCapacity = ({ sprint, missions, roster, getMemberAvailableDays }) => {
+  const [collapsed, setCollapsed] = useState(true);
+  const rows = roster.map(m => {
+    const assigned = missions.filter(t => t.assignee_member_id === m.id);
+    const load = assigned.reduce((s, t) => s + missionDays(t), 0);
+    const available = getMemberAvailableDays(sprint, m.id) || 0;
+    const pct = available > 0 ? (load / available) * 100 : (load > 0 ? 100 : 0);
+    return { member: m, count: assigned.length, load, available, pct, over: available > 0 && load > available };
+  }).sort((a, b) => b.pct - a.pct);
+
+  const unassigned = missions.filter(t => !t.assignee_member_id);
+  const unassignedLoad = unassigned.reduce((s, t) => s + missionDays(t), 0);
+
+  return (
+    <div className="sb-capacity glass-panel">
+      <button className="sb-capacity-head" onClick={() => setCollapsed(v => !v)}>
+        <span className="sb-capacity-title">
+          {collapsed ? <ChevronLeft size={15} /> : <ChevronDown size={15} />}
+          <Users size={15} /> קיבולת לפי איש צוות
+          {collapsed && rows.some(r => r.over) && <AlertTriangle size={13} className="sb-capacity-warn" />}
+        </span>
+        {!collapsed && <span className="sb-capacity-sub">עומס משויך מול ימי העבודה בספרינט</span>}
+      </button>
+      {!collapsed && (
+      <div className="sb-capacity-list">
+        {rows.length === 0 && <div className="sb-capacity-empty">אין חברי צוות פעילים</div>}
+        {rows.map(r => (
+          <div key={r.member.id} className={`sb-cap-row ${r.over ? 'sb-cap-row--over' : ''}`}>
+            <Avatar name={r.member.name} />
+            <div className="sb-cap-info">
+              <div className="sb-cap-top">
+                <span className="sb-cap-name">{r.member.name}</span>
+                <span className="sb-cap-nums">
+                  {(+r.load.toFixed(1))}<span className="sb-cap-slash">/{(+r.available.toFixed(1))} י'</span>
+                  {r.count > 0 && <span className="sb-cap-count">· {r.count} משימות</span>}
+                </span>
+              </div>
+              <div className="sb-cap-track">
+                <div className="sb-cap-fill2" style={{ width: `${Math.min(100, r.pct)}%` }} />
+                {r.pct > 100 && <div className="sb-cap-over-marker" />}
+              </div>
+            </div>
+            {r.over && <span className="sb-cap-flag" title="חריגה מהקיבולת"><AlertTriangle size={13} /></span>}
+          </div>
+        ))}
+        {unassigned.length > 0 && (
+          <div className="sb-cap-unassigned">
+            <UserX size={13} />
+            {unassigned.length} משימות ללא אחראי ({+unassignedLoad.toFixed(1)} ימים)
+          </div>
+        )}
+      </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Sprint workspace (focused sprint) ────────────────────────────────────────
-const SprintWorkspace = ({ sprint, missions, features, objectives, roster, updateFeatureTask, getSprintCapacity, onEdit, onDelete, dnd, isDragging }) => {
+const SprintWorkspace = ({ sprint, missions, features, objectives, roster, updateFeatureTask, getSprintCapacity, getMemberAvailableDays, metrics, toggleMetric, onEdit, onDelete, dnd, isDragging }) => {
   const [detailId, setDetailId] = useState(null);
+  const [showMetricsMenu, setShowMetricsMenu] = useState(false);
 
   const dropToStatus = (status) => {
     const cur = dnd.get();
@@ -380,11 +464,20 @@ const SprintWorkspace = ({ sprint, missions, features, objectives, roster, updat
   const total = missions.length;
   const done = missions.filter(t => t.status === 'Done').length;
   const pct = total ? Math.round((done / total) * 100) : 0;
-  const totalHours = missions.reduce((s, t) => s + (Number(t.estimate_hours) || 0), 0);
-  const loadDays = missions.reduce((s, t) =>
-    s + (Number(t.original_estimate_days) || (Number(t.estimate_hours) || 0) / 8), 0);
+  const loadDays = missions.reduce((s, t) => s + missionDays(t), 0);
   const capacity = getSprintCapacity(sprint.id);
   const overCapacity = capacity > 0 && loadDays > capacity;
+
+  // extra metric values
+  const atRiskCount = missions.filter(t => ['overdue', 'soon'].includes(taskHealth(t))).length;
+  const unassignedCount = missions.filter(t => !t.assignee_member_id).length;
+  const noEstimateCount = missions.filter(t => !(missionDays(t) > 0)).length;
+  const avgComplexity = total ? missions.reduce((s, t) => s + (Number(t.complexity) || 3), 0) / total : 0;
+  const dodAgg = missions.reduce((acc, t) => {
+    const items = Array.isArray(t.definition_of_done) ? t.definition_of_done : [];
+    acc.total += items.length; acc.done += items.filter(i => i.done).length;
+    return acc;
+  }, { done: 0, total: 0 });
 
   const duration = daysBetween(sprint.start_date, sprint.end_date);
   const byStatus = useMemo(() => {
@@ -402,6 +495,24 @@ const SprintWorkspace = ({ sprint, missions, features, objectives, roster, updat
             <div className="sb-summary-name-row">
               <h2 className="sb-summary-name">{sprint.name}</h2>
               <div className="sb-summary-actions">
+                <div className="sb-metrics-wrap">
+                  <button className={`btn-icon-xs ${showMetricsMenu ? 'sb-metrics-btn--active' : ''}`}
+                    onClick={() => setShowMetricsMenu(v => !v)} title="בחר מדדים להצגה"><SlidersHorizontal size={14} /></button>
+                  {showMetricsMenu && (
+                    <>
+                      <div className="sb-metrics-backdrop" onClick={() => setShowMetricsMenu(false)} />
+                      <div className="sb-metrics-menu">
+                        <div className="sb-metrics-menu-head">מדדים להצגה</div>
+                        {METRIC_DEFS.map(m => (
+                          <label key={m.key} className="sb-metrics-item">
+                            <input type="checkbox" checked={!!metrics[m.key]} onChange={() => toggleMetric(m.key)} />
+                            <span>{m.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
                 <button className="btn-icon-xs" onClick={() => onEdit(sprint)} title="ערוך ספרינט"><Pencil size={14} /></button>
                 <button className="btn-icon-xs text-danger"
                   onClick={() => window.confirm(`למחוק את "${sprint.name}"?`) && onDelete(sprint.id)}
@@ -417,32 +528,93 @@ const SprintWorkspace = ({ sprint, missions, features, objectives, roster, updat
               <span className="sb-summary-workdays">{sprint.working_days} ימי עבודה/אדם</span>
             </div>
           </div>
-          <ProgressRing pct={pct} />
+          {metrics.progress && <ProgressRing pct={pct} />}
         </div>
 
         <div className="sb-summary-stats">
-          <div className="sb-stat">
-            <span className="sb-stat-val">{done}/{total}</span>
-            <span className="sb-stat-label">משימות הושלמו</span>
-          </div>
-          <div className="sb-stat">
-            <span className="sb-stat-val">{totalHours}<small>ש'</small></span>
-            <span className="sb-stat-label">סך שעות</span>
-          </div>
-          <div className={`sb-stat ${overCapacity ? 'sb-stat--over' : ''}`}>
-            <span className="sb-stat-val">
-              <Gauge size={13} style={{ marginInlineEnd: 3 }} />
-              {loadDays.toFixed(1)}<small>/{capacity.toFixed(0)}י'</small>
-            </span>
-            <span className="sb-stat-label">עומס מול קיבולת</span>
-            <div className="sb-cap-bar">
-              <div className="sb-cap-fill" style={{ width: `${capacity ? Math.min(100, (loadDays / capacity) * 100) : 0}%` }} />
+          {metrics.progress && (
+            <div className="sb-stat">
+              <span className="sb-stat-val">{done}/{total}</span>
+              <span className="sb-stat-label">משימות הושלמו</span>
             </div>
-          </div>
+          )}
+          {metrics.estDays && (
+            <div className="sb-stat">
+              <span className="sb-stat-val">{+loadDays.toFixed(1)}<small>י'</small></span>
+              <span className="sb-stat-label">ימים מתוכננים</span>
+            </div>
+          )}
+          {metrics.capacity && (
+            <div className={`sb-stat ${overCapacity ? 'sb-stat--over' : ''}`}>
+              <span className="sb-stat-val">
+                <Gauge size={13} style={{ marginInlineEnd: 3 }} />
+                {loadDays.toFixed(1)}<small>/{capacity.toFixed(0)}י'</small>
+              </span>
+              <span className="sb-stat-label">עומס מול קיבולת</span>
+              <div className="sb-cap-bar">
+                <div className="sb-cap-fill" style={{ width: `${capacity ? Math.min(100, (loadDays / capacity) * 100) : 0}%` }} />
+              </div>
+            </div>
+          )}
+          {metrics.atRisk && (
+            <div className={`sb-stat ${atRiskCount > 0 ? 'sb-stat--warn' : ''}`}>
+              <span className="sb-stat-val"><Flag size={13} style={{ marginInlineEnd: 3 }} />{atRiskCount}</span>
+              <span className="sb-stat-label">משימות בסיכון</span>
+            </div>
+          )}
+          {metrics.unassigned && (
+            <div className="sb-stat">
+              <span className="sb-stat-val"><UserX size={13} style={{ marginInlineEnd: 3 }} />{unassignedCount}</span>
+              <span className="sb-stat-label">ללא אחראי</span>
+            </div>
+          )}
+          {metrics.noEstimate && (
+            <div className="sb-stat">
+              <span className="sb-stat-val"><HelpCircle size={13} style={{ marginInlineEnd: 3 }} />{noEstimateCount}</span>
+              <span className="sb-stat-label">ללא הערכה</span>
+            </div>
+          )}
+          {metrics.avgComplexity && (
+            <div className="sb-stat">
+              <span className="sb-stat-val"><Layers size={13} style={{ marginInlineEnd: 3 }} />{avgComplexity ? avgComplexity.toFixed(1) : '—'}</span>
+              <span className="sb-stat-label">מורכבות ממוצעת</span>
+            </div>
+          )}
+          {metrics.dod && (
+            <div className="sb-stat">
+              <span className="sb-stat-val"><ListChecks size={13} style={{ marginInlineEnd: 3 }} />{dodAgg.total ? `${dodAgg.done}/${dodAgg.total}` : '—'}</span>
+              <span className="sb-stat-label">הגדרת סיום</span>
+            </div>
+          )}
+          {metrics.statusBreakdown && (
+            <div className="sb-stat sb-stat--wide">
+              <span className="sb-stat-label">פילוח סטטוס</span>
+              <div className="sb-status-bar">
+                {STATUS_ORDER.map(s => byStatus[s].length > 0 && (
+                  <div key={s} className="sb-status-seg" title={`${STATUS_CONFIG[s].label}: ${byStatus[s].length}`}
+                    style={{ flex: byStatus[s].length, background: STATUS_CONFIG[s].dot }} />
+                ))}
+                {total === 0 && <div className="sb-status-seg" style={{ flex: 1, background: 'var(--border-color)' }} />}
+              </div>
+              <div className="sb-status-legend">
+                {STATUS_ORDER.map(s => byStatus[s].length > 0 && (
+                  <span key={s} className="sb-status-leg-item">
+                    <span className="sb-status-leg-dot" style={{ background: STATUS_CONFIG[s].dot }} />
+                    {STATUS_CONFIG[s].label} {byStatus[s].length}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <HealthBanner missions={missions} />
+
+      {metrics.memberCapacity && (
+        <MemberCapacity sprint={sprint} missions={missions} roster={roster}
+          getMemberAvailableDays={getMemberAvailableDays} />
+      )}
 
       {/* Kanban */}
       <div className="sb-kanban">
@@ -662,14 +834,21 @@ const SprintBoard = () => {
   const {
     activeTeamId, teamSprints, teamRoster,
     addSprint, updateSprint, deleteSprint, activeQuarter,
-    featureTasks, updateFeatureTask, getSprintCapacity,
+    featureTasks, updateFeatureTask, getSprintCapacity, getMemberAvailableDays,
     activeFeatures, activeObjectives, selectedProductIds,
   } = useProductContext();
 
   const [formMode, setFormMode] = useState(null); // null | 'create' | sprintObject(edit)
   const [focusedId, setFocusedId] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [metrics, setMetrics] = useState(loadMetrics);
   const dragRef = React.useRef(null);
+
+  const toggleMetric = (key) => setMetrics(prev => {
+    const next = { ...prev, [key]: !prev[key] };
+    localStorage.setItem('plannr_sprint_metrics', JSON.stringify(next));
+    return next;
+  });
 
   const activeQ = activeQuarter;
   const activeRoster = teamRoster.filter(m => m.active);
@@ -804,6 +983,9 @@ const SprintBoard = () => {
                   roster={activeRoster}
                   updateFeatureTask={updateFeatureTask}
                   getSprintCapacity={getSprintCapacity}
+                  getMemberAvailableDays={getMemberAvailableDays}
+                  metrics={metrics}
+                  toggleMetric={toggleMetric}
                   dnd={dnd}
                   isDragging={isDragging}
                   onEdit={(s) => setFormMode(s)}
