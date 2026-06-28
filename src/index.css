@@ -362,6 +362,16 @@ body.dark .badge-gray   { background: rgba(148, 163, 184, 0.1); color: #94A3B8; 
   box-shadow: var(--shadow-lg);
 }
 
+/* Keep every modal within the viewport on small / zoomed windows: cap the
+   height relative to the screen and scroll the content inside instead of
+   letting the dialog overflow off-screen. (Width is already relational via
+   width:100% + max-width, so it shrinks on narrow screens too.) */
+.strategy-modal,
+.premium-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
 /* ── Utility spacing ── */
 .mt-2 { margin-top:0.5rem; }
 .mt-4 { margin-top:1rem; }
