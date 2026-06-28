@@ -176,6 +176,11 @@ button { cursor: pointer; border: none; background: none; }
 
 .main-content {
   flex: 1;
+  /* min-width:0 lets this flex item stay within the viewport instead of being
+     forced wider by wide content (default flex min-width is auto = content
+     size), which would otherwise stretch/break the layout. Overflow is then
+     handled locally by the component that overflows. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   height: 100%;

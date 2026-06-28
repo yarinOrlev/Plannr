@@ -275,9 +275,14 @@
 /* ── Kanban ──────────────────────────────────────── */
 .sb-kanban {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
   gap: 1rem;
   align-items: start;
+  /* When 5 columns can't fit (small screen / zoom), scroll just the board
+     horizontally instead of stretching/breaking the content area. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.4rem;
 }
 
 .sb-col {
@@ -287,6 +292,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-md);
   min-height: 240px;
+  min-width: 0;
   transition: background 0.15s, border-color 0.15s;
 }
 
