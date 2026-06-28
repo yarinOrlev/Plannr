@@ -661,9 +661,15 @@ const Prioritization = () => {
     if (selectedProducts.length === 0) { alert('יש לבחור לפחות מוצר אחד'); return; }
     const orig = Number(newFeature.original_estimate_days) || 0;
     const actual = Number(newFeature.actual_time_days) || 0;
+    // Coerce blank optional fields to null so Postgres numeric/date columns
+    // don't get an empty string ("invalid input syntax for type numeric").
+    const toNum = (v) => (v === '' || v == null ? null : Number(v));
     const featureData = {
       ...newFeature,
       ...featureMetrics,
+      due_date: newFeature.due_date || null,
+      original_estimate_days: toNum(newFeature.original_estimate_days),
+      actual_time_days: toNum(newFeature.actual_time_days),
       teams: [],
       productIds: selectedProducts,
       remaining_work_days: orig > 0 ? Math.max(0, orig - actual) : null,
