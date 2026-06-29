@@ -627,10 +627,14 @@ const Prioritization = () => {
   }, [filteredFeatures, objectives, quarterObjectiveIds]);
 
   const openAddForm = (objectiveId = '') => {
+    // When adding under a specific OKR, default the product to that OKR's
+    // product (the user can still add/remove products afterwards).
+    const obj = objectiveId ? objectives.find(o => o.id === objectiveId) : null;
+    const defaultProducts = obj?.product_id ? [obj.product_id] : [activeProduct.id];
     setAddForObjectiveId(objectiveId);
-    setNewFeature({ title: '', description: '', complexity: 3, due_date: '', original_estimate_days: '', actual_time_days: '', objective_id: objectiveId, teams: [], productIds: [] });
+    setNewFeature({ title: '', description: '', complexity: 3, due_date: '', original_estimate_days: '', actual_time_days: '', objective_id: objectiveId, teams: [], productIds: defaultProducts });
     setFeatureMetrics({});
-    setSelectedProducts([activeProduct.id]);
+    setSelectedProducts(defaultProducts);
     setEditingId(null);
     setShowAddForm(true);
   };
