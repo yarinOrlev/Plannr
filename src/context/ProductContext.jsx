@@ -1702,6 +1702,10 @@ export const ProductProvider = ({ children }) => {
     activeKpis,
     activeRoadmaps,
     activeObjectives,
+    // Full (team/account-scoped) sets, unfiltered by the product selector —
+    // used where selection shouldn't hide data (e.g. the sprint board).
+    allFeatures: data.features || [],
+    allObjectives: data.objectives || [],
     activeDocs,
     activeNotes,
     activeCustomers,
