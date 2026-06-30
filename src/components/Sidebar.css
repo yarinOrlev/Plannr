@@ -176,15 +176,3 @@
   border-top: 1px solid var(--border-color);
   flex-shrink: 0; /* stays pinned at the bottom */
 }
-
-.settings-btn.text-xs {
-  padding: 0.5rem 0.75rem;
-}
-
-.settings-btn {
-  width: 100%;
-  justify-content: flex-start;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}

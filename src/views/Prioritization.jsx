@@ -597,8 +597,6 @@ const Prioritization = () => {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [featureMetrics, setFeatureMetrics] = useState({});
 
-  if (!activeProduct) return null;
-
   const scoringConfig = data.scoringConfig || [];
   const objectives = activeObjectives || [];
   const quarterLabel = `${activeQuarter.quarter} ${activeQuarter.year}`;
@@ -607,7 +605,7 @@ const Prioritization = () => {
     objectives.filter(o => (o.quarter || '') === quarterLabel).map(o => o.id)
   );
 
-  const filteredFeatures = activeFeatures
+  const filteredFeatures = (activeFeatures || [])
     .filter(f => !f.objective_id || quarterObjectiveIds.has(f.objective_id))
     .filter(f =>
       f.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -629,6 +627,10 @@ const Prioritization = () => {
     });
     return map;
   }, [filteredFeatures, objectives, quarterObjectiveIds]);
+
+  // Early return must come AFTER all hooks (Rules of Hooks) so the view is safe
+  // to mount before data has resolved (e.g. during cache rehydration on reload).
+  if (!activeProduct) return null;
 
   const openAddForm = (objectiveId = '') => {
     // When adding under a specific OKR, default the product to that OKR's

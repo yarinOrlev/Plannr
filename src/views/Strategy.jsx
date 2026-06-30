@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { useAuth } from '../context/AuthContext';
-import { Compass, Users, Lightbulb, AlertTriangle, Pencil, X, Check, Trash2, Plus, Calendar, SlidersHorizontal } from 'lucide-react';
+import { Compass, Users, Lightbulb, AlertTriangle, Pencil, X, Check } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import './Strategy.css';
 
@@ -28,33 +28,23 @@ const StrategyCard = ({ item, colorClass, icon, onEdit, isDeveloper }) => (
 const TYPE_LABELS = { Problem: 'בעיה', People: 'קהל יעד', Product: 'הפתרון', Vision: 'חזון' };
 
 const Strategy = () => {
-  const { 
-    activeProduct, 
+  const {
+    activeProduct,
     selectedProductIds,
-    updateStrategy, 
-    data, 
-    addAvailableTeam, 
-    removeAvailableTeam,
-    roadmapBoards,
-    addRoadmapBoard,
-    deleteRoadmapBoard
+    updateStrategy,
+    data
   } = useProductContext();
   const { isDeveloper } = useAuth();
-  
-  const [activeTab, setActiveTab] = useState(selectedProductIds[0] || (isDeveloper ? '' : 'settings'));
-  const [editItem, setEditItem] = useState(null);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [newBoardName, setNewBoardName] = useState('');
-  const [newBoardType, setNewBoardType] = useState('kanban');
-  const [newBoardQuarter, setNewBoardQuarter] = useState('Q3');
-  const [newBoardYear, setNewBoardYear] = useState('2026');
 
-  // Handle tab switching when selection changes
+  const [activeTab, setActiveTab] = useState(selectedProductIds[0] || '');
+  const [editItem, setEditItem] = useState(null);
+
+  // Keep the active product tab valid as the selection changes.
   React.useEffect(() => {
-    if (activeTab !== 'settings' && !selectedProductIds.includes(activeTab)) {
-      setActiveTab(selectedProductIds[0] || (isDeveloper ? '' : 'settings'));
+    if (!selectedProductIds.includes(activeTab)) {
+      setActiveTab(selectedProductIds[0] || '');
     }
-  }, [selectedProductIds, isDeveloper]);
+  }, [selectedProductIds, activeTab]);
 
   if (!activeProduct) return null;
 
@@ -105,15 +95,6 @@ const Strategy = () => {
             </button>
           );
         })}
-        {!isDeveloper && (
-          <button 
-            className={`strategy-tab-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
-          >
-            <SlidersHorizontal size={16} />
-            הגדרות מתקדמות
-          </button>
-        )}
       </div>
 
       {editItem && (
@@ -167,8 +148,7 @@ const Strategy = () => {
       )}
 
       <div className="strategy-tab-content">
-        {activeTab !== 'settings' ? (
-          (() => {
+        {(() => {
             const product = data.products.find(p => p.id === activeTab);
             if (!product) return null;
             const productStrategy = data.strategy.filter(s => s.product_id === activeTab);
@@ -219,130 +199,7 @@ const Strategy = () => {
                 </div>
               </div>
             );
-          })()
-        ) : (
-          <div className="global-settings-tab animate-scale-in">
-            <div className="teams-management-section glass-panel">
-              <div className="section-header mb-4">
-                <div className="flex-center gap-3" style={{ justifyContent: 'flex-start' }}>
-                  <div className="icon-badge bg-purple"><Users size={20} /></div>
-                  <h3 className="text-h3">צוותי עבודה</h3>
-                </div>
-                <div className="team-add-input-wrapper">
-                  <input
-                    type="text"
-                    className="modal-input"
-                    style={{ width: '200px', height: '36px' }}
-                    value={newTeamName}
-                    onChange={e => setNewTeamName(e.target.value)}
-                    placeholder="שם צוות חדש..."
-                  />
-                  <button className="btn btn-primary" style={{ padding: '0 1rem', height: '36px' }} onClick={() => { addAvailableTeam(newTeamName); setNewTeamName(''); }}>
-                    <Plus size={16} /> הוספה
-                  </button>
-                </div>
-              </div>
-              <div className="teams-list-grid">
-                {(data.availableTeams || []).map(team => (
-                  <div key={team} className="team-management-item">
-                    <span className="text-sm font-medium">{team}</span>
-                    <button className="text-danger" onClick={() => removeAvailableTeam(team)} title="הסרה">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="roadmap-management-section glass-panel mt-6">
-              <div className="section-header mb-4">
-                <div className="flex-center gap-3" style={{ justifyContent: 'flex-start' }}>
-                  <div className="icon-badge bg-blue"><Calendar size={20} /></div>
-                  <h3 className="text-h3">לוחות מפת דרכים</h3>
-                </div>
-                <div className="team-add-input-wrapper" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}>
-                  <div className="flex-center gap-2" style={{ flexWrap: 'wrap' }}>
-                    <input
-                      type="text"
-                      className="modal-input"
-                      style={{ width: '200px', height: '36px' }}
-                      value={newBoardName}
-                      onChange={e => setNewBoardName(e.target.value)}
-                      placeholder="שם לוח חדש..."
-                    />
-                    <select 
-                      className="modal-input" 
-                      style={{ width: '150px', height: '36px', padding: '0 0.5rem' }}
-                      value={newBoardType}
-                      onChange={e => setNewBoardType(e.target.value)}
-                    >
-                      <option value="kanban">התקדמות (Kanban)</option>
-                      <option value="timeline">ציר זמן (Timeline)</option>
-                    </select>
-                    {newBoardType === 'timeline' && (
-                      <>
-                        <select 
-                          className="modal-input" 
-                          style={{ width: '80px', height: '36px', padding: '0 0.5rem' }}
-                          value={newBoardQuarter}
-                          onChange={e => setNewBoardQuarter(e.target.value)}
-                        >
-                          <option value="Q1">Q1</option>
-                          <option value="Q2">Q2</option>
-                          <option value="Q3">Q3</option>
-                          <option value="Q4">Q4</option>
-                        </select>
-                        <input
-                          type="text"
-                          className="modal-input"
-                          style={{ width: '80px', height: '36px' }}
-                          value={newBoardYear}
-                          onChange={e => setNewBoardYear(e.target.value)}
-                          placeholder="שנה"
-                        />
-                      </>
-                    )}
-                    <button className="btn btn-primary" style={{ padding: '0 1rem', height: '36px' }} onClick={() => { 
-                        if(!newBoardName.trim()) return;
-                        addRoadmapBoard({ 
-                          name: newBoardName, 
-                          view_type: newBoardType,
-                          quarter: newBoardQuarter,
-                          year: newBoardYear,
-                          columns: newBoardType === 'kanban' ? [
-                            { key: 'Now', label: 'עכשיו', color: 'blue', icon: 'Zap' },
-                            { key: 'Next', label: 'הבא', color: 'purple', icon: 'ArrowRight' },
-                            { key: 'Later', label: 'בעתיד', color: 'yellow', icon: 'Clock' }
-                          ] : []
-                        }); 
-                        setNewBoardName(''); 
-                      }}>
-                      <Plus size={16} /> הוספה
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="teams-list-grid">
-                {(roadmapBoards || []).map(board => (
-                  <div key={board.id} className="team-management-item" style={{ minWidth: '150px' }}>
-                    <div className="flex-col">
-                      <span className="text-sm font-medium">{board.name}</span>
-                      <span className="text-xs text-tertiary">
-                        {board.view_type === 'timeline' ? `Timeline (${board.quarter} ${board.year})` : `${(board.columns || []).length} עמודות`}
-                      </span>
-                      <span className="text-[10px] text-accent-primary font-bold">
-                        {data.products.find(p => p.id === board.product_id)?.name}
-                      </span>
-                    </div>
-                    <button className="text-danger" onClick={() => deleteRoadmapBoard(board.id)} title="מחיקה" disabled={board.id === 'board_default'}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+          })()}
       </div>
     </div>
   );

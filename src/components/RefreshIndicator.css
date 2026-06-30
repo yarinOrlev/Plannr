@@ -1,0 +1,32 @@
+.refresh-indicator {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary, #475569);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  animation: refreshIndicatorIn 0.2s ease-out;
+}
+
+.refresh-indicator-icon {
+  animation: refreshIndicatorSpin 0.9s linear infinite;
+}
+
+@keyframes refreshIndicatorSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes refreshIndicatorIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

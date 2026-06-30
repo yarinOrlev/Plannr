@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useProductContext } from './context/ProductContext';
@@ -19,6 +20,7 @@ import SettingsView from './views/Settings';
 import FloatingNoteBubble from './components/FloatingNoteBubble';
 import Login from './views/Login';
 import LoadingScreen from './components/LoadingScreen';
+import RefreshIndicator from './components/RefreshIndicator';
 
 const ProtectedRoute = ({ children, requireHoD = false, allowedRoles = null }) => {
   const { isAuthenticated, isHoD, userProfile, loading } = useAuth();
@@ -33,8 +35,27 @@ const ProtectedRoute = ({ children, requireHoD = false, allowedRoles = null }) =
 
 function AppContent() {
   const { isAuthenticated, isHoD, loading: authLoading } = useAuth();
-  const { activeProduct, loading: productLoading, fetchError } = useProductContext();
+  const { activeProduct, loading: productLoading, refreshing, refreshData, fetchError, hasData } = useProductContext();
   const location = useLocation();
+
+  // Intercept the keyboard refresh (Cmd/Ctrl+R and F5) and turn it into a
+  // silent in-app data refetch — no page reload, no loading screen. The browser
+  // reload *button* and hard reload (Cmd/Ctrl+Shift+R) can't be intercepted by
+  // JS, so those still reload; the per-user data cache makes that reload seamless.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const onKeyDown = (e) => {
+      const isReloadCombo =
+        ((e.metaKey || e.ctrlKey) && (e.key === 'r' || e.key === 'R') && !e.shiftKey) ||
+        e.key === 'F5';
+      if (isReloadCombo) {
+        e.preventDefault();
+        refreshData();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isAuthenticated, refreshData]);
 
   if (fetchError) {
     return (
@@ -48,17 +69,22 @@ function AppContent() {
     );
   }
 
-  if (authLoading || productLoading) {
-    return <LoadingScreen />
-  }
-
-  if (!isAuthenticated) {
+  // Auth has settled with no session → show login.
+  if (!authLoading && !isAuthenticated) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
+  }
+
+  // Nothing to show yet → full-screen loader while the session restores or the
+  // first data load runs. On a reload we already have cached data (hasData), so
+  // this is skipped (no flicker); a fresh login has no cache, so the loader
+  // shows here instead of an empty page.
+  if (!hasData && (authLoading || productLoading)) {
+    return <LoadingScreen />;
   }
 
   // Auto-redirect HoD to department overview only if they land on the root AND have no active product selected
@@ -70,6 +96,7 @@ function AppContent() {
     <div className="app-container">
       <Sidebar />
       <FloatingNoteBubble />
+      <RefreshIndicator visible={refreshing} />
       
       <main className="main-content">
         <Header />

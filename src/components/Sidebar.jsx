@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, RefreshCcw, Briefcase, LogOut, Gauge, CalendarRange, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Map, Target, BookOpen, Settings, Hexagon, Compass, SlidersHorizontal, StickyNote, Users, Briefcase, LogOut, Gauge, CalendarRange, BarChart3 } from 'lucide-react';
 import './Sidebar.css';
 
 const ROLE_LABELS = {
@@ -71,15 +71,6 @@ const Sidebar = () => {
             <LogOut size={16} />
           </button>
         </div>
-
-        <button className="nav-link settings-btn text-xs" onClick={() => {
-          if(window.confirm('האם אתה בטוח שברצונך לרענן את הנתונים?')) {
-            window.location.reload();
-          }
-        }}>
-          <RefreshCcw size={16} />
-          <span>רענון נתונים</span>
-        </button>
       </div>
     </aside>
   );
