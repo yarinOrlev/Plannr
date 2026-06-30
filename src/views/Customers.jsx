@@ -435,8 +435,8 @@ const Customers = () => {
   const [filterSeg, setFilterSeg] = useState('כלל הלקוחות');
   const [searchTermLocal, setSearchTermLocal] = useState('');
   
-  const [customerForm, setCustomerForm] = useState({ name:'', company:'', email:'', segment:'Enterprise', wants:'', description:'', health:'neutral', product_id: activeProduct.id });
-  const [userForm, setUserForm] = useState({ name:'', customer_id:'', role:'', email:'', needs:'', product_id: activeProduct.id });
+  const [customerForm, setCustomerForm] = useState({ name:'', company:'', email:'', segment:'Enterprise', wants:'', description:'', health:'neutral', product_id: activeProduct?.id || '' });
+  const [userForm, setUserForm] = useState({ name:'', customer_id:'', role:'', email:'', needs:'', product_id: activeProduct?.id || '' });
 
   if (!activeProduct) return null;
 
