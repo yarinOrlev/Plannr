@@ -42,20 +42,51 @@ const defaultData = {
 
 const QUARTER_RANK = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 
+// Per-user snapshot of the loaded data. A page reload (e.g. the browser refresh
+// button, which JS cannot intercept) rehydrates from this instantly instead of
+// showing the blocking loading screen, then refreshes in the background.
+const DATA_CACHE_PREFIX = 'plannr_data_cache_';
+
+const readDataCache = (userId) => {
+  try {
+    const raw = localStorage.getItem(DATA_CACHE_PREFIX + userId);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeDataCache = (userId, data) => {
+  try {
+    localStorage.setItem(DATA_CACHE_PREFIX + userId, JSON.stringify(data));
+  } catch {
+    // Quota exceeded or serialization issue — caching is best-effort, not fatal.
+  }
+};
+
 export const ProductProvider = ({ children }) => {
-  const { user, isAuthenticated, isHoD } = useAuth();
+  const { user, isAuthenticated, isHoD, loading: authLoading } = useAuth();
+
+  // Read the last logged-in user's cached snapshot synchronously, so a page
+  // reload paints real data on the very first render (no loading-screen flicker).
+  // A fresh login has no such pointer, so it falls back to the full loader.
+  const [cachedAtInit] = useState(() => readDataCache(localStorage.getItem('plannr_last_user_id')));
+
   const [data, setData] = useState(() => {
     const savedBoards = localStorage.getItem('plannr_roadmap_boards');
     const savedScoring = localStorage.getItem('plannr_scoring_config');
     return {
       ...defaultData,
       roadmapBoards: savedBoards ? JSON.parse(savedBoards) : [],
-      scoringConfig: savedScoring ? JSON.parse(savedScoring) : defaultData.scoringConfig
+      scoringConfig: savedScoring ? JSON.parse(savedScoring) : defaultData.scoringConfig,
+      ...(cachedAtInit || {})
     };
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedAtInit);
+  const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const isFetching = useRef(false);
+  const hasLoadedRef = useRef(!!cachedAtInit);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('plannr_dark_mode') === 'true');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -83,15 +114,34 @@ export const ProductProvider = ({ children }) => {
     localStorage.setItem('plannr_dark_mode', darkMode);
   }, [darkMode]);
 
-  // Fetch all data from Supabase on login
+  // Fetch all data from Supabase on login.
+  // Wait until auth has settled before deciding: on a page reload there is a
+  // brief window where the Supabase session is still being restored and
+  // `isAuthenticated` is transiently false. Acting on it (resetting to default
+  // data and clearing loading) would mount the app's views with empty data for
+  // a frame — which, e.g., latched the Strategy page onto its settings tab.
   useEffect(() => {
+    if (authLoading) return;
     if (isAuthenticated && user) {
       fetchAllData();
     } else if (!isAuthenticated) {
+      // Logged out: clear data and the reload-hydration pointer, and mark the
+      // next login as a fresh load so it shows the full loader, not an empty page.
       setData(defaultData);
-      setLoading(false);
+      hasLoadedRef.current = false;
+      setLoading(true);
+      localStorage.removeItem('plannr_last_user_id');
     }
-  }, [isAuthenticated, user?.id]);
+  }, [authLoading, isAuthenticated, user?.id]);
+
+  // Persist loaded data per user so the next page load rehydrates instantly
+  // (see readDataCache in fetchAllData). Runs only after the first successful
+  // load so we never cache the empty default state.
+  useEffect(() => {
+    if (!user || !hasLoadedRef.current) return;
+    writeDataCache(user.id, data);
+    localStorage.setItem('plannr_last_user_id', user.id);
+  }, [data, user?.id]);
 
   // Real-time subscriptions
   useEffect(() => {
@@ -180,7 +230,16 @@ export const ProductProvider = ({ children }) => {
     }
     
     isFetching.current = true;
-    setLoading(true);
+
+    // The first load blocks with the full loading screen. Once we already have
+    // data — either from a prior load this session, or the cache rehydrated at
+    // mount on a page reload — every subsequent fetch runs silently in the
+    // background: current data stays on screen with only the subtle indicator.
+    if (hasLoadedRef.current) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setFetchError(null);
     logger.info('Fetching compartmentalized data from Supabase...', { userId: user.id, isHoD });
     
@@ -329,10 +388,16 @@ export const ProductProvider = ({ children }) => {
 
     } catch (error) {
       logger.error('Critical error in fetchAllData:', error);
-      setFetchError(error.message || 'שגיאת תקשורת עם בסיס הנתונים');
+      // Only block the whole app with the error screen on the initial cold load.
+      // A failed background refresh keeps the existing data visible.
+      if (!hasLoadedRef.current) {
+        setFetchError(error.message || 'שגיאת תקשורת עם בסיס הנתונים');
+      }
     } finally {
       logger.info('fetchAllData finished, clearing loading state');
+      hasLoadedRef.current = true;
       setLoading(false);
+      setRefreshing(false);
       isFetching.current = false;
     }
   };
@@ -1728,6 +1793,9 @@ export const ProductProvider = ({ children }) => {
     activeReviews,
     darkMode,
     loading,
+    refreshing,
+    hasData: (data.products?.length || 0) > 0,
+    refreshData: fetchAllData,
     fetchError,
     searchTerm,
     setSearchTerm,
