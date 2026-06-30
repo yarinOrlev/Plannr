@@ -1284,6 +1284,11 @@ export const ProductProvider = ({ children }) => {
       };
       const { data: inserted, error } = await supabase.from('members').insert([newMember]).select();
       if (error) throw error;
+      
+      if (member.user_id) {
+        await addTeamMember(member.team_id, member.user_id);
+      }
+      
       setData(prev => ({ ...prev, members: [...(prev.members || []), inserted[0]] }));
       return { success: true, data: inserted[0] };
     } catch (err) {
@@ -1296,6 +1301,16 @@ export const ProductProvider = ({ children }) => {
     try {
       const { error } = await supabase.from('members').update(updates).eq('id', id);
       if (error) throw error;
+      
+      if (updates.user_id) {
+        // Find existing member to get team_id
+        const prevData = await new Promise(resolve => setData(prev => { resolve(prev); return prev; }));
+        const member = prevData.members?.find(m => m.id === id);
+        if (member && member.user_id !== updates.user_id) {
+          await addTeamMember(member.team_id, updates.user_id);
+        }
+      }
+      
       setData(prev => ({ ...prev, members: (prev.members || []).map(m => m.id === id ? { ...m, ...updates } : m) }));
     } catch (err) {
       logger.error('Error updating member:', err);

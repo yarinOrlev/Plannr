@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
+import { useAuth } from '../context/AuthContext';
 import { Users, Plus, Trash2, ChevronDown, ChevronUp, MessageSquarePlus, X, Check, User, Building, Search, Calendar, Filter, Heart, AlertCircle, Smile, Activity, Edit2 } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import ProductBadge from '../components/ProductBadge';
@@ -12,7 +13,7 @@ const HEALTH_STATUS = [
   { key: 'risk', label: 'בסיכון', color: 'danger', icon: <AlertCircle size={14}/> }
 ];
 
-const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate, onDeleteNote, onUpdateNote }) => {
+const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate, onDeleteNote, onUpdateNote, isDeveloper }) => {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -98,10 +99,10 @@ const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate,
           </div>
         </div>
         <div className="flex-center gap-1">
-          <button className="btn-icon" title="עריכה" onClick={() => setIsEditing(true)}><Check size={14} /></button>
-          <button className="btn-icon" title="הוספת הערה" onClick={() => { setShowNoteInput(!showNoteInput); setExpanded(true); }}><MessageSquarePlus size={16} /></button>
+          {!isDeveloper && <button className="btn-icon" title="עריכה" onClick={() => setIsEditing(true)}><Check size={14} /></button>}
+          {!isDeveloper && <button className="btn-icon" title="הוספת הערה" onClick={() => { setShowNoteInput(!showNoteInput); setExpanded(true); }}><MessageSquarePlus size={16} /></button>}
           <button className="btn-icon" onClick={() => setExpanded(!expanded)}>{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
-          <button className="btn-icon text-danger" title="מחיקה" onClick={() => onDelete(user.id)}><Trash2 size={15} /></button>
+          {!isDeveloper && <button className="btn-icon text-danger" title="מחיקה" onClick={() => onDelete(user.id)}><Trash2 size={15} /></button>}
         </div>
       </div>
 
@@ -152,15 +153,19 @@ const UserCard = ({ user, customers, productName, onDelete, onAddNote, onUpdate,
                         <div className="flex-between mt-1">
                           <span className="text-xs text-tertiary">{new Date(n.createdAt).toLocaleDateString('he-IL')}</span>
                           <div className="flex-center gap-1">
-                            <button 
-                              className="btn-icon" 
-                              style={{ height: '20px', width: '20px' }} 
-                              onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.text); }}
-                              title="עריכה"
-                            >
-                              <Edit2 size={12}/>
-                            </button>
-                            <button className="btn-icon text-danger" style={{ height: '20px', width: '20px' }} onClick={() => onDeleteNote(user.id, n.id)} title="מחיקה"><Trash2 size={12}/></button>
+                            {!isDeveloper && (
+                              <button 
+                                className="btn-icon" 
+                                style={{ height: '20px', width: '20px' }} 
+                                onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.text); }}
+                                title="עריכה"
+                              >
+                                <Edit2 size={12}/>
+                              </button>
+                            )}
+                            {!isDeveloper && (
+                              <button className="btn-icon text-danger" style={{ height: '20px', width: '20px' }} onClick={() => onDeleteNote(user.id, n.id)} title="מחיקה"><Trash2 size={12}/></button>
+                            )}
                           </div>
                         </div>
                       </>
@@ -230,7 +235,7 @@ const FeedbackTimeline = ({ customers, productUsers, selectedProductIds, product
   );
 };
 
-const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, onDeleteNote, onUpdateNote }) => {
+const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, onDeleteNote, onUpdateNote, isDeveloper }) => {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -322,10 +327,10 @@ const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, on
           </div>
         </div>
         <div className="flex-center gap-1">
-          <button className="btn-icon" title="עריכה" onClick={() => setIsEditing(true)}><Check size={14} /></button>
-          <button className="btn-icon" title="הוספת הערה" onClick={() => { setShowNoteInput(!showNoteInput); setExpanded(true); }}><MessageSquarePlus size={16} /></button>
+          {!isDeveloper && <button className="btn-icon" title="עריכה" onClick={() => setIsEditing(true)}><Check size={14} /></button>}
+          {!isDeveloper && <button className="btn-icon" title="הוספת הערה" onClick={() => { setShowNoteInput(!showNoteInput); setExpanded(true); }}><MessageSquarePlus size={16} /></button>}
           <button className="btn-icon" onClick={() => setExpanded(!expanded)}>{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
-          <button className="btn-icon text-danger" title="מחיקה" onClick={() => onDelete(customer.id)}><Trash2 size={15} /></button>
+          {!isDeveloper && <button className="btn-icon text-danger" title="מחיקה" onClick={() => onDelete(customer.id)}><Trash2 size={15} /></button>}
         </div>
       </div>
 
@@ -384,22 +389,26 @@ const CustomerCard = ({ customer, productName, onDelete, onAddNote, onUpdate, on
                         <div className="flex-between mt-1">
                           <span className="text-xs text-tertiary">{new Date(n.createdAt).toLocaleDateString('he-IL')}</span>
                           <div className="flex-center gap-1">
-                            <button 
-                              className="btn-icon" 
-                              style={{ height: '20px', width: '20px' }} 
-                              onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.text); }}
-                              title="עריכה"
-                            >
-                              <Edit2 size={12}/>
-                            </button>
-                            <button 
-                              className="btn-icon text-danger" 
-                              style={{ height: '20px', width: '20px' }} 
-                              onClick={() => onDeleteNote(customer.id, n.id)}
-                              title="מחיקת הערה"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            {!isDeveloper && (
+                              <button 
+                                className="btn-icon" 
+                                style={{ height: '20px', width: '20px' }} 
+                                onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.text); }}
+                                title="עריכה"
+                              >
+                                <Edit2 size={12}/>
+                              </button>
+                            )}
+                            {!isDeveloper && (
+                              <button 
+                                className="btn-icon text-danger" 
+                                style={{ height: '20px', width: '20px' }} 
+                                onClick={() => onDeleteNote(customer.id, n.id)}
+                                title="מחיקת הערה"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </>
@@ -429,6 +438,7 @@ const Customers = () => {
     addProductUser, updateProductUser, deleteProductUser, addProductUserNote, deleteProductUserNote, updateProductUserNote,
     selectedProductIds, products 
   } = useProductContext();
+  const { isDeveloper } = useAuth();
 
   const [activeTab, setActiveTab] = useState('feed'); // 'feed' | 'customers' | 'users'
   const [showForm, setShowForm] = useState(false);
@@ -472,7 +482,7 @@ const Customers = () => {
           <p className="text-secondary text-lg">ניהול דאטה, פידבק וצרכי משתמשים</p>
         </div>
         <div className="flex gap-2">
-          {activeTab !== 'feed' && (
+          {!isDeveloper && activeTab !== 'feed' && (
             <button className={`btn ${showForm ? 'btn-danger-soft' : 'btn-primary'}`} onClick={() => setShowForm(!showForm)}>
               {showForm ? <X size={18} /> : <Plus size={18} />} {showForm ? 'ביטול' : (activeTab === 'customers' ? 'לקוח חדש' : 'משתמש חדש')}
             </button>
@@ -594,7 +604,7 @@ const Customers = () => {
 
         {activeTab === 'customers' && (
           filteredCustomers.length === 0 ? (
-            <div className="empty-state glass-panel p-10"><Building size={48} className="text-tertiary mb-4"/><h3 className="text-h3">אין לקוחות תואמים</h3><button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>הוסף לקוח</button></div>
+            <div className="empty-state glass-panel p-10"><Building size={48} className="text-tertiary mb-4"/><h3 className="text-h3">אין לקוחות תואמים</h3>{!isDeveloper && <button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>הוסף לקוח</button>}</div>
           ) : (
             <div className="customers-grid">
               {filteredCustomers.map(c => (
@@ -607,6 +617,7 @@ const Customers = () => {
                   onUpdate={updateCustomer} 
                   onDeleteNote={deleteCustomerNote}
                   onUpdateNote={updateCustomerNote}
+                  isDeveloper={isDeveloper}
                 />
               ))}
             </div>
@@ -615,7 +626,7 @@ const Customers = () => {
 
         {activeTab === 'users' && (
           filteredUsers.length === 0 ? (
-            <div className="empty-state glass-panel p-10"><User size={48} className="text-tertiary mb-4"/><h3 className="text-h3">אין משתמשים תואמים</h3><button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>הוסף משתמש</button></div>
+            <div className="empty-state glass-panel p-10"><User size={48} className="text-tertiary mb-4"/><h3 className="text-h3">אין משתמשים תואמים</h3>{!isDeveloper && <button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>הוסף משתמש</button>}</div>
           ) : (
             <div className="customers-grid">
               {filteredUsers.map(u => (
@@ -629,6 +640,7 @@ const Customers = () => {
                   onUpdate={updateProductUser}
                   onDeleteNote={deleteProductUserNote}
                   onUpdateNote={updateProductUserNote}
+                  isDeveloper={isDeveloper}
                 />
               ))}
             </div>

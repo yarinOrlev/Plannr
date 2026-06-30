@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useProductContext } from '../context/ProductContext';
+import { useAuth } from '../context/AuthContext';
 import {
   Plus, X, Check, MoreHorizontal, Zap, ArrowRight, Clock,
   MessageSquare, CheckCircle, AlertCircle, Trash2, Activity,
@@ -48,6 +49,7 @@ const TeamTimelineView = ({
   deleteRoadmapItem,
   data,
   isCompact,
+  isDeveloper,
 }) => {
   const months = QUARTERS[board?.quarter || 'Q3'] || [];
   const year = board?.year || '2026';
@@ -202,22 +204,28 @@ const TeamTimelineView = ({
                             <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{item.title}</span>
                           </div>
                           <div className="flex-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="btn-icon-xs text-tertiary" onClick={e => { e.stopPropagation(); setEditingId(item.id); setEditForm({ title: item.title, startMonth: item.start_month ?? 0, duration: item.duration ?? 1 }); }}>
-                              <Check size={10} />
-                            </button>
-                            <button className="btn-icon-xs text-red-400" onClick={e => { e.stopPropagation(); deleteRoadmapItem(item.id); }}>
-                              <Trash2 size={10} />
-                            </button>
+                            {!isDeveloper && (
+                              <button className="btn-icon-xs text-tertiary" onClick={e => { e.stopPropagation(); setEditingId(item.id); setEditForm({ title: item.title, startMonth: item.start_month ?? 0, duration: item.duration ?? 1 }); }}>
+                                <Check size={10} />
+                              </button>
+                            )}
+                            {!isDeveloper && (
+                              <button className="btn-icon-xs text-red-400" onClick={e => { e.stopPropagation(); deleteRoadmapItem(item.id); }}>
+                                <Trash2 size={10} />
+                              </button>
+                            )}
                           </div>
                         </div>
                         {!isCompact && (
                           <div className="flex-between mt-1 items-center">
                             <span className="text-[10px] font-medium" style={{ color: col.border }}>{product.name}</span>
-                            <div className="status-quick-toggle flex-center gap-1">
-                              <button className={`status-dot ${item.status === 'Completed Successfully' ? 'active emerald' : ''}`} onClick={e => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Completed Successfully' }); }} title="הצלחה">{item.status === 'Completed Successfully' && <Check />}</button>
-                              <button className={`status-dot ${item.status === 'Failed' ? 'active red' : ''}`} onClick={e => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Failed' }); }} title="כשלון">{item.status === 'Failed' && <X />}</button>
-                              <button className={`status-dot ${!item.status || item.status === 'In Progress' ? 'active blue' : ''}`} onClick={e => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'In Progress' }); }} title="בתהליך">{(!item.status || item.status === 'In Progress') && <Activity />}</button>
-                            </div>
+                            {!isDeveloper && (
+                              <div className="status-quick-toggle flex-center gap-1">
+                                <button className={`status-dot ${item.status === 'Completed Successfully' ? 'active emerald' : ''}`} onClick={e => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Completed Successfully' }); }} title="הצלחה">{item.status === 'Completed Successfully' && <Check />}</button>
+                                <button className={`status-dot ${item.status === 'Failed' ? 'active red' : ''}`} onClick={e => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'Failed' }); }} title="כשלון">{item.status === 'Failed' && <X />}</button>
+                                <button className={`status-dot ${!item.status || item.status === 'In Progress' ? 'active blue' : ''}`} onClick={e => { e.stopPropagation(); updateRoadmapItem(item.id, { status: 'In Progress' }); }} title="בתהליך">{(!item.status || item.status === 'In Progress') && <Activity />}</button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -230,7 +238,7 @@ const TeamTimelineView = ({
         </div>
 
         {/* Add new item row */}
-        {showAdd ? (
+        {!isDeveloper && (showAdd ? (
           <div className="glass-panel p-4 animate-fade-in" style={{ gridColumn: '1 / -1', direction: 'rtl' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
               <div>
@@ -289,7 +297,7 @@ const TeamTimelineView = ({
           <div className="flex-center py-4" style={{ gridColumn: '1 / -1' }}>
             <button className="timeline-add-btn" onClick={() => setShowAdd(true)} title="הוספת פריט"><Plus size={20} /></button>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
@@ -308,6 +316,7 @@ const KanbanView = ({
   updateReviewStatus,
   searchTerm,
   getRoadmapItemProgress,
+  isDeveloper,
 }) => {
   const [addingTo, setAddingTo] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', teams: [], product_id: data.activeProductId });
@@ -481,18 +490,22 @@ const KanbanView = ({
                             <ProductBadge productName={productName} productId={item.product_id} />
                           </div>
                           <div className="flex-center gap-1">
-                            {timelineBoards.length > 0 && (
+                            {!isDeveloper && timelineBoards.length > 0 && (
                               <button className="btn-icon text-tertiary hover:text-indigo-500"
                                 onClick={() => promotingId === item.id ? setPromotingId(null) : handlePromote(item)}
                                 title="העבר לציר זמן">
                                 <Zap size={18} />
                               </button>
                             )}
-                            <button className="btn-icon text-tertiary hover:text-primary"
-                              onClick={() => { setEditingCardId(item.id); setCardForm({ title: item.title, description: item.description || '', teams: item.teams || [], product_id: item.product_id || data.activeProductId }); }}
-                              title="עריכה"><Check size={18} /></button>
-                            <button className="btn-icon text-tertiary hover:text-danger"
-                              onClick={() => deleteRoadmapItem(item.id)} title="מחיקה"><Trash2 size={18} /></button>
+                            {!isDeveloper && (
+                              <button className="btn-icon text-tertiary hover:text-primary"
+                                onClick={() => { setEditingCardId(item.id); setCardForm({ title: item.title, description: item.description || '', teams: item.teams || [], product_id: item.product_id || data.activeProductId }); }}
+                                title="עריכה"><Check size={18} /></button>
+                            )}
+                            {!isDeveloper && (
+                              <button className="btn-icon text-tertiary hover:text-danger"
+                                onClick={() => deleteRoadmapItem(item.id)} title="מחיקה"><Trash2 size={18} /></button>
+                            )}
                           </div>
                         </div>
 
@@ -517,11 +530,13 @@ const KanbanView = ({
                             </div>
                           )}
                           {item.description && <p className="text-xs text-tertiary mt-1">{item.description}</p>}
-                          <div className="status-quick-toggle flex-center gap-1 mt-3" style={{ justifyContent: 'flex-start' }}>
-                            <button className={`status-dot ${item.status === 'Completed Successfully' ? 'active emerald' : ''}`} onClick={() => updateRoadmapItem(item.id, { status: 'Completed Successfully' })} title="הצלחה">{item.status === 'Completed Successfully' && <Check />}</button>
-                            <button className={`status-dot ${item.status === 'Failed' ? 'active red' : ''}`} onClick={() => updateRoadmapItem(item.id, { status: 'Failed' })} title="כישלון">{item.status === 'Failed' && <X />}</button>
-                            <button className={`status-dot ${!item.status || item.status === 'In Progress' ? 'active blue' : ''}`} onClick={() => updateRoadmapItem(item.id, { status: 'In Progress' })} title="בתהליך">{(!item.status || item.status === 'In Progress') && <Activity />}</button>
-                          </div>
+                          {!isDeveloper && (
+                            <div className="status-quick-toggle flex-center gap-1 mt-3" style={{ justifyContent: 'flex-start' }}>
+                              <button className={`status-dot ${item.status === 'Completed Successfully' ? 'active emerald' : ''}`} onClick={() => updateRoadmapItem(item.id, { status: 'Completed Successfully' })} title="הצלחה">{item.status === 'Completed Successfully' && <Check />}</button>
+                              <button className={`status-dot ${item.status === 'Failed' ? 'active red' : ''}`} onClick={() => updateRoadmapItem(item.id, { status: 'Failed' })} title="כישלון">{item.status === 'Failed' && <X />}</button>
+                              <button className={`status-dot ${!item.status || item.status === 'In Progress' ? 'active blue' : ''}`} onClick={() => updateRoadmapItem(item.id, { status: 'In Progress' })} title="בתהליך">{(!item.status || item.status === 'In Progress') && <Activity />}</button>
+                            </div>
+                          )}
                         </div>
 
                         {reviews.map(rev => (
@@ -536,7 +551,7 @@ const KanbanView = ({
                 );
               })}
 
-              {isAdding ? (
+              {!isDeveloper && (isAdding ? (
                 <div className="kanban-add-form">
                   <input autoFocus style={inputStyle} placeholder="כותרת..." value={form.title}
                     onChange={e => setForm({ ...form, title: e.target.value })}
@@ -575,7 +590,7 @@ const KanbanView = ({
                 <button className="add-card-btn text-tertiary" onClick={() => { setAddingTo(key); setForm({ title: '', description: '', teams: [], product_id: data.activeProductId }); }}>
                   <Plus size={16} /> הוספת פריט
                 </button>
-              )}
+              ))}
             </div>
           </div>
         );
@@ -603,6 +618,7 @@ const Roadmaps = () => {
     getRoadmapItemProgress,
     activeQuarter,
   } = useProductContext();
+  const { isDeveloper } = useAuth();
 
   // Mode: 'timeline' | 'kanban'
   const [mode, setMode] = useState('timeline');
@@ -733,6 +749,7 @@ const Roadmaps = () => {
             deleteRoadmapItem={deleteRoadmapItem}
             data={data}
             isCompact={isCompact}
+            isDeveloper={isDeveloper}
           />
         ) : (
           <div className="glass-panel p-10 text-center animate-fade-in" style={{ direction: 'rtl' }}>
@@ -755,6 +772,7 @@ const Roadmaps = () => {
             updateReviewStatus={updateReviewStatus}
             searchTerm={searchTerm || ''}
             getRoadmapItemProgress={getRoadmapItemProgress}
+            isDeveloper={isDeveloper}
           />
         ) : (
           <div className="glass-panel p-10 text-center animate-fade-in" style={{ direction: 'rtl' }}>

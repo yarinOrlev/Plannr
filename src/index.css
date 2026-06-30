@@ -33,6 +33,7 @@
   --accent-danger:  #DC2626;
   --accent-purple:  #7C3AED;
   --accent-indigo:  #4F46E5;
+  --accent-gradient: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple));
 
   /* Borders - Consistent and Non-distracting */
   --border-color:      #E5E7EB;
@@ -227,6 +228,18 @@ button { cursor: pointer; border: none; background: none; }
 .text-danger     { color: var(--accent-danger); }
 .text-indigo     { color: var(--accent-indigo); }
 .text-yellow     { color: var(--accent-warning); }
+
+/* Gradient text (logo wordmark, headings). Falls back to a solid accent for
+   browsers without background-clip:text support. */
+.text-gradient {
+  color: var(--accent-indigo);
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+/* The hexagon logo mark: tint the stroke with the brand indigo. */
+.logo-icon { color: var(--accent-indigo); }
 
 /* Surface backgrounds keyed to the theme (kept out of the Tailwind palette so
    `text-secondary`/`text-tertiary` retain their text-color meaning above). */

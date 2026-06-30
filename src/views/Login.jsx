@@ -105,11 +105,12 @@ const Login = () => {
           {isSignUp && (
             <div className="form-group mb-6">
               <label className="text-xs font-bold text-tertiary mb-2 block">תפקיד במערכת</label>
-              <div className="flex-center gap-2">
+              <div className="flex-center gap-2" style={{ flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className={`btn flex-1 text-xs py-2 ${role === 'PM' ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setRole('PM')}
+                  style={{ minWidth: '45%' }}
                 >
                   מנהל מוצר (PM)
                 </button>
@@ -117,6 +118,7 @@ const Login = () => {
                   type="button"
                   className={`btn flex-1 text-xs py-2 ${role === 'TeamLead' ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setRole('TeamLead')}
+                  style={{ minWidth: '45%' }}
                 >
                   ראש צוות (TL)
                 </button>
@@ -124,8 +126,17 @@ const Login = () => {
                   type="button"
                   className={`btn flex-1 text-xs py-2 ${role === 'HoD' ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setRole('HoD')}
+                  style={{ minWidth: '45%' }}
                 >
                   ראש מחלקה (HoD)
+                </button>
+                <button
+                  type="button"
+                  className={`btn flex-1 text-xs py-2 ${role === 'Developer' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setRole('Developer')}
+                  style={{ minWidth: '45%' }}
+                >
+                  מפתח (Developer)
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useProductContext } from '../context/ProductContext';
+import { useAuth } from '../context/AuthContext';
 import {
   Plus, ChevronDown, ChevronRight, X, Check, Info, Pencil, Trash2,
   Settings, Sliders, AlertCircle, Target, ListTodo, ListChecks
@@ -124,7 +125,7 @@ const RiceField = ({ label, tooltip, value, onChange }) => (
 );
 
 // ─── Single task row ──────────────────────────────────────────────────────────
-const TaskRow = ({ task, onEdit, onDelete, onStatusChange }) => {
+const TaskRow = ({ task, onEdit, onDelete, onStatusChange, isDeveloper }) => {
   const riceOn = task.rice_enabled !== false;
   const score = calcRice(task);
   const orig = Number(task.original_estimate_days) || 0;
@@ -177,7 +178,7 @@ const TaskRow = ({ task, onEdit, onDelete, onStatusChange }) => {
       <td>
         <div className="flex-center gap-1">
           <button className="btn-icon-xs text-secondary" onClick={() => onEdit(task)} title="עריכה"><Pencil size={12} /></button>
-          <button className="btn-icon-xs text-danger" onClick={() => onDelete(task.id)} title="מחיקה"><Trash2 size={12} /></button>
+          {!isDeveloper && <button className="btn-icon-xs text-danger" onClick={() => onDelete(task.id)} title="מחיקה"><Trash2 size={12} /></button>}
         </div>
       </td>
     </tr>
@@ -320,7 +321,7 @@ const TaskForm = ({ initial, onSave, onCancel }) => {
 };
 
 // ─── Feature block ────────────────────────────────────────────────────────────
-const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTasks, onEditFeature, onDeleteFeature, addFeatureTask, updateFeatureTask, deleteFeatureTask }) => {
+const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTasks, onEditFeature, onDeleteFeature, addFeatureTask, updateFeatureTask, deleteFeatureTask, isDeveloper }) => {
   const [expanded, setExpanded] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -434,7 +435,7 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
               <Plus size={13} />
             </button>
             <button className="btn-icon-xs text-secondary" onClick={() => onEditFeature(feature)} title="עריכה"><Pencil size={13} /></button>
-            <button className="btn-icon-xs text-danger" onClick={() => onDeleteFeature(feature.id)} title="מחיקה"><Trash2 size={13} /></button>
+            {!isDeveloper && <button className="btn-icon-xs text-danger" onClick={() => onDeleteFeature(feature.id)} title="מחיקה"><Trash2 size={13} /></button>}
           </div>
         </td>
       </tr>
@@ -461,7 +462,8 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
         <TaskRow key={task.id} task={task}
           onEdit={t => { setEditingTask(t); setAddingTask(false); }}
           onDelete={id => deleteFeatureTask(id)}
-          onStatusChange={s => updateFeatureTask(task.id, { status: s })} />
+          onStatusChange={s => updateFeatureTask(task.id, { status: s })} 
+          isDeveloper={isDeveloper} />
       )}
 
       {/* Empty tasks nudge */}
@@ -502,7 +504,7 @@ const FeatureBlock = ({ feature, objectives, products, scoringConfig, featureTas
 };
 
 // ─── Objective section ────────────────────────────────────────────────────────
-const ObjectiveSection = ({ objective, features, products, scoringConfig, featureTasks, onEditFeature, onDeleteFeature, addFeatureTask, updateFeatureTask, deleteFeatureTask, onAddFeature }) => {
+const ObjectiveSection = ({ objective, features, products, scoringConfig, featureTasks, onEditFeature, onDeleteFeature, addFeatureTask, updateFeatureTask, deleteFeatureTask, onAddFeature, isDeveloper }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -555,7 +557,8 @@ const ObjectiveSection = ({ objective, features, products, scoringConfig, featur
                   scoringConfig={scoringConfig} featureTasks={featureTasks}
                   onEditFeature={onEditFeature} onDeleteFeature={onDeleteFeature}
                   addFeatureTask={addFeatureTask} updateFeatureTask={updateFeatureTask}
-                  deleteFeatureTask={deleteFeatureTask} />
+                  deleteFeatureTask={deleteFeatureTask} 
+                  isDeveloper={isDeveloper} />
               ))}
               {features.length === 0 && (
                 <tr>
@@ -584,6 +587,7 @@ const Prioritization = () => {
     updateScoringConfig, activeQuarter,
     featureTasks, addFeatureTask, updateFeatureTask, deleteFeatureTask
   } = useProductContext();
+  const { isDeveloper } = useAuth();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -924,6 +928,7 @@ const Prioritization = () => {
               updateFeatureTask={updateFeatureTask}
               deleteFeatureTask={deleteFeatureTask}
               onAddFeature={openAddForm}
+              isDeveloper={isDeveloper}
             />
           );
         })}
