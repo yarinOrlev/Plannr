@@ -17,9 +17,9 @@ const Sidebar = () => {
   const navItems = [
     { path: '/', icon: <LayoutDashboard size={18} />, label: 'לוח בקרה', color: 'blue' },
     { path: '/strategy', icon: <Compass size={18} />, label: 'אסטרטגיה', color: 'indigo' },
+    { path: '/objectives', icon: <Target size={18} />, label: 'יעדים', color: 'red' },
     { path: '/prioritization', icon: <SlidersHorizontal size={18} />, label: 'פיצרים ומשימות', color: 'purple' },
     { path: '/roadmaps', icon: <Map size={18} />, label: 'מפת דרכים', color: 'teal' },
-    { path: '/objectives', icon: <Target size={18} />, label: 'יעדים', color: 'red' },
     { path: '/customers', icon: <Users size={18} />, label: 'לקוחות ומשתמשים', color: 'pink' },
     { path: '/documentation', icon: <BookOpen size={18} />, label: 'תיעוד', color: 'yellow', roles: ['PM', 'TeamLead', 'HoD'] },
     { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green', roles: ['PM', 'TeamLead', 'HoD'] },
@@ -61,7 +61,7 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <div className="user-profile mb-4">
+        <div className="user-profile">
           <div className="user-avatar">{userProfile?.avatar || 'U'}</div>
           <div className="user-info">
             <span className="user-name">{userProfile?.name || 'משתמש'}</span>
