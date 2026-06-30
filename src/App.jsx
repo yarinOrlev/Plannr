@@ -99,7 +99,7 @@ function AppContent() {
           <Route
             path="/team/sprints"
             element={
-              <ProtectedRoute allowedRoles={['PM', 'TeamLead', 'HoD']}>
+              <ProtectedRoute allowedRoles={['PM', 'TeamLead', 'HoD', 'Developer']}>
                 <SprintBoard />
               </ProtectedRoute>
             }

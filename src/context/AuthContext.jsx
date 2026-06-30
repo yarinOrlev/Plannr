@@ -134,6 +134,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     isHoD: user?.user_metadata?.role === 'HoD',
     isTeamLead: user?.user_metadata?.role === 'TeamLead',
+    isDeveloper: user?.user_metadata?.role === 'Developer',
     userProfile: {
       id: user?.id,
       name: user?.user_metadata?.name,

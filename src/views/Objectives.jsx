@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
+import { useAuth } from '../context/AuthContext';
 import { Target, ChevronRight, ChevronDown, ChevronUp, Plus, Calendar, Activity, TrendingUp, TrendingDown, Minus, X, Check, Trash2, Pencil } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import ProductBadge from '../components/ProductBadge';
@@ -25,7 +26,7 @@ const KpiCard = ({ kpi }) => {
   );
 };
 
-const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableFeatures = [], onEdit, onDelete, onLinkFeature }) => {
+const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableFeatures = [], onEdit, onDelete, onLinkFeature, isDeveloper }) => {
   const [expanded, setExpanded] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const krs = objective.key_results || objective.keyResults || [];
@@ -60,8 +61,12 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableF
             <div className="progress-value">{objective.progress}%</div>
             <div className="progress-label text-xs text-tertiary">כולל</div>
             <div className="flex-center gap-1 mt-2">
-              <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Pencil size={14}/></button>
-              <button className="btn-icon-xs text-tertiary hover:text-danger" onClick={() => onDelete(objective.id)} title="מחיקה"><Trash2 size={14}/></button>
+              {!isDeveloper && (
+                <button className="btn-icon-xs text-tertiary hover:text-primary" onClick={() => onEdit(objective)} title="עריכה"><Pencil size={14}/></button>
+              )}
+              {!isDeveloper && (
+                <button className="btn-icon-xs text-tertiary hover:text-danger" onClick={() => onDelete(objective.id)} title="מחיקה"><Trash2 size={14}/></button>
+              )}
             </div>
           </div>
           <button className="btn-icon mt-1" onClick={() => setExpanded(!expanded)}>
@@ -124,17 +129,19 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableF
           <div className="linked-features mt-6 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
             <div className="flex-between mb-3">
               <h4 className="text-xs font-bold text-tertiary uppercase" style={{ letterSpacing:'0.05em' }}>פיצ'רים קשורים</h4>
-              <button 
-                className={isLinking ? "btn btn-danger-soft" : "btn btn-secondary"} 
-                style={{ padding: '0.2rem 0.6rem', fontSize: '10px' }}
-                onClick={() => setIsLinking(!isLinking)}
-              >
-                {isLinking ? (
-                  <><X size={10} className="ml-1" /> ביטול</>
-                ) : (
-                  <><Plus size={10} className="ml-1" /> קישור פיצ'ר</>
-                )}
-              </button>
+              {!isDeveloper && (
+                <button 
+                  className={isLinking ? "btn btn-danger-soft" : "btn btn-secondary"} 
+                  style={{ padding: '0.2rem 0.6rem', fontSize: '10px' }}
+                  onClick={() => setIsLinking(!isLinking)}
+                >
+                  {isLinking ? (
+                    <><X size={10} className="ml-1" /> ביטול</>
+                  ) : (
+                    <><Plus size={10} className="ml-1" /> קישור פיצ'ר</>
+                  )}
+                </button>
+              )}
             </div>
 
             {isLinking && (
@@ -163,12 +170,14 @@ const ObjectiveCard = ({ objective, productName, linkedFeatures = [], availableF
               {linkedFeatures.length > 0 ? linkedFeatures.map(f => (
                 <div key={f.id} className="flex-center gap-1 badge badge-gray" style={{ fontSize: '0.7rem' }}>
                   {f.title}
-                  <X 
-                    size={10} 
-                    className="cursor-pointer hover:text-danger" 
-                    onClick={() => onLinkFeature(f.id, null)}
-                    title="ביטול קישור"
-                  />
+                  {!isDeveloper && (
+                    <X 
+                      size={10} 
+                      className="cursor-pointer hover:text-danger" 
+                      onClick={() => onLinkFeature(f.id, null)}
+                      title="ביטול קישור"
+                    />
+                  )}
                 </div>
               )) : <span className="text-xs text-tertiary italic">אין פיצ'רים קשורים</span>}
             </div>
@@ -184,6 +193,7 @@ const YEAR_OPTIONS = ['2025', '2026', '2027', '2028'];
 
 const Objectives = () => {
   const { activeObjectives, activeProduct, activeKpis, addObjective, updateObjective, deleteObjective, updateFeature, data, activeFeatures, searchTerm, selectedProductIds, products, activeQuarter } = useProductContext();
+  const { isDeveloper } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ 
@@ -334,9 +344,11 @@ const Objectives = () => {
           <span className="badge badge-gray" style={{ alignSelf: 'center' }}>
             <Calendar size={13} /> {selectedQuarter}
           </span>
-          <button className={`btn ${showForm ? 'btn-danger-soft' : 'btn-primary'}`} onClick={() => setShowForm(!showForm)}>
-            {showForm ? <X size={18}/> : <Plus size={18}/>} {showForm?'ביטול':'יעד חדש'}
-          </button>
+          {!isDeveloper && (
+            <button className={`btn ${showForm ? 'btn-danger-soft' : 'btn-primary'}`} onClick={() => setShowForm(!showForm)}>
+              {showForm ? <X size={18}/> : <Plus size={18}/>} {showForm?'ביטול':'יעד חדש'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -544,6 +556,7 @@ const Objectives = () => {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onLinkFeature={(featureId, objectiveId) => updateFeature(featureId, { objective_id: objectiveId })}
+              isDeveloper={isDeveloper}
             />
           ))}
           {filtered.length === 0 && (
@@ -551,7 +564,7 @@ const Objectives = () => {
               <Target size={48} className="text-tertiary mb-4"/>
               <h3 className="text-h3 mb-2">אין יעדים</h3>
               <p className="text-secondary mb-4">{`אין יעדים עבור ${selectedQuarter}.`}</p>
-              <button className="btn btn-primary" onClick={()=>setShowForm(true)}>צור יעד ראשון</button>
+              {!isDeveloper && <button className="btn btn-primary" onClick={()=>setShowForm(true)}>צור יעד ראשון</button>}
             </div>
           )}
         </div>

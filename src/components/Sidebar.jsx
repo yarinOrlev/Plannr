@@ -8,6 +8,7 @@ const ROLE_LABELS = {
   HoD: 'ראש מחלקה',
   TeamLead: 'ראש צוות',
   PM: 'מנהל מוצר',
+  Developer: 'מפתח',
 };
 
 const Sidebar = () => {
@@ -20,13 +21,13 @@ const Sidebar = () => {
     { path: '/roadmaps', icon: <Map size={18} />, label: 'מפת דרכים', color: 'teal' },
     { path: '/objectives', icon: <Target size={18} />, label: 'יעדים', color: 'red' },
     { path: '/customers', icon: <Users size={18} />, label: 'לקוחות ומשתמשים', color: 'pink' },
-    { path: '/documentation', icon: <BookOpen size={18} />, label: 'תיעוד', color: 'yellow' },
-    { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green' },
+    { path: '/documentation', icon: <BookOpen size={18} />, label: 'תיעוד', color: 'yellow', roles: ['PM', 'TeamLead', 'HoD'] },
+    { path: '/notes', icon: <StickyNote size={18} />, label: 'הערות', color: 'green', roles: ['PM', 'TeamLead', 'HoD'] },
     { path: '/team/capacity', icon: <Gauge size={18} />, label: 'צוות וקיבולת', color: 'teal', roles: ['PM', 'TeamLead', 'HoD'] },
-    { path: '/team/sprints', icon: <CalendarRange size={18} />, label: 'תכנון ספרינטים', color: 'blue', roles: ['PM', 'TeamLead', 'HoD'] },
+    { path: '/team/sprints', icon: <CalendarRange size={18} />, label: 'תכנון ספרינטים', color: 'blue', roles: ['PM', 'TeamLead', 'HoD', 'Developer'] },
     { path: '/team/planning', icon: <BarChart3 size={18} />, label: 'תכנון רבעוני', color: 'indigo', roles: ['PM', 'TeamLead', 'HoD'] },
     { path: '/department', icon: <Briefcase size={18} />, label: 'מבט מחלקתי', color: 'indigo', roles: ['HoD'] },
-    { path: '/settings', icon: <Settings size={18} />, label: 'הגדרות', color: 'gray' },
+    { path: '/settings', icon: <Settings size={18} />, label: 'הגדרות', color: 'gray', roles: ['PM', 'TeamLead', 'HoD'] },
   ];
 
   // Items without a `roles` list are public to all authenticated users;

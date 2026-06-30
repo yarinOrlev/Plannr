@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { useProductContext } from '../context/ProductContext';
+import { useAuth } from '../context/AuthContext';
 import { Compass, Users, Lightbulb, AlertTriangle, Pencil, X, Check, Trash2, Plus, Calendar, SlidersHorizontal } from 'lucide-react';
 import MultiProductSelector from '../components/MultiProductSelector';
 import './Strategy.css';
 
-const StrategyCard = ({ item, colorClass, icon, onEdit }) => (
+const StrategyCard = ({ item, colorClass, icon, onEdit, isDeveloper }) => (
   <div className="strategy-card glass-panel">
     <div className="strategy-card-header">
       <div className="flex-center gap-3" style={{ justifyContent: 'flex-start' }}>
         <div className={`icon-badge ${colorClass}`}>{icon}</div>
         <h3 className="text-h3">{item.typeLabel || item.type}</h3>
       </div>
-      <button className="btn-icon" onClick={() => onEdit(item)} title="עריכה">
-        <Pencil size={15} />
-      </button>
+      {!isDeveloper && (
+        <button className="btn-icon" onClick={() => onEdit(item)} title="עריכה">
+          <Pencil size={15} />
+        </button>
+      )}
     </div>
     <div className="strategy-card-body mt-4">
       <h4 className="text-lg font-medium mb-2">{item.title}</h4>
@@ -36,8 +39,9 @@ const Strategy = () => {
     addRoadmapBoard,
     deleteRoadmapBoard
   } = useProductContext();
+  const { isDeveloper } = useAuth();
   
-  const [activeTab, setActiveTab] = useState(selectedProductIds[0] || 'settings');
+  const [activeTab, setActiveTab] = useState(selectedProductIds[0] || (isDeveloper ? '' : 'settings'));
   const [editItem, setEditItem] = useState(null);
   const [newTeamName, setNewTeamName] = useState('');
   const [newBoardName, setNewBoardName] = useState('');
@@ -48,9 +52,9 @@ const Strategy = () => {
   // Handle tab switching when selection changes
   React.useEffect(() => {
     if (activeTab !== 'settings' && !selectedProductIds.includes(activeTab)) {
-      setActiveTab(selectedProductIds[0] || 'settings');
+      setActiveTab(selectedProductIds[0] || (isDeveloper ? '' : 'settings'));
     }
-  }, [selectedProductIds]);
+  }, [selectedProductIds, isDeveloper]);
 
   if (!activeProduct) return null;
 
@@ -101,6 +105,15 @@ const Strategy = () => {
             </button>
           );
         })}
+        {!isDeveloper && (
+          <button 
+            className={`strategy-tab-item ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            <SlidersHorizontal size={16} />
+            הגדרות מתקדמות
+          </button>
+        )}
       </div>
 
       {editItem && (
@@ -174,9 +187,9 @@ const Strategy = () => {
             return (
               <div key={activeTab} className="product-strategy-section animate-scale-in">
                 <div className="strategy-grid mb-8">
-                  <StrategyCard item={problem} icon={<AlertTriangle size={24}/>} colorClass="bg-red"   onEdit={(item) => handleEdit(item, activeTab)}/>
-                  <StrategyCard item={people}  icon={<Users size={24}/>}         colorClass="bg-blue"  onEdit={(item) => handleEdit(item, activeTab)}/>
-                  <StrategyCard item={solution} icon={<Lightbulb size={24}/>}     colorClass="bg-green" onEdit={(item) => handleEdit(item, activeTab)}/>
+                  <StrategyCard item={problem} icon={<AlertTriangle size={24}/>} colorClass="bg-red"   onEdit={(item) => handleEdit(item, activeTab)} isDeveloper={isDeveloper} />
+                  <StrategyCard item={people}  icon={<Users size={24}/>}         colorClass="bg-blue"  onEdit={(item) => handleEdit(item, activeTab)} isDeveloper={isDeveloper} />
+                  <StrategyCard item={solution} icon={<Lightbulb size={24}/>}     colorClass="bg-green" onEdit={(item) => handleEdit(item, activeTab)} isDeveloper={isDeveloper} />
                 </div>
 
                 <div className="vision-section glass-panel">
@@ -185,9 +198,11 @@ const Strategy = () => {
                       <Compass size={26} />
                       <h2 className="text-h2">חזון המוצר</h2>
                     </div>
-                    <button className="btn-icon" onClick={() => handleEditVision(vision, activeTab)} title="עריכת חזון">
-                      <Pencil size={18} />
-                    </button>
+                    {!isDeveloper && (
+                      <button className="btn-icon" onClick={() => handleEditVision(vision, activeTab)} title="עריכת חזון">
+                        <Pencil size={18} />
+                      </button>
+                    )}
                   </div>
                   <p className="vision-text text-lg text-secondary leading-relaxed">
                     {vision?.description ? (

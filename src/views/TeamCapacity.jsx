@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProductContext } from '../context/ProductContext';
+import { useAuth } from '../context/AuthContext';
 import { Gauge, Plus, Trash2, Check, X, Pencil, UserPlus, Users } from 'lucide-react';
 import './TeamCapacity.css';
 
@@ -12,20 +13,48 @@ const CAPACITY_OPTIONS = [
   { value: 0.2, label: '20%' },
 ];
 
-const EMPTY_DRAFT = { name: '', role_title: '', capacity_factor: 1, active: true };
+const EMPTY_DRAFT = { user_id: '', name: '', role_title: '', capacity_factor: 1, active: true };
 
 const initials = (name = '') =>
   name.trim().split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
 
 // Shared add/edit form, kept at module scope so it stays referentially stable.
-const MemberFormFields = ({ value, onChange, onSave, onCancel, submitLabel }) => (
+const MemberFormFields = ({ value, onChange, onSave, onCancel, submitLabel, appUsers, isEdit }) => (
   <div className="member-form" style={{ direction: 'rtl' }}>
     <div className="field">
-      <label>שם</label>
-      <input className="modal-input" value={value.name} autoFocus
-        onChange={e => onChange({ ...value, name: e.target.value })}
-        onKeyDown={e => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') onCancel(); }}
-        placeholder="שם מלא" />
+      {isEdit && !value.user_id && appUsers && (
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label style={{ color: 'var(--accent-primary)' }}>שייך למשתמש מהמערכת (אופציונלי)</label>
+          <select className="modal-input" value={value.user_id || ''}
+            onChange={e => {
+              const uid = e.target.value;
+              if (!uid) return onChange({ ...value, user_id: '' });
+              const u = appUsers.find(x => x.id === uid);
+              onChange({ ...value, user_id: uid, name: u.name || u.email, role_title: u.role || 'Developer' });
+            }}>
+            <option value="">-- ללא שיוך --</option>
+            {appUsers.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+          </select>
+        </div>
+      )}
+      <label>{isEdit ? 'שם' : 'משתמש'}</label>
+      {!isEdit && appUsers ? (
+        <select className="modal-input" value={value.user_id || ''}
+          onChange={e => {
+            const uid = e.target.value;
+            if (!uid) return onChange({ ...value, user_id: '', name: '', role_title: '' });
+            const u = appUsers.find(x => x.id === uid);
+            onChange({ ...value, user_id: uid, name: u.name || u.email, role_title: u.role || 'Developer' });
+          }}>
+          <option value="">בחר משתמש מהמערכת...</option>
+          {appUsers.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+        </select>
+      ) : (
+        <input className="modal-input" value={value.name} disabled={isEdit && !!value.user_id}
+          onChange={e => onChange({ ...value, name: e.target.value })}
+          onKeyDown={e => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') onCancel(); }}
+          placeholder="שם מלא" />
+      )}
     </div>
     <div className="field">
       <label>תפקיד</label>
@@ -52,6 +81,12 @@ const TeamCapacity = () => {
     teams, activeTeamId, setActiveTeam,
     teamRoster, addMember, updateMember, deleteMember, createTeam,
   } = useProductContext();
+  const { fetchAllUsers } = useAuth();
+  const [appUsers, setAppUsers] = useState([]);
+
+  useEffect(() => {
+    fetchAllUsers().then(setAppUsers);
+  }, []);
 
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(EMPTY_DRAFT);
@@ -103,6 +138,7 @@ const TeamCapacity = () => {
   const startEdit = (m) => {
     setEditingId(m.id);
     setEditDraft({
+      user_id: m.user_id || '',
       name: m.name,
       role_title: m.role_title || '',
       capacity_factor: Number(m.capacity_factor) || 1,
@@ -159,7 +195,7 @@ const TeamCapacity = () => {
 
         {adding && (
           <MemberFormFields value={draft} onChange={setDraft} onSave={handleAdd}
-            onCancel={() => { setAdding(false); setDraft(EMPTY_DRAFT); }} submitLabel="הוספה" />
+            onCancel={() => { setAdding(false); setDraft(EMPTY_DRAFT); }} submitLabel="הוספה" appUsers={appUsers} isEdit={false} />
         )}
 
         <div className="roster-list">
@@ -170,7 +206,7 @@ const TeamCapacity = () => {
           {teamRoster.map(m => (
             editingId === m.id ? (
               <MemberFormFields key={m.id} value={editDraft} onChange={setEditDraft}
-                onSave={saveEdit} onCancel={() => setEditingId(null)} submitLabel="שמירה" />
+                onSave={saveEdit} onCancel={() => setEditingId(null)} submitLabel="שמירה" appUsers={appUsers} isEdit={true} />
             ) : (
               <div key={m.id} className={`member-row ${m.active ? '' : 'is-inactive'}`}>
                 <div className="member-main">
