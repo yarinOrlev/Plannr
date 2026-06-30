@@ -835,7 +835,7 @@ const SprintBoard = () => {
     activeTeamId, teamSprints, teamRoster,
     addSprint, updateSprint, deleteSprint, activeQuarter,
     featureTasks, updateFeatureTask, getSprintCapacity, getMemberAvailableDays,
-    activeFeatures, activeObjectives, selectedProductIds,
+    allFeatures, allObjectives,
   } = useProductContext();
 
   const [formMode, setFormMode] = useState(null); // null | 'create' | sprintObject(edit)
@@ -859,11 +859,12 @@ const SprintBoard = () => {
       .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')),
     [teamSprints, activeQ.quarter, activeQ.year]);
 
-  const productFeatureTasks = useMemo(() =>
-    featureTasks.filter(t => !t.product_id || selectedProductIds.includes(t.product_id)),
-    [featureTasks, selectedProductIds]);
+  // Sprint planning is team-scoped: show every task the team can see,
+  // regardless of the product selector. (featureTasks is already limited to
+  // the user's accessible products by the data fetch.)
+  const allTasks = featureTasks;
 
-  const missionsOf = (sprintId) => productFeatureTasks.filter(t => t.sprint_id === sprintId);
+  const missionsOf = (sprintId) => allTasks.filter(t => t.sprint_id === sprintId);
 
   // Derive the focused sprint with a fallback to the first one, so we never need
   // an effect to "repair" focus when sprints are added/removed.
@@ -966,9 +967,9 @@ const SprintBoard = () => {
           <div className="sb-board-grid">
             <div className="sb-pool-col">
               <MissionPool
-                tasks={productFeatureTasks}
-                features={activeFeatures}
-                objectives={activeObjectives}
+                tasks={allTasks}
+                features={allFeatures}
+                objectives={allObjectives}
                 sprint={focused}
                 updateFeatureTask={updateFeatureTask}
                 dndHandlers={dnd} />
@@ -978,8 +979,8 @@ const SprintBoard = () => {
                 <SprintWorkspace
                   sprint={focused}
                   missions={missionsOf(focused.id)}
-                  features={activeFeatures}
-                  objectives={activeObjectives}
+                  features={allFeatures}
+                  objectives={allObjectives}
                   roster={activeRoster}
                   updateFeatureTask={updateFeatureTask}
                   getSprintCapacity={getSprintCapacity}
